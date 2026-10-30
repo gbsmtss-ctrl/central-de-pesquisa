@@ -1,0 +1,23 @@
+[
+    {
+        "nome": "Administrador",
+        "usuario": "admin",
+        "senha": "123",
+        "status": "Aprovado",
+        "is_admin": true
+    },
+    {
+        "nome": "Gabriela Mendes Farias Matos",
+        "usuario": "Gabriela Mendes",
+        "senha": "130901gabi",
+        "status": "Recusado",
+        "is_admin": false
+    },
+    {
+        "nome": "Gabriela Mendes Farias Matos",
+        "usuario": "Gabriela Matos",
+        "senha": "130901gabi",
+        "status": "Aprovado",
+        "is_admin": false
+    }
+]
