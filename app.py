@@ -182,8 +182,11 @@ POPS_INICIAIS = [
 def carregar_dados(arquivo, padrao):
   """Carrega os dados salvos em arquivo JSON."""
   if os.path.exists(arquivo):
-    with open(arquivo, "r", encoding="utf-8") as f:
-      return json.load(f)
+    try:
+      with open(arquivo, "r", encoding="utf-8") as f:
+        return json.load(f)
+    except Exception:
+      return padrao
   return padrao
 
 
@@ -248,7 +251,6 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size):
   return pdf_buffer.getvalue()
 
 
-# Sincronização constante com disco
 usuario_admin_padrao = [{
     "nome": "Administrador",
     "usuario": "admin",
@@ -261,6 +263,7 @@ usuario_admin_padrao = [{
     "is_admin": True,
 }]
 
+# Carregamento permanente em disco
 st.session_state.integrantes = carregar_dados(
     ARQUIVO_INTEGRANTES,
     [{
@@ -280,7 +283,7 @@ st.session_state.usuarios = carregar_dados(
     ARQUIVO_USUARIOS, usuario_admin_padrao
 )
 
-# --- SESSÃO PERSISTENTE (MANTÉM LOGIN NO REFRESH) ---
+# Sessão persistente por URL
 if "usr" in st.query_params:
   usr_param = st.query_params["usr"]
   usr_encontrado = next(
@@ -311,14 +314,25 @@ if st.session_state.usuario_logado is None:
   with aba_login:
     st.subheader("Login")
     with st.form("form_login"):
-      user_input = st.text_input("Usuário / E-mail")
+      user_input = st.text_input("Usuário, E-mail ou Nome")
       senha_input = st.text_input("Senha", type="password")
       btn_login = st.form_submit_button("Entrar", type="primary")
 
       if btn_login:
+        # Recarrega diretamente do arquivo para obter a aprovação mais recente
+        st.session_state.usuarios = carregar_dados(
+            ARQUIVO_USUARIOS, usuario_admin_padrao
+        )
+
+        usr_clean = user_input.strip().lower()
         usuario_encontrado = None
+
         for u in st.session_state.usuarios:
-          if u["usuario"].lower() == user_input.strip().lower():
+          u_usr = u.get("usuario", "").strip().lower()
+          u_email = u.get("email", "").strip().lower()
+          u_nome = u.get("nome", "").strip().lower()
+
+          if usr_clean in [u_usr, u_email, u_nome]:
             usuario_encontrado = u
             break
 
@@ -368,6 +382,10 @@ if st.session_state.usuario_logado is None:
         else:
           usr_clean = novo_usuario.strip().lower()
 
+          # Recarrega lista antes de validar duplicidade
+          st.session_state.usuarios = carregar_dados(
+              ARQUIVO_USUARIOS, usuario_admin_padrao
+          )
           existe = any(
               u["usuario"].lower() == usr_clean
               and u.get("status") in ["Aprovado", "Pendente"]
@@ -380,12 +398,6 @@ if st.session_state.usuario_logado is None:
                 " usuário."
             )
           else:
-            st.session_state.usuarios = [
-                u
-                for u in st.session_state.usuarios
-                if u["usuario"].lower() != usr_clean
-            ]
-
             novo_user_dict = {
                 "nome": novo_nome.strip(),
                 "usuario": novo_usuario.strip(),
@@ -400,6 +412,10 @@ if st.session_state.usuario_logado is None:
             st.session_state.usuarios.append(novo_user_dict)
             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
+            # Salva na lista de integrantes
+            st.session_state.integrantes = carregar_dados(
+                ARQUIVO_INTEGRANTES, []
+            )
             integrante_existente = next(
                 (
                     p
@@ -426,9 +442,9 @@ if st.session_state.usuario_logado is None:
             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
             st.success(
-                "Solicitação enviada com sucesso! Seu cadastro foi salvo. Assim"
-                " que o administrador aprovar, poderá entrar com o seu usuário"
-                " e senha."
+                "Solicitação enviada com sucesso! Assim que o administrador"
+                " aprovar, você poderá entrar utilizando o seu Usuário, E-mail"
+                " ou Nome."
             )
 
 # --- ÁREA LOGADA (SISTEMA PRINCIPAL) ---
@@ -1025,7 +1041,7 @@ else:
                   " sucesso! Aguarde a aprovação do Administrador."
               )
 
-  # --- 6. CRIADOR DE POP PADRÃO (COM BUSCA E VERIFICAÇÃO ANTI-DUPLICIDADE) ---
+  # --- 6. CRIADOR DE POP PADRÃO ---
   elif menu_selecionado == "📝 Criador de POP Padrão":
     st.title("📝 Criador e Atualizador de POP Padrão")
     st.caption(
@@ -1244,6 +1260,10 @@ ELABORADO POR: {usuario_atual['nome']}
     ])
 
     with tab_acessos:
+      # Recarrega a lista do arquivo para obter cadastros novos em tempo real
+      st.session_state.usuarios = carregar_dados(
+          ARQUIVO_USUARIOS, usuario_admin_padrao
+      )
       pend_acessos = [
           u for u in st.session_state.usuarios if u.get("status") == "Pendente"
       ]
@@ -1261,10 +1281,14 @@ ELABORADO POR: {usuario_atual['nome']}
               u["status"] = "Aprovado"
               salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
+              # Atualiza também na lista de integrantes ativas
+              st.session_state.integrantes = carregar_dados(
+                  ARQUIVO_INTEGRANTES, []
+              )
               for p in st.session_state.integrantes:
                 if p["Nome"].lower() == u["nome"].lower():
                   p["Situação"] = "Ativo"
-                  p["Categoria"] = u.get("categoria", p["Categoria"])
+                  p["Categoria"] = u.get("categoria", p.get("Categoria"))
                   p["Telefone"] = u.get("telefone", p.get("Telefone", "-"))
                   p["Email"] = u.get("email", p.get("Email", "-"))
 
