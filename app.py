@@ -53,6 +53,15 @@ ARQUIVO_INTEGRANTES = "integrantes.json"
 ARQUIVO_AGENDA = "agenda.json"
 ARQUIVO_USUARIOS = "usuarios.json"
 
+CATEGORIAS_PADRAO = [
+    "Iniciação Científica",
+    "Mestrado",
+    "Doutorado",
+    "Pós-Doutorado",
+    "Orientador",
+    "Técnico / Pesquisador",
+]
+
 
 def carregar_dados(arquivo, padrao):
   """Carrega os dados salvos em arquivo JSON."""
@@ -87,6 +96,8 @@ usuario_admin_padrao = [{
     "nome": "Administrador",
     "usuario": "admin",
     "senha": "123",
+    "categoria": "Orientador",
+    "vinculo": "UFRRJ",
     "status": "Aprovado",
     "is_admin": True,
 }]
@@ -144,11 +155,21 @@ if st.session_state.usuario_logado is None:
     st.subheader("Pedir Permissão de Acesso")
     with st.form("form_solicitar_acesso"):
       novo_nome = st.text_input("Nome Completo")
+      nova_categoria = st.selectbox("Categoria", CATEGORIAS_PADRAO)
+      novo_vinculo = st.text_input(
+          "Vínculo / Curso", "UFRRJ - Engenharia de Alimentos"
+      )
       novo_usuario = st.text_input("Usuário Desejado (ex: gabriela)")
       nova_senha = st.text_input("Criar Senha", type="password")
       btn_solicitar = st.form_submit_button("Enviar Solicitação")
 
-      if btn_solicitar and novo_nome and novo_usuario and nova_senha:
+      if (
+          btn_solicitar
+          and novo_nome
+          and novo_usuario
+          and nova_senha
+          and novo_vinculo
+      ):
         usr_clean = novo_usuario.strip().lower()
 
         # Verifica existência considerando apenas contas ativas ou pendentes
@@ -160,8 +181,8 @@ if st.session_state.usuario_logado is None:
 
         if existe:
           st.error(
-              "Este nome de usuário já está em uso por uma conta ativa ou"
-              " pendente. Escolha outro nome de usuário."
+              "Este nome de usuário já está em uso. Escolha outro nome de"
+              " usuário."
           )
         else:
           # Remove qualquer registro antigo/inativo desse nome de usuário para liberar o login
@@ -171,11 +192,13 @@ if st.session_state.usuario_logado is None:
               if u["usuario"].lower() != usr_clean
           ]
 
-          # Cria o novo registro de solicitação
+          # Cria o novo registro de solicitação incluindo Categoria e Vínculo
           novo_user_dict = {
               "nome": novo_nome.strip(),
               "usuario": novo_usuario.strip(),
               "senha": nova_senha,
+              "categoria": nova_categoria,
+              "vinculo": novo_vinculo.strip(),
               "status": "Pendente",
               "is_admin": False,
           }
@@ -192,12 +215,14 @@ if st.session_state.usuario_logado is None:
               None,
           )
           if integrante_existente:
+            integrante_existente["Categoria"] = nova_categoria
+            integrante_existente["Vínculo"] = novo_vinculo.strip()
             integrante_existente["Situação"] = "Pendente"
           else:
             st.session_state.integrantes.append({
                 "Nome": novo_nome.strip(),
-                "Categoria": "Aluno / Pesquisador",
-                "Vínculo": "Solicitante de Acesso",
+                "Categoria": nova_categoria,
+                "Vínculo": novo_vinculo.strip(),
                 "Situação": "Pendente",
             })
           salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
@@ -278,16 +303,7 @@ else:
     st.subheader("Cadastrar Novo Integrante")
     with st.form("form_cadastro"):
       nome = st.text_input("Nome Completo")
-      categoria = st.selectbox(
-          "Categoria",
-          [
-              "Iniciação Científica",
-              "Mestrado",
-              "Doutorado",
-              "Orientador",
-              "Técnico",
-          ],
-      )
+      categoria = st.selectbox("Categoria", CATEGORIAS_PADRAO)
       vinculo = st.text_input(
           "Vínculo / Curso", "UFRRJ - Engenharia de Alimentos"
       )
@@ -331,7 +347,6 @@ else:
       )
 
       if st.button("Apagar Integrante", type="primary"):
-        # Remove da lista de integrantes
         st.session_state.integrantes = [
             p
             for p in st.session_state.integrantes
@@ -339,7 +354,6 @@ else:
         ]
         salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
-        # Remove o usuário correspondente para LIBERAR O NOME DE USUÁRIO
         st.session_state.usuarios = [
             u
             for u in st.session_state.usuarios
@@ -348,8 +362,7 @@ else:
         salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
         st.success(
-            f"Integrante '{pessoa_para_remover}' removido(a) com sucesso! O"
-            " nome de usuário foi liberado para novos cadastros."
+            f"Integrante '{pessoa_para_remover}' removido(a) com sucesso!"
         )
         st.rerun()
 
@@ -622,22 +635,43 @@ else:
       for idx, u in enumerate(pendentes):
         col_u, col_b1, col_b2 = st.columns([3, 1, 1])
         with col_u:
+          cat_text = u.get("categoria", "Não informada")
+          vinc_text = u.get("vinculo", "Não informado")
           st.write(f"👤 **{u['nome']}** (Usuário: `{u['usuario']}`)")
+          st.caption(f"Categoria: {cat_text} | Vínculo: {vinc_text}")
+
         with col_b1:
           if st.button("✅ Aprovar", key=f"ap_{idx}", type="primary"):
             u["status"] = "Aprovado"
             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
+            # Atualiza situação na tabela de integrantes para "Ativo"
+            integrante_encontrado = False
             for p in st.session_state.integrantes:
               if p["Nome"].lower() == u["nome"].lower():
+                p["Categoria"] = u.get("categoria", p.get("Categoria"))
+                p["Vínculo"] = u.get("vinculo", p.get("Vínculo"))
                 p["Situação"] = "Ativo"
+                integrante_encontrado = True
+
+            if not integrante_encontrado:
+              st.session_state.integrantes.append({
+                  "Nome": u["nome"],
+                  "Categoria": u.get("categoria", "Aluno / Pesquisador"),
+                  "Vínculo": u.get("vinculo", "UFRRJ"),
+                  "Situação": "Ativo",
+              })
+
             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
-            st.success(f"Acesso aprovado para {u['nome']}!")
+            st.success(
+                f"Acesso aprovado para {u['nome']}! Dados atualizados na Visão"
+                " Geral."
+            )
             st.rerun()
+
         with col_b2:
           if st.button("❌ Recusar e Excluir", key=f"rec_{idx}"):
-            # Exclui totalmente o usuário para liberar o login
             st.session_state.usuarios = [
                 usr
                 for usr in st.session_state.usuarios
@@ -653,8 +687,7 @@ else:
             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
             st.warning(
-                f"Solicitação de {u['nome']} recusada. Nome de usuário liberado"
-                " com sucesso!"
+                f"Solicitação de {u['nome']} recusada. Nome de usuário liberado!"
             )
             st.rerun()
     else:
@@ -664,7 +697,9 @@ else:
     st.subheader("Usuários com Acesso Aprovado")
 
     if aprovados:
-      df_u = pd.DataFrame(aprovados)[["nome", "usuario", "status", "is_admin"]]
+      df_u = pd.DataFrame(aprovados)[
+          ["nome", "usuario", "categoria", "vinculo", "status", "is_admin"]
+      ]
       st.dataframe(df_u, use_container_width=True)
 
       st.markdown("### 🗑️ Excluir Conta de Usuário Aprovado")
@@ -694,7 +729,7 @@ else:
 
           st.success(
               f"Usuário `{usr_alvo}` excluído com sucesso! O nome de usuário"
-              " está novamente disponível."
+              " está disponível novamente."
           )
           st.rerun()
       else:
