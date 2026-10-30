@@ -263,7 +263,6 @@ usuario_admin_padrao = [{
     "is_admin": True,
 }]
 
-# Carregamento permanente em disco
 st.session_state.integrantes = carregar_dados(
     ARQUIVO_INTEGRANTES,
     [{
@@ -283,7 +282,7 @@ st.session_state.usuarios = carregar_dados(
     ARQUIVO_USUARIOS, usuario_admin_padrao
 )
 
-# Sessão persistente por URL
+# Sessão persistente via parâmetro da URL
 if "usr" in st.query_params:
   usr_param = st.query_params["usr"]
   usr_encontrado = next(
@@ -314,16 +313,15 @@ if st.session_state.usuario_logado is None:
   with aba_login:
     st.subheader("Login")
     with st.form("form_login"):
-      user_input = st.text_input("Usuário, E-mail ou Nome")
+      user_input = st.text_input("Usuário, E-mail ou Nome Completo")
       senha_input = st.text_input("Senha", type="password")
       btn_login = st.form_submit_button("Entrar", type="primary")
 
       if btn_login:
-        # Recarrega diretamente do arquivo para obter a aprovação mais recente
+        # Carrega a versão mais recente diretamente do arquivo JSON
         st.session_state.usuarios = carregar_dados(
             ARQUIVO_USUARIOS, usuario_admin_padrao
         )
-
         usr_clean = user_input.strip().lower()
         usuario_encontrado = None
 
@@ -345,11 +343,15 @@ if st.session_state.usuario_logado is None:
               st.rerun()
             elif usuario_encontrado["status"] == "Pendente":
               st.warning(
-                  "Sua solicitação de acesso ainda está pendente de aprovação"
-                  " pelo administrador."
+                  "⚠️ O seu cadastro ainda está PENDENTE de aprovação pelo"
+                  " Administrador. Peça para o Admin aprovar na 'Central de"
+                  " Aprovações'."
               )
             else:
-              st.error("Sua solicitação de acesso foi recusada ou removida.")
+              st.error(
+                  "❌ Sua solicitação de acesso foi recusada. Você pode tentar"
+                  " se cadastrar novamente na aba 'Solicitar Acesso'."
+              )
           else:
             st.error("Senha incorreta.")
         else:
@@ -381,23 +383,33 @@ if st.session_state.usuario_logado is None:
           st.error("Por favor, preencha todos os campos obrigatórios (*).")
         else:
           usr_clean = novo_usuario.strip().lower()
-
-          # Recarrega lista antes de validar duplicidade
           st.session_state.usuarios = carregar_dados(
               ARQUIVO_USUARIOS, usuario_admin_padrao
           )
-          existe = any(
-              u["usuario"].lower() == usr_clean
-              and u.get("status") in ["Aprovado", "Pendente"]
-              for u in st.session_state.usuarios
+
+          # Procura se já existe esse nome de usuário registrado
+          usuario_existente = next(
+              (
+                  u
+                  for u in st.session_state.usuarios
+                  if u["usuario"].strip().lower() == usr_clean
+              ),
+              None,
           )
 
-          if existe:
+          if usuario_existente and usuario_existente.get("status") == "Aprovado":
             st.error(
-                "Este nome de usuário já está em uso. Escolha outro nome de"
-                " usuário."
+                "Este nome de usuário já pertence a uma conta APROVADA. Tente"
+                " fazer o login na aba 'Entrar no Sistema'."
             )
           else:
+            # Se já existia e estava Pendente ou Recusado, remove o antigo registro e insere o novo
+            st.session_state.usuarios = [
+                u
+                for u in st.session_state.usuarios
+                if u["usuario"].strip().lower() != usr_clean
+            ]
+
             novo_user_dict = {
                 "nome": novo_nome.strip(),
                 "usuario": novo_usuario.strip(),
@@ -412,39 +424,29 @@ if st.session_state.usuario_logado is None:
             st.session_state.usuarios.append(novo_user_dict)
             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-            # Salva na lista de integrantes
+            # Atualiza/Insere também na lista de integrantes do laboratório
             st.session_state.integrantes = carregar_dados(
                 ARQUIVO_INTEGRANTES, []
             )
-            integrante_existente = next(
-                (
-                    p
-                    for p in st.session_state.integrantes
-                    if p["Nome"].lower() == novo_nome.strip().lower()
-                ),
-                None,
-            )
-            if integrante_existente:
-              integrante_existente["Categoria"] = nova_categoria
-              integrante_existente["Vínculo"] = novo_vinculo.strip()
-              integrante_existente["Telefone"] = novo_telefone.strip()
-              integrante_existente["Email"] = novo_email.strip()
-              integrante_existente["Situação"] = "Pendente"
-            else:
-              st.session_state.integrantes.append({
-                  "Nome": novo_nome.strip(),
-                  "Categoria": nova_categoria,
-                  "Vínculo": novo_vinculo.strip(),
-                  "Telefone": novo_telefone.strip(),
-                  "Email": novo_email.strip(),
-                  "Situação": "Pendente",
-              })
+            st.session_state.integrantes = [
+                p
+                for p in st.session_state.integrantes
+                if p["Nome"].strip().lower() != novo_nome.strip().lower()
+            ]
+
+            st.session_state.integrantes.append({
+                "Nome": novo_nome.strip(),
+                "Categoria": nova_categoria,
+                "Vínculo": novo_vinculo.strip(),
+                "Telefone": novo_telefone.strip(),
+                "Email": novo_email.strip(),
+                "Situação": "Pendente",
+            })
             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
             st.success(
-                "Solicitação enviada com sucesso! Assim que o administrador"
-                " aprovar, você poderá entrar utilizando o seu Usuário, E-mail"
-                " ou Nome."
+                "Solicitação enviada com sucesso! Seu cadastro foi salvo como"
+                " 'Pendente'. Aguarde a aprovação do Administrador para entrar."
             )
 
 # --- ÁREA LOGADA (SISTEMA PRINCIPAL) ---
@@ -452,7 +454,6 @@ else:
   usuario_atual = st.session_state.usuario_logado
   is_admin = usuario_atual.get("is_admin", False)
 
-  # Barra Lateral Estilizada
   st.sidebar.title("🧪 Central LTAB")
   st.sidebar.caption("Laboratório de Pesquisa & Desenvolvimento")
 
@@ -1260,7 +1261,6 @@ ELABORADO POR: {usuario_atual['nome']}
     ])
 
     with tab_acessos:
-      # Recarrega a lista do arquivo para obter cadastros novos em tempo real
       st.session_state.usuarios = carregar_dados(
           ARQUIVO_USUARIOS, usuario_admin_padrao
       )
@@ -1281,7 +1281,6 @@ ELABORADO POR: {usuario_atual['nome']}
               u["status"] = "Aprovado"
               salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-              # Atualiza também na lista de integrantes ativas
               st.session_state.integrantes = carregar_dados(
                   ARQUIVO_INTEGRANTES, []
               )
@@ -1297,13 +1296,9 @@ ELABORADO POR: {usuario_atual['nome']}
               st.rerun()
           with c_b2:
             if st.button("❌ Recusar", key=f"rec_usr_{idx}"):
-              st.session_state.usuarios = [
-                  usr
-                  for usr in st.session_state.usuarios
-                  if usr["usuario"] != u["usuario"]
-              ]
+              u["status"] = "Recusado"
               salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
-              st.warning(f"Solicitação de {u['nome']} removida.")
+              st.warning(f"Solicitação de {u['nome']} recusada.")
               st.rerun()
       else:
         st.info("Nenhuma solicitação de novo acesso pendente.")
