@@ -4,6 +4,7 @@ from io import BytesIO
 import json
 import os
 import pandas as pd
+from PIL import Image, ImageDraw
 import qrcode
 import streamlit as st
 
@@ -88,6 +89,14 @@ CATEGORIAS_PADRAO = [
     "Orientador",
     "Técnico / Pesquisador",
 ]
+
+DESTINOS_ETIQUETAS = {
+    "Tubo Eppendorf (0.5 mL / 1.5 mL / 2.0 mL)": 15,  # mm
+    "Tubo Falcon (15 mL)": 22,  # mm
+    "Tubo Falcon (50 mL)": 30,  # mm
+    "Frasco / Béquer / Erlenmeyer": 45,  # mm
+    "Bancada / Equipamento / Prateleira": 65,  # mm
+}
 
 PASTAS_INICIAIS = [
     {
@@ -182,6 +191,61 @@ def salvar_dados(arquivo, dados):
   """Salva a lista atualizada no arquivo JSON."""
   with open(arquivo, "w", encoding="utf-8") as f:
     json.dump(dados, f, ensure_ascii=False, indent=4)
+
+
+def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size):
+  """Gera um documento PDF em A4 com a grade de etiquetas dimensionadas."""
+  dpi = 150
+  px_per_mm = dpi / 25.4
+  page_w = int(210 * px_per_mm)  # A4 Largura em pixels
+  page_h = int(297 * px_per_mm)  # A4 Altura em pixels
+
+  label_px = int(mm_size * px_per_mm)
+  margin_px = int(10 * px_per_mm)
+  spacing_px = int(4 * px_per_mm)
+
+  pages = []
+  current_page = Image.new("RGB", (page_w, page_h), "white")
+  draw = ImageDraw.Draw(current_page)
+
+  x = margin_px
+  y = margin_px
+
+  qr_resized = qr_img_pil.resize((label_px, label_px))
+
+  for _ in range(quantidade):
+    if x + label_px > page_w - margin_px:
+      x = margin_px
+      y += label_px + spacing_px
+
+    if y + label_px > page_h - margin_px:
+      pages.append(current_page)
+      current_page = Image.new("RGB", (page_w, page_h), "white")
+      draw = ImageDraw.Draw(current_page)
+      x = margin_px
+      y = margin_px
+
+    current_page.paste(qr_resized, (x, y))
+    draw.rectangle(
+        [x, y, x + label_px, y + label_px], outline="lightgray", width=1
+    )
+    x += label_px + spacing_px
+
+  pages.append(current_page)
+
+  pdf_buffer = BytesIO()
+  if len(pages) == 1:
+    pages[0].save(pdf_buffer, format="PDF", resolution=float(dpi))
+  else:
+    pages[0].save(
+        pdf_buffer,
+        format="PDF",
+        resolution=float(dpi),
+        save_all=True,
+        append_images=pages[1:],
+    )
+
+  return pdf_buffer.getvalue()
 
 
 # Inicializa dados no session_state
@@ -561,7 +625,7 @@ else:
             st.write(f"**Responsável:** {ev['Responsável']}")
             st.write(f"**Observações:** {ev['Observações']}")
       else:
-        st.info("Nenum agendamento para este dia.")
+        st.info("Nenhum agendamento para este dia.")
 
     st.markdown("---")
     st.subheader("📋 Lista Completa de Agendamentos")
@@ -689,11 +753,11 @@ else:
       df_eq = pd.DataFrame(st.session_state.integrantes)
       st.dataframe(df_eq, use_container_width=True)
 
-  # --- 4. GERAR QR CODE DE AMOSTRAS ---
+  # --- 4. GERAR QR CODE DE AMOSTRAS (COM QUANTIDADE E PDF DIMENSIONADO) ---
   elif menu_selecionado == "🏷️ Gerar QR Code de Amostras":
-    st.title("🧪 Gerador de QR Code de Amostras")
+    st.title("🧪 Gerador de QR Code de Amostras & Etiquetas")
 
-    col_f, col_q = st.columns([1, 1])
+    col_f, col_q = st.columns([1.2, 1])
 
     with col_f:
       id_amostra = st.text_input("Código / ID da Amostra", "AMS-2026-001")
@@ -742,13 +806,32 @@ else:
       localizacao = st.text_input(
           "Local de Armazenamento", "Freezer -20°C / Caixa 3 / Posição B4"
       )
+
+      st.markdown("---")
+      st.subheader("🖨️ Configurações para Impressão")
+      c_dest, c_qtd = st.columns([1.5, 1])
+      with c_dest:
+        dest_selecionado = st.selectbox(
+            "Onde vai pôr o QR Code?", list(DESTINOS_ETIQUETAS.keys())
+        )
+        tamanho_mm = DESTINOS_ETIQUETAS[dest_selecionado]
+        st.caption(
+            f"📐 Tamanho sugerido para este recipiente: **{tamanho_mm} x"
+            f" {tamanho_mm} mm**"
+        )
+
+      with c_qtd:
+        qtd_etiquetas = st.number_input(
+            "Quantidade de Etiquetas", min_value=1, max_value=100, value=6
+        )
+
       descricao = st.text_area(
           "Descrição Detalhada / Protocolo",
           value=(
               "Extrato obtido via fermentação estado sólido. Tampão fosfato"
               " 0.1M pH 7.0."
           ),
-          height=100,
+          height=80,
       )
       gerar = st.button("Gerar Etiqueta QR Code")
 
@@ -772,12 +855,26 @@ else:
         img.save(buffer, format="PNG")
         img_bytes = buffer.getvalue()
 
-        st.image(img_bytes, caption=f"QR Code: {id_amostra}", width=250)
+        st.image(
+            img_bytes, caption=f"Pré-visualização: {id_amostra}", width=240
+        )
+
         st.download_button(
-            label="Baixar QR Code (PNG)",
+            label="🖼️ Baixar QR Code em Imagem (PNG)",
             data=img_bytes,
             file_name=f"QR_{id_amostra}.png",
             mime="image/png",
+        )
+
+        # Geração do PDF formatado para impressão
+        pdf_etiquetas = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm)
+
+        st.download_button(
+            label=f"📄 Baixar PDF para Impressão ({qtd_etiquetas}x Etiquetas)",
+            data=pdf_etiquetas,
+            file_name=f"Etiquetas_{id_amostra}_{tamanho_mm}mm.pdf",
+            mime="application/pdf",
+            type="primary",
         )
 
   # --- 5. REPOSITÓRIO DE ARQUIVOS ---
@@ -920,20 +1017,34 @@ else:
                   " sucesso! Aguarde a aprovação do Administrador."
               )
 
-  # --- 6. CRIADOR DE POP PADRÃO (CÓDIGO, VERSÃO E AUTOR AUTOMÁTICOS) ---
+  # --- 6. CRIADOR DE POP PADRÃO (COM BUSCA E VERIFICAÇÃO ANTI-DUPLICIDADE) ---
   elif menu_selecionado == "📝 Criador de POP Padrão":
     st.title("📝 Criador e Atualizador de POP Padrão")
     st.caption(
-        "Gere ou atualize POPs do laboratório. O código e a versão são"
-        " gerenciados automaticamente."
+        "Gere novos POPs ou atualize versões existentes. O sistema verifica"
+        " automaticamente duplicidades de nomes."
     )
 
+    # Campo de busca para filtrar POPs existentes
+    busca_pop = st.text_input(
+        "🔎 Buscar POP existente por título ou código:", ""
+    )
+
+    pops_filtrados = st.session_state.pops_db
+    if busca_pop.strip():
+      pops_filtrados = [
+          p
+          for p in st.session_state.pops_db
+          if busca_pop.lower() in p["codigo"].lower()
+          or busca_pop.lower() in p["titulo"].lower()
+      ]
+
     opcoes_pops = [
-        f"{p['codigo']} - {p['titulo']}" for p in st.session_state.pops_db
+        f"{p['codigo']} - {p['titulo']}" for p in pops_filtrados
     ] + ["➕ Cadastrar Novo POP..."]
 
     sel_pop_opcao = st.selectbox(
-        "Selecione o POP para Atualizar ou Crie um Novo:", opcoes_pops
+        "Selecione um POP para Atualizar ou Crie um Novo:", opcoes_pops
     )
 
     if sel_pop_opcao == "➕ Cadastrar Novo POP...":
@@ -1012,32 +1123,47 @@ else:
         if not (tit_pop and obj_pop and mat_pop and passos_pop and sec_pop):
           st.error("Por favor, preencha todos os campos do formulário.")
         else:
+          # Validação anti-duplicidade para novos POPs
+          duplicado = False
           if is_novo:
-            novo_pop_dict = {
-                "codigo": cod_pop,
-                "titulo": tit_pop.strip(),
-                "versao": 1,
-                "objetivo": obj_pop.strip(),
-                "materiais": mat_pop.strip(),
-                "passos": passos_pop.strip(),
-                "seguranca": sec_pop.strip(),
-                "autor": usuario_atual["nome"],
-            }
-            st.session_state.pops_db.append(novo_pop_dict)
-          else:
-            pop_existente["versao"] = versao_num
-            pop_existente["objetivo"] = obj_pop.strip()
-            pop_existente["materiais"] = mat_pop.strip()
-            pop_existente["passos"] = passos_pop.strip()
-            pop_existente["seguranca"] = sec_pop.strip()
-            pop_existente["autor"] = usuario_atual["nome"]
+            duplicado = any(
+                p["titulo"].strip().lower() == tit_pop.strip().lower()
+                for p in st.session_state.pops_db
+            )
 
-          salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
-          st.success(
-              f"POP '{cod_pop}' ({versao_pop}) salvo com sucesso em nome de"
-              f" {usuario_atual['nome']}!"
-          )
-          st.rerun()
+          if duplicado:
+            st.error(
+                f"❌ Erro: Já existe um POP cadastrado com o título '{tit_pop}'!"
+                " Por favor, pesquise o POP existente na lista para criar uma"
+                " nova versão."
+            )
+          else:
+            if is_novo:
+              novo_pop_dict = {
+                  "codigo": cod_pop,
+                  "titulo": tit_pop.strip(),
+                  "versao": 1,
+                  "objetivo": obj_pop.strip(),
+                  "materiais": mat_pop.strip(),
+                  "passos": passos_pop.strip(),
+                  "seguranca": sec_pop.strip(),
+                  "autor": usuario_atual["nome"],
+              }
+              st.session_state.pops_db.append(novo_pop_dict)
+            else:
+              pop_existente["versao"] = versao_num
+              pop_existente["objetivo"] = obj_pop.strip()
+              pop_existente["materiais"] = mat_pop.strip()
+              pop_existente["passos"] = passos_pop.strip()
+              pop_existente["seguranca"] = sec_pop.strip()
+              pop_existente["autor"] = usuario_atual["nome"]
+
+            salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+            st.success(
+                f"POP '{cod_pop}' ({versao_pop}) salvo com sucesso por"
+                f" {usuario_atual['nome']}!"
+            )
+            st.rerun()
 
     # Visualização e Exportação do POP selecionado
     if tit_pop:
