@@ -197,8 +197,8 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size):
   """Gera um documento PDF em A4 com a grade de etiquetas dimensionadas."""
   dpi = 150
   px_per_mm = dpi / 25.4
-  page_w = int(210 * px_per_mm)  # A4 Largura em pixels
-  page_h = int(297 * px_per_mm)  # A4 Altura em pixels
+  page_w = int(210 * px_per_mm)
+  page_h = int(297 * px_per_mm)
 
   label_px = int(mm_size * px_per_mm)
   margin_px = int(10 * px_per_mm)
@@ -248,32 +248,7 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size):
   return pdf_buffer.getvalue()
 
 
-# Inicializa dados no session_state
-if "integrantes" not in st.session_state:
-  st.session_state.integrantes = carregar_dados(
-      ARQUIVO_INTEGRANTES,
-      [{
-          "Nome": "Eliane Pereira Cipolatti",
-          "Categoria": "Orientador",
-          "Vínculo": "UFRRJ - Engenharia de Alimentos",
-          "Telefone": "(21) 99999-9999",
-          "Email": "eliane@ufrrj.br",
-          "Situação": "Ativo",
-      }],
-  )
-
-if "agenda" not in st.session_state:
-  st.session_state.agenda = carregar_dados(ARQUIVO_AGENDA, [])
-
-if "arquivos_db" not in st.session_state:
-  st.session_state.arquivos_db = carregar_dados(ARQUIVO_ARQUIVOS, [])
-
-if "pastas_db" not in st.session_state:
-  st.session_state.pastas_db = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
-
-if "pops_db" not in st.session_state:
-  st.session_state.pops_db = carregar_dados(ARQUIVO_POPS, POPS_INICIAIS)
-
+# Sincronização constante com disco
 usuario_admin_padrao = [{
     "nome": "Administrador",
     "usuario": "admin",
@@ -286,13 +261,45 @@ usuario_admin_padrao = [{
     "is_admin": True,
 }]
 
-if "usuarios" not in st.session_state:
-  st.session_state.usuarios = carregar_dados(
-      ARQUIVO_USUARIOS, usuario_admin_padrao
-  )
+st.session_state.integrantes = carregar_dados(
+    ARQUIVO_INTEGRANTES,
+    [{
+        "Nome": "Eliane Pereira Cipolatti",
+        "Categoria": "Orientador",
+        "Vínculo": "UFRRJ - Engenharia de Alimentos",
+        "Telefone": "(21) 99999-9999",
+        "Email": "eliane@ufrrj.br",
+        "Situação": "Ativo",
+    }],
+)
+st.session_state.agenda = carregar_dados(ARQUIVO_AGENDA, [])
+st.session_state.arquivos_db = carregar_dados(ARQUIVO_ARQUIVOS, [])
+st.session_state.pastas_db = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
+st.session_state.pops_db = carregar_dados(ARQUIVO_POPS, POPS_INICIAIS)
+st.session_state.usuarios = carregar_dados(
+    ARQUIVO_USUARIOS, usuario_admin_padrao
+)
 
-if "usuario_logado" not in st.session_state:
-  st.session_state.usuario_logado = None
+# --- SESSÃO PERSISTENTE (MANTÉM LOGIN NO REFRESH) ---
+if "usr" in st.query_params:
+  usr_param = st.query_params["usr"]
+  usr_encontrado = next(
+      (
+          u
+          for u in st.session_state.usuarios
+          if u["usuario"].lower() == usr_param.lower()
+          and u.get("status") == "Aprovado"
+      ),
+      None,
+  )
+  if usr_encontrado:
+    st.session_state.usuario_logado = usr_encontrado
+  else:
+    st.query_params.clear()
+    st.session_state.usuario_logado = None
+else:
+  if "usuario_logado" not in st.session_state:
+    st.session_state.usuario_logado = None
 
 
 # --- TELA DE LOGIN E SOLICITAÇÃO DE ACESSO ---
@@ -319,6 +326,7 @@ if st.session_state.usuario_logado is None:
           if usuario_encontrado["senha"] == senha_input:
             if usuario_encontrado["status"] == "Aprovado":
               st.session_state.usuario_logado = usuario_encontrado
+              st.query_params["usr"] = usuario_encontrado["usuario"]
               st.success(f"Bem-vindo(a), {usuario_encontrado['nome']}!")
               st.rerun()
             elif usuario_encontrado["status"] == "Pendente":
@@ -418,9 +426,9 @@ if st.session_state.usuario_logado is None:
             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
             st.success(
-                "Solicitação enviada com sucesso! Seu nome consta na tabela de"
-                " integrantes como 'Pendente'. Aguarde a aprovação do"
-                " administrador."
+                "Solicitação enviada com sucesso! Seu cadastro foi salvo. Assim"
+                " que o administrador aprovar, poderá entrar com o seu usuário"
+                " e senha."
             )
 
 # --- ÁREA LOGADA (SISTEMA PRINCIPAL) ---
@@ -428,7 +436,7 @@ else:
   usuario_atual = st.session_state.usuario_logado
   is_admin = usuario_atual.get("is_admin", False)
 
-  # Barra Lateral Estilizada com Seções
+  # Barra Lateral Estilizada
   st.sidebar.title("🧪 Central LTAB")
   st.sidebar.caption("Laboratório de Pesquisa & Desenvolvimento")
 
@@ -470,6 +478,7 @@ else:
     st.sidebar.caption("🔵 Pesquisador")
 
   if st.sidebar.button("🚪 Sair da conta"):
+    st.query_params.clear()
     st.session_state.usuario_logado = None
     st.rerun()
 
@@ -753,7 +762,7 @@ else:
       df_eq = pd.DataFrame(st.session_state.integrantes)
       st.dataframe(df_eq, use_container_width=True)
 
-  # --- 4. GERAR QR CODE DE AMOSTRAS (COM QUANTIDADE E PDF DIMENSIONADO) ---
+  # --- 4. GERAR QR CODE DE AMOSTRAS ---
   elif menu_selecionado == "🏷️ Gerar QR Code de Amostras":
     st.title("🧪 Gerador de QR Code de Amostras & Etiquetas")
 
@@ -866,7 +875,6 @@ else:
             mime="image/png",
         )
 
-        # Geração do PDF formatado para impressão
         pdf_etiquetas = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm)
 
         st.download_button(
@@ -1025,7 +1033,6 @@ else:
         " automaticamente duplicidades de nomes."
     )
 
-    # Campo de busca para filtrar POPs existentes
     busca_pop = st.text_input(
         "🔎 Buscar POP existente por título ou código:", ""
     )
@@ -1123,7 +1130,6 @@ else:
         if not (tit_pop and obj_pop and mat_pop and passos_pop and sec_pop):
           st.error("Por favor, preencha todos os campos do formulário.")
         else:
-          # Validação anti-duplicidade para novos POPs
           duplicado = False
           if is_novo:
             duplicado = any(
@@ -1165,7 +1171,6 @@ else:
             )
             st.rerun()
 
-    # Visualização e Exportação do POP selecionado
     if tit_pop:
       conteudo_pop = f"""================================================================================
                     LABORATÓRIO LTAB - PROCEDIMENTO OPERACIONAL PADRÃO (POP)
