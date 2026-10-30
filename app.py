@@ -263,8 +263,13 @@ usuario_admin_padrao = [{
     "is_admin": True,
 }]
 
-# --- LIMPEZA DE USUÁRIOS NÃO OFICIAIS (Manter apenas quem está na planilha oficial de integrantes) ---
-integrantes_oficiais = carregar_dados(
+# Garantir conta admin no arquivo de usuários
+usuarios_existentes = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
+if not any(u.get("usuario") == "admin" for u in usuarios_existentes):
+  usuarios_existentes.insert(0, usuario_admin_padrao[0])
+  salvar_dados(ARQUIVO_USUARIOS, usuarios_existentes)
+
+integrantes_existentes = carregar_dados(
     ARQUIVO_INTEGRANTES,
     [{
         "Nome": "Eliane Pereira Cipolatti",
@@ -275,21 +280,7 @@ integrantes_oficiais = carregar_dados(
         "Situação": "Ativo",
     }],
 )
-nomes_na_planilha = [
-    p["Nome"].strip().lower() for p in integrantes_oficiais if "Nome" in p
-]
 
-usuarios_carregados = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
-usuarios_limpos = [
-    u
-    for u in usuarios_carregados
-    if u.get("is_admin")
-    or u.get("nome", "").strip().lower() in nomes_na_planilha
-]
-salvar_dados(ARQUIVO_USUARIOS, usuarios_limpos)
-
-st.session_state.integrantes = integrantes_oficiais
-st.session_state.usuarios = usuarios_limpos
 st.session_state.agenda = carregar_dados(ARQUIVO_AGENDA, [])
 st.session_state.arquivos_db = carregar_dados(ARQUIVO_ARQUIVOS, [])
 st.session_state.pastas_db = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
@@ -452,12 +443,23 @@ if st.session_state.usuario_logado is None:
 
             st.success(
                 f"Solicitação enviada com sucesso! O nome '{novo_nome.strip()}'"
-                " foi adicionado à lista de integrantes."
+                " foi registrado."
                 " Aguarde a aprovação do Administrador para realizar o login."
             )
 
 # --- ÁREA LOGADA (SISTEMA PRINCIPAL) ---
 else:
+  usrs_refresh = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
+  usr_fresco = next(
+      (
+          u
+          for u in usrs_refresh
+          if u["usuario"].lower()
+          == st.session_state.usuario_logado["usuario"].lower()
+      ),
+      st.session_state.usuario_logado,
+  )
+  st.session_state.usuario_logado = usr_fresco
   usuario_atual = st.session_state.usuario_logado
   is_admin = usuario_atual.get("is_admin", False)
 
@@ -802,7 +804,6 @@ else:
       integrantes_qr = carregar_dados(ARQUIVO_INTEGRANTES, [])
       lista_cadastrados = [p["Nome"] for p in integrantes_qr if p.get("Nome")]
 
-      # Opção de digitar manualmente no topo para fácil acesso
       opcoes_resp = ["✍️ Digitar nome manualmente..."] + lista_cadastrados
       sel_resp = st.selectbox("Pesquisador Responsável", opcoes_resp)
 
@@ -906,13 +907,15 @@ else:
     st.title("📁 Central de Arquivos & Documentos")
 
     aba_docs, aba_upload, aba_nova_pasta = st.tabs(
-        ["📚 Documentos por Pasta", "📥 Enviar Arquivo", "📁 Solicitar Nova Pasta"]
+        ["📚 Documentos por Pasta", "📥 Enviar / Atualizar Arquivo", "📁 Solicitar Nova Pasta"]
     )
 
     pastas_atuais = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
     pastas_aprovadas = [
         p["nome"] for p in pastas_atuais if p.get("status") == "Aprovado"
     ]
+    if not pastas_aprovadas:
+      pastas_aprovadas = ["Geral"]
 
     with aba_docs:
       st.subheader("Biblioteca de Documentos do Laboratório")
@@ -963,31 +966,62 @@ else:
       else:
         st.info("Nenhum documento encontrado nesta pasta.")
 
+    # ENVIO / ATUALIZAÇÃO SEM FORMULÁRIO (EVITA ERRO DE PERDER ARQUIVO SELECIONADO)
     with aba_upload:
-      st.subheader("Enviar Arquivo para Avaliação do Administrador")
-      with st.form("form_upload_arq"):
-        tit_doc = st.text_input("Título do Documento *")
-        pasta_doc = st.selectbox("Selecione a Pasta *", pastas_aprovadas)
-        desc_doc = st.text_area("Descrição / Detalhes do Arquivo *", height=80)
-        arq_up = st.file_uploader(
-            "Selecione o Ficheiro (PDF, DOCX, XLSX, PNG, JPG, CSV, TXT) *",
-            type=["pdf", "docx", "xlsx", "png", "jpg", "csv", "txt"],
-        )
+      st.subheader("Enviar ou Atualizar Documento")
+      st.caption("Se já existir um documento com o mesmo título, ele será atualizado.")
 
-        btn_enviar_doc = st.form_submit_button("Enviar Documento")
+      tit_doc = st.text_input("Título do Documento *", key="tit_doc_up")
+      pasta_doc = st.selectbox("Selecione a Pasta *", pastas_aprovadas, key="pasta_doc_up")
+      desc_doc = st.text_area("Descrição / Detalhes do Arquivo *", height=80, key="desc_doc_up")
+      arq_up = st.file_uploader(
+          "Selecione o Ficheiro (PDF, DOCX, XLSX, PNG, JPG, CSV, TXT) *",
+          type=["pdf", "docx", "xlsx", "png", "jpg", "csv", "txt"],
+          key="arq_up_file",
+      )
 
-        if btn_enviar_doc:
-          if not (tit_doc and desc_doc and arq_up):
-            st.error("Preencha todos os campos e selecione um ficheiro.")
+      if st.button("📤 Enviar / Atualizar Documento", type="primary"):
+        if not tit_doc.strip():
+          st.error("Por favor, informe o Título do Documento.")
+        elif not desc_doc.strip():
+          st.error("Por favor, preencha a Descrição do Documento.")
+        elif arq_up is None:
+          st.error("Por favor, selecione um ficheiro no campo acima.")
+        else:
+          data_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+          nome_seguro = f"{data_str}_{arq_up.name}"
+          caminho_final = os.path.join(PASTA_UPLOADS, nome_seguro)
+
+          with open(caminho_final, "wb") as f:
+            f.write(arq_up.getbuffer())
+
+          arquivos_atuais = carregar_dados(ARQUIVO_ARQUIVOS, [])
+          
+          # Se for Administrador aprova direto, senão vai para avaliação
+          status_doc = "Aprovado" if is_admin else "Pendente"
+
+          # Verifica se o arquivo já existe para substituir
+          doc_existente = next(
+              (a for a in arquivos_atuais if a.get("titulo", "").strip().lower() == tit_doc.strip().lower()),
+              None
+          )
+
+          if doc_existente:
+            if doc_existente.get("caminho") and os.path.exists(doc_existente["caminho"]):
+              try:
+                os.remove(doc_existente["caminho"])
+              except Exception:
+                pass
+            doc_existente["pasta"] = pasta_doc
+            doc_existente["descricao"] = desc_doc.strip()
+            doc_existente["nome_original"] = arq_up.name
+            doc_existente["caminho"] = caminho_final
+            doc_existente["autor"] = usuario_atual["nome"]
+            doc_existente["data"] = datetime.now().strftime("%d/%m/%Y")
+            doc_existente["status"] = status_doc
+            salvar_dados(ARQUIVO_ARQUIVOS, arquivos_atuais)
+            st.success(f"Documento '{tit_doc.strip()}' atualizado com sucesso!")
           else:
-            data_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-            nome_seguro = f"{data_str}_{arq_up.name}"
-            caminho_final = os.path.join(PASTA_UPLOADS, nome_seguro)
-
-            with open(caminho_final, "wb") as f:
-              f.write(arq_up.getbuffer())
-
-            arquivos_atuais = carregar_dados(ARQUIVO_ARQUIVOS, [])
             novo_registro_arq = {
                 "id": len(arquivos_atuais) + 1,
                 "titulo": tit_doc.strip(),
@@ -997,16 +1031,13 @@ else:
                 "caminho": caminho_final,
                 "autor": usuario_atual["nome"],
                 "data": datetime.now().strftime("%d/%m/%Y"),
-                "status": "Pendente",
+                "status": status_doc,
             }
-
             arquivos_atuais.append(novo_registro_arq)
             salvar_dados(ARQUIVO_ARQUIVOS, arquivos_atuais)
+            st.success("Documento enviado com sucesso!")
 
-            st.success(
-                "Documento enviado com sucesso! Ele aparecerá no repositório"
-                " após a aprovação do Administrador."
-            )
+          st.rerun()
 
     with aba_nova_pasta:
       st.subheader("Solicitar Criação de Nova Pasta")
@@ -1288,12 +1319,37 @@ ELABORADO POR: {usuario_atual['nome']}
               salvar_dados(ARQUIVO_USUARIOS, usrs_atuais)
 
               ints_atuais = carregar_dados(ARQUIVO_INTEGRANTES, [])
-              for p in ints_atuais:
-                if p["Nome"].lower() == u["nome"].lower():
-                  p["Situação"] = "Ativo"
-                  p["Categoria"] = u.get("categoria", p.get("Categoria"))
-                  p["Telefone"] = u.get("telefone", p.get("Telefone", "-"))
-                  p["Email"] = u.get("email", p.get("Email", "-"))
+              p_encontrado = next(
+                  (
+                      p
+                      for p in ints_atuais
+                      if p["Nome"].strip().lower() == u["nome"].strip().lower()
+                  ),
+                  None,
+              )
+              if p_encontrado:
+                p_encontrado["Situação"] = "Ativo"
+                p_encontrado["Categoria"] = u.get(
+                    "categoria", p_encontrado.get("Categoria")
+                )
+                p_encontrado["Vínculo"] = u.get(
+                    "vinculo", p_encontrado.get("Vínculo", "UFRRJ")
+                )
+                p_encontrado["Telefone"] = u.get(
+                    "telefone", p_encontrado.get("Telefone", "-")
+                )
+                p_encontrado["Email"] = u.get(
+                    "email", p_encontrado.get("Email", "-")
+                )
+              else:
+                ints_atuais.append({
+                    "Nome": u["nome"].strip(),
+                    "Categoria": u.get("categoria", "-"),
+                    "Vínculo": u.get("vinculo", "UFRRJ"),
+                    "Telefone": u.get("telefone", "-"),
+                    "Email": u.get("email", "-"),
+                    "Situação": "Ativo",
+                })
 
               salvar_dados(ARQUIVO_INTEGRANTES, ints_atuais)
               st.success(f"Acesso aprovado para {u['nome']}!")
@@ -1346,7 +1402,7 @@ ELABORADO POR: {usuario_atual['nome']}
 
               ints_atuais = carregar_dados(ARQUIVO_INTEGRANTES, [])
               for p in ints_atuais:
-                if p["Nome"].lower() == u["nome"].lower():
+                if p["Nome"].strip().lower() == u["nome"].strip().lower():
                   p["Categoria"] = p_data.get("categoria")
                   p["Vínculo"] = p_data.get("vinculo")
                   p["Telefone"] = p_data.get("telefone")
