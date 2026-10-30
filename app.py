@@ -180,7 +180,7 @@ POPS_INICIAIS = [
 
 
 def carregar_dados(arquivo, padrao):
-  """Carrega os dados salvos em arquivo JSON."""
+  """Carrega os dados salvos em arquivo JSON diretamente do disco."""
   if os.path.exists(arquivo):
     try:
       with open(arquivo, "r", encoding="utf-8") as f:
@@ -285,10 +285,11 @@ st.session_state.usuarios = carregar_dados(
 # Sessão persistente via parâmetro da URL
 if "usr" in st.query_params:
   usr_param = st.query_params["usr"]
+  lista_usrs = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
   usr_encontrado = next(
       (
           u
-          for u in st.session_state.usuarios
+          for u in lista_usrs
           if u["usuario"].lower() == usr_param.lower()
           and u.get("status") == "Aprovado"
       ),
@@ -318,14 +319,13 @@ if st.session_state.usuario_logado is None:
       btn_login = st.form_submit_button("Entrar", type="primary")
 
       if btn_login:
-        # Carrega a versão mais recente diretamente do arquivo JSON
-        st.session_state.usuarios = carregar_dados(
+        usuarios_frescos = carregar_dados(
             ARQUIVO_USUARIOS, usuario_admin_padrao
         )
         usr_clean = user_input.strip().lower()
         usuario_encontrado = None
 
-        for u in st.session_state.usuarios:
+        for u in usuarios_frescos:
           u_usr = u.get("usuario", "").strip().lower()
           u_email = u.get("email", "").strip().lower()
           u_nome = u.get("nome", "").strip().lower()
@@ -343,8 +343,8 @@ if st.session_state.usuario_logado is None:
               st.rerun()
             elif usuario_encontrado["status"] == "Pendente":
               st.warning(
-                  "⚠️ O seu cadastro ainda está PENDENTE de aprovação pelo"
-                  " Administrador. Peça para o Admin aprovar na 'Central de"
+                  "⚠️ O seu cadastro está PENDENTE de aprovação. Peça ao"
+                  " Administrador que aprove o acesso na 'Central de"
                   " Aprovações'."
               )
             else:
@@ -367,7 +367,7 @@ if st.session_state.usuario_logado is None:
       )
       novo_telefone = st.text_input("Telefone para Contato *")
       novo_email = st.text_input("E-mail para Contato *")
-      novo_usuario = st.text_input("Usuário Desejado (ex: gabriela) *")
+      novo_usuario = st.text_input("Usuário Desejado (ex: gabriela matos) *")
       nova_senha = st.text_input("Criar Senha *", type="password")
       btn_solicitar = st.form_submit_button("Enviar Solicitação")
 
@@ -383,31 +383,29 @@ if st.session_state.usuario_logado is None:
           st.error("Por favor, preencha todos os campos obrigatórios (*).")
         else:
           usr_clean = novo_usuario.strip().lower()
-          st.session_state.usuarios = carregar_dados(
+          usuarios_atuais = carregar_dados(
               ARQUIVO_USUARIOS, usuario_admin_padrao
           )
 
-          # Procura se já existe esse nome de usuário registrado
-          usuario_existente = next(
-              (
-                  u
-                  for u in st.session_state.usuarios
-                  if u["usuario"].strip().lower() == usr_clean
-              ),
-              None,
+          # Verifica se já existe uma conta com esse mesmo usuário que JÁ FOI APROVADA
+          ja_aprovado = any(
+              u["usuario"].strip().lower() == usr_clean
+              and u.get("status") == "Aprovado"
+              for u in usuarios_atuais
           )
 
-          if usuario_existente and usuario_existente.get("status") == "Aprovado":
+          if ja_aprovado:
             st.error(
                 "Este nome de usuário já pertence a uma conta APROVADA. Tente"
                 " fazer o login na aba 'Entrar no Sistema'."
             )
           else:
-            # Se já existia e estava Pendente ou Recusado, remove o antigo registro e insere o novo
-            st.session_state.usuarios = [
+            # Remove qualquer registo pendente ou recusado anterior do mesmo usuário ou nome
+            usuarios_filtrados = [
                 u
-                for u in st.session_state.usuarios
+                for u in usuarios_atuais
                 if u["usuario"].strip().lower() != usr_clean
+                and u["nome"].strip().lower() != novo_nome.strip().lower()
             ]
 
             novo_user_dict = {
@@ -421,20 +419,18 @@ if st.session_state.usuario_logado is None:
                 "status": "Pendente",
                 "is_admin": False,
             }
-            st.session_state.usuarios.append(novo_user_dict)
-            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+            usuarios_filtrados.append(novo_user_dict)
+            salvar_dados(ARQUIVO_USUARIOS, usuarios_filtrados)
 
-            # Atualiza/Insere também na lista de integrantes do laboratório
-            st.session_state.integrantes = carregar_dados(
-                ARQUIVO_INTEGRANTES, []
-            )
-            st.session_state.integrantes = [
+            # Sincroniza também na lista de integrantes do laboratório
+            integrantes_atuais = carregar_dados(ARQUIVO_INTEGRANTES, [])
+            integrantes_filtrados = [
                 p
-                for p in st.session_state.integrantes
+                for p in integrantes_atuais
                 if p["Nome"].strip().lower() != novo_nome.strip().lower()
             ]
 
-            st.session_state.integrantes.append({
+            integrantes_filtrados.append({
                 "Nome": novo_nome.strip(),
                 "Categoria": nova_categoria,
                 "Vínculo": novo_vinculo.strip(),
@@ -442,7 +438,7 @@ if st.session_state.usuario_logado is None:
                 "Email": novo_email.strip(),
                 "Situação": "Pendente",
             })
-            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+            salvar_dados(ARQUIVO_INTEGRANTES, integrantes_filtrados)
 
             st.success(
                 "Solicitação enviada com sucesso! Seu cadastro foi salvo como"
@@ -517,18 +513,19 @@ else:
           unsafe_allow_html=True,
       )
 
+    integrantes_vis = carregar_dados(ARQUIVO_INTEGRANTES, [])
+    agenda_vis = carregar_dados(ARQUIVO_AGENDA, [])
+
     col_m1, col_m2, col_m3 = st.columns(3)
     ativos_cnt = sum(
-        1
-        for p in st.session_state.integrantes
-        if p.get("Situação") == "Ativo"
+        1 for p in integrantes_vis if p.get("Situação") == "Ativo"
     )
     alunos_cnt = sum(
         1
-        for p in st.session_state.integrantes
+        for p in integrantes_vis
         if p.get("Categoria") != "Orientador" and p.get("Situação") == "Ativo"
     )
-    agenda_cnt = len(st.session_state.agenda)
+    agenda_cnt = len(agenda_vis)
 
     col_m1.metric("Integrantes Ativos", ativos_cnt)
     col_m2.metric("Pesquisadores / Alunos", alunos_cnt)
@@ -540,8 +537,8 @@ else:
 
     with col_esq:
       st.subheader("📋 Tabela de Integrantes do Laboratório")
-      if st.session_state.integrantes:
-        df_int = pd.DataFrame(st.session_state.integrantes)
+      if integrantes_vis:
+        df_int = pd.DataFrame(integrantes_vis)
         cols_viz = [
             "Nome",
             "Categoria",
@@ -559,8 +556,8 @@ else:
 
     with col_dir:
       st.subheader("📅 Próximos Compromissos")
-      if st.session_state.agenda:
-        df_ag = pd.DataFrame(st.session_state.agenda)
+      if agenda_vis:
+        df_ag = pd.DataFrame(agenda_vis)
         st.dataframe(
             df_ag[["Data", "Início", "Título", "Responsável"]].tail(5),
             use_container_width=True,
@@ -600,10 +597,9 @@ else:
             ],
         )
 
+        integrantes_ag = carregar_dados(ARQUIVO_INTEGRANTES, [])
         lista_resp = [
-            p["Nome"]
-            for p in st.session_state.integrantes
-            if p.get("Situação") == "Ativo"
+            p["Nome"] for p in integrantes_ag if p.get("Situação") == "Ativo"
         ]
         responsavel = (
             st.selectbox("Pesquisador Responsável", lista_resp)
@@ -615,8 +611,9 @@ else:
         btn_agendar = st.form_submit_button("Confirmar Agendamento")
 
         if btn_agendar and titulo:
+          agenda_fresca = carregar_dados(ARQUIVO_AGENDA, [])
           novo_evento = {
-              "ID": len(st.session_state.agenda) + 1,
+              "ID": len(agenda_fresca) + 1,
               "Título": titulo,
               "Data": data_evento.strftime("%Y-%m-%d"),
               "Início": hora_inicio.strftime("%H:%M"),
@@ -626,8 +623,8 @@ else:
               "criador": usuario_atual["usuario"],
               "Observações": obs,
           }
-          st.session_state.agenda.append(novo_evento)
-          salvar_dados(ARQUIVO_AGENDA, st.session_state.agenda)
+          agenda_fresca.append(novo_evento)
+          salvar_dados(ARQUIVO_AGENDA, agenda_fresca)
           st.success("Evento agendado com sucesso!")
           st.rerun()
 
@@ -638,9 +635,8 @@ else:
       )
       data_str = data_consulta.strftime("%Y-%m-%d")
 
-      eventos_dia = [
-          e for e in st.session_state.agenda if e["Data"] == data_str
-      ]
+      agenda_cons = carregar_dados(ARQUIVO_AGENDA, [])
+      eventos_dia = [e for e in agenda_cons if e["Data"] == data_str]
 
       if eventos_dia:
         for ev in eventos_dia:
@@ -656,8 +652,9 @@ else:
     st.markdown("---")
     st.subheader("📋 Lista Completa de Agendamentos")
 
-    if st.session_state.agenda:
-      df_ag_full = pd.DataFrame(st.session_state.agenda)
+    agenda_full = carregar_dados(ARQUIVO_AGENDA, [])
+    if agenda_full:
+      df_ag_full = pd.DataFrame(agenda_full)
       st.dataframe(
           df_ag_full[
               [
@@ -676,11 +673,11 @@ else:
       st.markdown("### ❌ Cancelar / Excluir Agendamento")
 
       if is_admin:
-        meus_eventos = st.session_state.agenda
+        meus_eventos = agenda_full
       else:
         meus_eventos = [
             e
-            for e in st.session_state.agenda
+            for e in agenda_full
             if e.get("criador") == usuario_atual["usuario"]
             or e.get("Responsável", "").lower()
             == usuario_atual["nome"].lower()
@@ -696,10 +693,8 @@ else:
 
         if st.button("Remover Agendamento", type="primary"):
           id_del = int(sel_c.split(" ")[1])
-          st.session_state.agenda = [
-              e for e in st.session_state.agenda if e["ID"] != id_del
-          ]
-          salvar_dados(ARQUIVO_AGENDA, st.session_state.agenda)
+          agenda_restante = [e for e in agenda_full if e["ID"] != id_del]
+          salvar_dados(ARQUIVO_AGENDA, agenda_restante)
           st.success("Agendamento cancelado com sucesso!")
           st.rerun()
       else:
@@ -711,6 +706,8 @@ else:
       "👥 Equipe do Laboratório",
   ]:
     st.title("👥 Integrantes do Laboratório")
+
+    integrantes_atuais = carregar_dados(ARQUIVO_INTEGRANTES, [])
 
     if is_admin:
       st.subheader("➕ Cadastrar ou Editar Integrante Manualmente")
@@ -729,7 +726,7 @@ else:
           existente = next(
               (
                   p
-                  for p in st.session_state.integrantes
+                  for p in integrantes_atuais
                   if p["Nome"].lower() == nome.strip().lower()
               ),
               None,
@@ -741,7 +738,7 @@ else:
             existente["Email"] = email
             existente["Situação"] = situacao
           else:
-            st.session_state.integrantes.append({
+            integrantes_atuais.append({
                 "Nome": nome.strip(),
                 "Categoria": categoria,
                 "Vínculo": vinculo,
@@ -750,33 +747,32 @@ else:
                 "Situação": situacao,
             })
 
-          salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+          salvar_dados(ARQUIVO_INTEGRANTES, integrantes_atuais)
           st.success(f"Integrante {nome} salvo com sucesso!")
           st.rerun()
 
       st.markdown("---")
       st.subheader("🗑️ Remover Integrante")
-      lista_nomes = [p["Nome"] for p in st.session_state.integrantes]
+      lista_nomes = [p["Nome"] for p in integrantes_atuais]
       if lista_nomes:
         sel_rem = st.selectbox("Selecione quem deseja remover:", lista_nomes)
         if st.button("Excluir das Listas", type="primary"):
-          st.session_state.integrantes = [
-              p for p in st.session_state.integrantes if p["Nome"] != sel_rem
+          integrantes_limpos = [
+              p for p in integrantes_atuais if p["Nome"] != sel_rem
           ]
-          salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+          salvar_dados(ARQUIVO_INTEGRANTES, integrantes_limpos)
 
-          st.session_state.usuarios = [
-              u
-              for u in st.session_state.usuarios
-              if u["nome"].lower() != sel_rem.lower()
+          usrs_atuais = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
+          usrs_limpos = [
+              u for u in usrs_atuais if u["nome"].lower() != sel_rem.lower()
           ]
-          salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+          salvar_dados(ARQUIVO_USUARIOS, usrs_limpos)
 
           st.success(f"Integrante '{sel_rem}' removido!")
           st.rerun()
 
     else:
-      df_eq = pd.DataFrame(st.session_state.integrantes)
+      df_eq = pd.DataFrame(integrantes_atuais)
       st.dataframe(df_eq, use_container_width=True)
 
   # --- 4. GERAR QR CODE DE AMOSTRAS ---
@@ -794,10 +790,9 @@ else:
           "Data de Obtenção / Produção", datetime.now().date()
       )
 
+      integrantes_qr = carregar_dados(ARQUIVO_INTEGRANTES, [])
       lista_cadastrados = [
-          p["Nome"]
-          for p in st.session_state.integrantes
-          if p.get("Situação") == "Ativo"
+          p["Nome"] for p in integrantes_qr if p.get("Situação") == "Ativo"
       ]
       opcoes_resp = lista_cadastrados + ["Outro / Digitar manualmente..."]
       sel_resp = st.selectbox("Pesquisador Responsável", opcoes_resp)
@@ -814,12 +809,7 @@ else:
       else:
         responsavel = sel_resp
         integrante_sel = next(
-            (
-                p
-                for p in st.session_state.integrantes
-                if p["Nome"] == sel_resp
-            ),
-            None,
+            (p for p in integrantes_qr if p["Nome"] == sel_resp), None
         )
         if integrante_sel:
           tel_resp = integrante_sel.get("Telefone", "-")
@@ -910,10 +900,9 @@ else:
         ["📚 Documentos por Pasta", "📥 Enviar Arquivo", "📁 Solicitar Nova Pasta"]
     )
 
+    pastas_atuais = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
     pastas_aprovadas = [
-        p["nome"]
-        for p in st.session_state.pastas_db
-        if p.get("status") == "Aprovado"
+        p["nome"] for p in pastas_atuais if p.get("status") == "Aprovado"
     ]
 
     with aba_docs:
@@ -925,10 +914,9 @@ else:
             "Filtrar por Pasta:", ["Todas as Pastas"] + pastas_aprovadas
         )
 
+      arquivos_atuais = carregar_dados(ARQUIVO_ARQUIVOS, [])
       aprovados_arq = [
-          a
-          for a in st.session_state.arquivos_db
-          if a.get("status") == "Aprovado"
+          a for a in arquivos_atuais if a.get("status") == "Aprovado"
       ]
 
       if pasta_filtro != "Todas as Pastas":
@@ -990,8 +978,9 @@ else:
             with open(caminho_final, "wb") as f:
               f.write(arq_up.getbuffer())
 
+            arquivos_atuais = carregar_dados(ARQUIVO_ARQUIVOS, [])
             novo_registro_arq = {
-                "id": len(st.session_state.arquivos_db) + 1,
+                "id": len(arquivos_atuais) + 1,
                 "titulo": tit_doc.strip(),
                 "pasta": pasta_doc,
                 "descricao": desc_doc.strip(),
@@ -1002,8 +991,8 @@ else:
                 "status": "Pendente",
             }
 
-            st.session_state.arquivos_db.append(novo_registro_arq)
-            salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+            arquivos_atuais.append(novo_registro_arq)
+            salvar_dados(ARQUIVO_ARQUIVOS, arquivos_atuais)
 
             st.success(
                 "Documento enviado com sucesso! Ele aparecerá no repositório"
@@ -1022,21 +1011,21 @@ else:
             st.error("Preencha o nome e a descrição da nova pasta.")
           else:
             p_clean = nome_pasta.strip()
+            pastas_atuais = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
             ja_existe = any(
-                p["nome"].lower() == p_clean.lower()
-                for p in st.session_state.pastas_db
+                p["nome"].lower() == p_clean.lower() for p in pastas_atuais
             )
 
             if ja_existe:
               st.error("Esta pasta já existe ou foi solicitada previamente.")
             else:
-              st.session_state.pastas_db.append({
+              pastas_atuais.append({
                   "nome": p_clean,
                   "descricao": desc_pasta.strip(),
                   "criador": usuario_atual["nome"],
                   "status": "Pendente",
               })
-              salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+              salvar_dados(ARQUIVO_PASTAS, pastas_atuais)
               st.success(
                   f"Solicitação para criar a pasta '{p_clean}' enviada com"
                   " sucesso! Aguarde a aprovação do Administrador."
@@ -1050,15 +1039,16 @@ else:
         " automaticamente duplicidades de nomes."
     )
 
+    pops_atuais = carregar_dados(ARQUIVO_POPS, POPS_INICIAIS)
     busca_pop = st.text_input(
         "🔎 Buscar POP existente por título ou código:", ""
     )
 
-    pops_filtrados = st.session_state.pops_db
+    pops_filtrados = pops_atuais
     if busca_pop.strip():
       pops_filtrados = [
           p
-          for p in st.session_state.pops_db
+          for p in pops_atuais
           if busca_pop.lower() in p["codigo"].lower()
           or busca_pop.lower() in p["titulo"].lower()
       ]
@@ -1073,7 +1063,7 @@ else:
 
     if sel_pop_opcao == "➕ Cadastrar Novo POP...":
       is_novo = True
-      num_pop = len(st.session_state.pops_db) + 1
+      num_pop = len(pops_atuais) + 1
       cod_pop = f"POP-LTAB-{num_pop:03d}"
       versao_num = 1
       versao_pop = "v1.0"
@@ -1086,7 +1076,7 @@ else:
       is_novo = False
       pop_existente = next(
           p
-          for p in st.session_state.pops_db
+          for p in pops_atuais
           if f"{p['codigo']} - {p['titulo']}" == sel_pop_opcao
       )
       cod_pop = pop_existente["codigo"]
@@ -1151,7 +1141,7 @@ else:
           if is_novo:
             duplicado = any(
                 p["titulo"].strip().lower() == tit_pop.strip().lower()
-                for p in st.session_state.pops_db
+                for p in pops_atuais
             )
 
           if duplicado:
@@ -1172,7 +1162,7 @@ else:
                   "seguranca": sec_pop.strip(),
                   "autor": usuario_atual["nome"],
               }
-              st.session_state.pops_db.append(novo_pop_dict)
+              pops_atuais.append(novo_pop_dict)
             else:
               pop_existente["versao"] = versao_num
               pop_existente["objetivo"] = obj_pop.strip()
@@ -1181,7 +1171,7 @@ else:
               pop_existente["seguranca"] = sec_pop.strip()
               pop_existente["autor"] = usuario_atual["nome"]
 
-            salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+            salvar_dados(ARQUIVO_POPS, pops_atuais)
             st.success(
                 f"POP '{cod_pop}' ({versao_pop}) salvo com sucesso por"
                 f" {usuario_atual['nome']}!"
@@ -1232,8 +1222,9 @@ ELABORADO POR: {usuario_atual['nome']}
           with open(caminho_pop, "w", encoding="utf-8") as f:
             f.write(conteudo_pop)
 
-          st.session_state.arquivos_db.append({
-              "id": len(st.session_state.arquivos_db) + 1,
+          arqs_frescos = carregar_dados(ARQUIVO_ARQUIVOS, [])
+          arqs_frescos.append({
+              "id": len(arqs_frescos) + 1,
               "titulo": f"POP {cod_pop}: {tit_pop} ({versao_pop})",
               "pasta": "POPs e Protocolos",
               "descricao": (
@@ -1246,27 +1237,28 @@ ELABORADO POR: {usuario_atual['nome']}
               "data": datetime.now().strftime("%d/%m/%Y"),
               "status": "Pendente",
           })
-          salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+          salvar_dados(ARQUIVO_ARQUIVOS, arqs_frescos)
           st.success("POP enviado para aprovação do Administrador!")
 
   # --- 7. CENTRAL DE APROVAÇÕES (EXCLUSIVO ADMIN) ---
   elif menu_selecionado == "🔑 Central de Aprovações" and is_admin:
     st.title("🔑 Central de Aprovações (Administrador)")
 
-    tab_acessos, tab_perfis, tab_files, tab_folders = st.tabs([
+    tab_acessos, tab_perfis, tab_files, tab_folders, tab_direto = st.tabs([
         "1. Novos Acessos",
         "2. Alterações de Perfil",
         "3. Aprovar Arquivos",
         "4. Aprovar Pastas",
+        "⚡ Cadastrar & Aprovar Direto",
     ])
 
     with tab_acessos:
-      st.session_state.usuarios = carregar_dados(
-          ARQUIVO_USUARIOS, usuario_admin_padrao
-      )
+      # Lê em tempo real direto do arquivo do servidor
+      usrs_tempo_real = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
       pend_acessos = [
-          u for u in st.session_state.usuarios if u.get("status") == "Pendente"
+          u for u in usrs_tempo_real if u.get("status") == "Pendente"
       ]
+
       if pend_acessos:
         for idx, u in enumerate(pend_acessos):
           c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
@@ -1278,35 +1270,45 @@ ELABORADO POR: {usuario_atual['nome']}
             )
           with c_b1:
             if st.button("✅ Aprovar", key=f"ap_usr_{idx}", type="primary"):
-              u["status"] = "Aprovado"
-              salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
-
-              st.session_state.integrantes = carregar_dados(
-                  ARQUIVO_INTEGRANTES, []
+              usrs_atuais = carregar_dados(
+                  ARQUIVO_USUARIOS, usuario_admin_padrao
               )
-              for p in st.session_state.integrantes:
+              for usr_item in usrs_atuais:
+                if usr_item["usuario"] == u["usuario"]:
+                  usr_item["status"] = "Aprovado"
+
+              salvar_dados(ARQUIVO_USUARIOS, usrs_atuais)
+
+              # Atualiza integrante
+              ints_atuais = carregar_dados(ARQUIVO_INTEGRANTES, [])
+              for p in ints_atuais:
                 if p["Nome"].lower() == u["nome"].lower():
                   p["Situação"] = "Ativo"
                   p["Categoria"] = u.get("categoria", p.get("Categoria"))
                   p["Telefone"] = u.get("telefone", p.get("Telefone", "-"))
                   p["Email"] = u.get("email", p.get("Email", "-"))
 
-              salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+              salvar_dados(ARQUIVO_INTEGRANTES, ints_atuais)
               st.success(f"Acesso aprovado para {u['nome']}!")
               st.rerun()
           with c_b2:
             if st.button("❌ Recusar", key=f"rec_usr_{idx}"):
-              u["status"] = "Recusado"
-              salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+              usrs_atuais = carregar_dados(
+                  ARQUIVO_USUARIOS, usuario_admin_padrao
+              )
+              for usr_item in usrs_atuais:
+                if usr_item["usuario"] == u["usuario"]:
+                  usr_item["status"] = "Recusado"
+
+              salvar_dados(ARQUIVO_USUARIOS, usrs_atuais)
               st.warning(f"Solicitação de {u['nome']} recusada.")
               st.rerun()
       else:
-        st.info("Nenhuma solicitação de novo acesso pendente.")
+        st.info("Nenhuma solicitação de novo acesso pendente no momento.")
 
     with tab_perfis:
-      pend_perfis = [
-          u for u in st.session_state.usuarios if u.get("pendente_atualizacao")
-      ]
+      usrs_tempo_real = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
+      pend_perfis = [u for u in usrs_tempo_real if u.get("pendente_atualizacao")]
       if pend_perfis:
         for idx, u in enumerate(pend_perfis):
           p_data = u["pendente_atualizacao"]
@@ -1321,38 +1323,52 @@ ELABORADO POR: {usuario_atual['nome']}
             if st.button(
                 "✅ Aprovar Mudança", key=f"ap_prf_{idx}", type="primary"
             ):
-              u["categoria"] = p_data.get("categoria")
-              u["vinculo"] = p_data.get("vinculo")
-              u["telefone"] = p_data.get("telefone")
-              u["email"] = p_data.get("email")
-              del u["pendente_atualizacao"]
+              usrs_atuais = carregar_dados(
+                  ARQUIVO_USUARIOS, usuario_admin_padrao
+              )
+              for usr_item in usrs_atuais:
+                if usr_item["usuario"] == u["usuario"]:
+                  usr_item["categoria"] = p_data.get("categoria")
+                  usr_item["vinculo"] = p_data.get("vinculo")
+                  usr_item["telefone"] = p_data.get("telefone")
+                  usr_item["email"] = p_data.get("email")
+                  if "pendente_atualizacao" in usr_item:
+                    del usr_item["pendente_atualizacao"]
 
-              salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+              salvar_dados(ARQUIVO_USUARIOS, usrs_atuais)
 
-              for p in st.session_state.integrantes:
+              ints_atuais = carregar_dados(ARQUIVO_INTEGRANTES, [])
+              for p in ints_atuais:
                 if p["Nome"].lower() == u["nome"].lower():
-                  p["Categoria"] = u["categoria"]
-                  p["Vínculo"] = u["vinculo"]
-                  p["Telefone"] = u["telefone"]
-                  p["Email"] = u["email"]
+                  p["Categoria"] = p_data.get("categoria")
+                  p["Vínculo"] = p_data.get("vinculo")
+                  p["Telefone"] = p_data.get("telefone")
+                  p["Email"] = p_data.get("email")
 
-              salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+              salvar_dados(ARQUIVO_INTEGRANTES, ints_atuais)
               st.success(f"Perfil de {u['nome']} atualizado!")
               st.rerun()
           with c_b2:
             if st.button("❌ Recusar", key=f"rec_prf_{idx}"):
-              del u["pendente_atualizacao"]
-              salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+              usrs_atuais = carregar_dados(
+                  ARQUIVO_USUARIOS, usuario_admin_padrao
+              )
+              for usr_item in usrs_atuais:
+                if (
+                    usr_item["usuario"] == u["usuario"]
+                    and "pendente_atualizacao" in usr_item
+                ):
+                  del usr_item["pendente_atualizacao"]
+              salvar_dados(ARQUIVO_USUARIOS, usrs_atuais)
               st.warning("Mudança recusada.")
               st.rerun()
       else:
         st.info("Nenhuma alteração de perfil pendente.")
 
     with tab_files:
+      arqs_tempo_real = carregar_dados(ARQUIVO_ARQUIVOS, [])
       pend_arquivos = [
-          a
-          for a in st.session_state.arquivos_db
-          if a.get("status") == "Pendente"
+          a for a in arqs_tempo_real if a.get("status") == "Pendente"
       ]
       if pend_arquivos:
         for idx, doc in enumerate(pend_arquivos):
@@ -1371,30 +1387,36 @@ ELABORADO POR: {usuario_atual['nome']}
             if st.button(
                 "✅ Aprovar Ficheiro", key=f"ap_file_{idx}", type="primary"
             ):
-              doc["status"] = "Aprovado"
-              salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+              arqs_atuais = carregar_dados(ARQUIVO_ARQUIVOS, [])
+              for item in arqs_atuais:
+                if item["id"] == doc["id"]:
+                  item["status"] = "Aprovado"
+              salvar_dados(ARQUIVO_ARQUIVOS, arqs_atuais)
               st.success(
                   f"Ficheiro '{doc['titulo']}' aprovado para publicação!"
               )
               st.rerun()
           with c_b2:
             if st.button("❌ Apagar Ficheiro", key=f"rec_file_{idx}"):
+              arqs_atuais = carregar_dados(ARQUIVO_ARQUIVOS, [])
               if os.path.exists(doc.get("caminho", "")):
-                os.remove(doc["caminho"])
-              st.session_state.arquivos_db = [
-                  item
-                  for item in st.session_state.arquivos_db
-                  if item["id"] != doc["id"]
+                try:
+                  os.remove(doc["caminho"])
+                except Exception:
+                  pass
+              arqs_filtrados = [
+                  item for item in arqs_atuais if item["id"] != doc["id"]
               ]
-              salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+              salvar_dados(ARQUIVO_ARQUIVOS, arqs_filtrados)
               st.warning("Ficheiro recusado e apagado.")
               st.rerun()
       else:
         st.info("Nenhum arquivo pendente de aprovação.")
 
     with tab_folders:
+      pastas_tempo_real = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
       pend_pastas = [
-          p for p in st.session_state.pastas_db if p.get("status") == "Pendente"
+          p for p in pastas_tempo_real if p.get("status") == "Pendente"
       ]
       if pend_pastas:
         for idx, pst in enumerate(pend_pastas):
@@ -1410,23 +1432,102 @@ ELABORADO POR: {usuario_atual['nome']}
             if st.button(
                 "✅ Aprovar Pasta", key=f"ap_fold_{idx}", type="primary"
             ):
-              pst["status"] = "Aprovado"
-              salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+              pastas_atuais = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
+              for p in pastas_atuais:
+                if p["nome"] == pst["nome"]:
+                  p["status"] = "Aprovado"
+              salvar_dados(ARQUIVO_PASTAS, pastas_atuais)
               st.success(f"Pasta '{pst['nome']}' aprovada com sucesso!")
               st.rerun()
 
           with c_b2:
             if st.button("❌ Recusar Pasta", key=f"rec_fold_{idx}"):
-              st.session_state.pastas_db = [
-                  p
-                  for p in st.session_state.pastas_db
-                  if p["nome"] != pst["nome"]
+              pastas_atuais = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
+              pastas_filtradas = [
+                  p for p in pastas_atuais if p["nome"] != pst["nome"]
               ]
-              salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+              salvar_dados(ARQUIVO_PASTAS, pastas_filtradas)
               st.warning(f"Solicitação da pasta '{pst['nome']}' recusada.")
               st.rerun()
       else:
         st.info("Nenhuma solicitação de nova pasta pendente.")
+
+    # TAB DE EMERGÊNCIA: PERMITE AO ADMIN CADASTRAR DIRETO
+    with tab_direto:
+      st.subheader("⚡ Atalho: Cadastrar e Aprovar Usuário Instantaneamente")
+      st.caption(
+          "Use esta ferramenta caso precise liberar o acesso de alguém de"
+          " imediato sem depender da fila."
+      )
+
+      with st.form("form_cad_direto_admin"):
+        c_dir1, c_dir2 = st.columns(2)
+        with c_dir1:
+          dir_nome = st.text_input("Nome Completo", "Gabriela Mendes")
+          dir_user = st.text_input("Nome de Usuário", "gabriela matos")
+          dir_senha = st.text_input("Senha para Acesso", "123456")
+        with c_dir2:
+          dir_cat = st.selectbox("Categoria", CATEGORIAS_PADRAO)
+          dir_vinc = st.text_input("Vínculo", "UFRRJ - Engenharia Química")
+          dir_tel = st.text_input("Telefone", "21996778065")
+          dir_email = st.text_input("E-mail", "gbsmtsm@ufrrj.br")
+
+        btn_cad_direto = st.form_submit_button(
+            "⚡ Cadastrar e Liberar Acesso Agora", type="primary"
+        )
+
+        if btn_cad_direto:
+          if not (dir_nome and dir_user and dir_senha):
+            st.error("Preencha ao menos Nome, Usuário e Senha.")
+          else:
+            usrs_frescos = carregar_dados(
+                ARQUIVO_USUARIOS, usuario_admin_padrao
+            )
+            clean_u = dir_user.strip().lower()
+
+            # Remove duplicados antigos se existirem
+            usrs_frescos = [
+                u
+                for u in usrs_frescos
+                if u["usuario"].strip().lower() != clean_u
+            ]
+
+            novo_usr_aprovado = {
+                "nome": dir_nome.strip(),
+                "usuario": dir_user.strip(),
+                "senha": dir_senha,
+                "categoria": dir_cat,
+                "vinculo": dir_vinc.strip(),
+                "telefone": dir_tel.strip(),
+                "email": dir_email.strip(),
+                "status": "Aprovado",
+                "is_admin": False,
+            }
+            usrs_frescos.append(novo_usr_aprovado)
+            salvar_dados(ARQUIVO_USUARIOS, usrs_frescos)
+
+            # Salva na lista de integrantes ativas
+            ints_frescos = carregar_dados(ARQUIVO_INTEGRANTES, [])
+            ints_frescos = [
+                p
+                for p in ints_frescos
+                if p["Nome"].strip().lower() != dir_nome.strip().lower()
+            ]
+            ints_frescos.append({
+                "Nome": dir_nome.strip(),
+                "Categoria": dir_cat,
+                "Vínculo": dir_vinc.strip(),
+                "Telefone": dir_tel.strip(),
+                "Email": dir_email.strip(),
+                "Situação": "Ativo",
+            })
+            salvar_dados(ARQUIVO_INTEGRANTES, ints_frescos)
+
+            st.success(
+                f"✅ Usuário '{dir_user.strip()}' cadastrado e APROVADO com"
+                " sucesso! O acesso já está liberado para login."
+            )
+            st.rerun()
 
   # --- 8. MEU PERFIL ---
   elif menu_selecionado == "👤 Meu Perfil":
@@ -1471,12 +1572,12 @@ ELABORADO POR: {usuario_atual['nome']}
               "email": novo_email.strip(),
           }
 
-          usuario_atual["pendente_atualizacao"] = dados_m
-          for u in st.session_state.usuarios:
+          usrs_frescos = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
+          for u in usrs_frescos:
             if u["usuario"] == usuario_atual["usuario"]:
               u["pendente_atualizacao"] = dados_m
               break
 
-          salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+          salvar_dados(ARQUIVO_USUARIOS, usrs_frescos)
           st.success("Solicitação enviada ao Administrador!")
           st.rerun()
