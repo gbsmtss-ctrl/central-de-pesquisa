@@ -697,10 +697,22 @@ else:
     st.subheader("Usuários com Acesso Aprovado")
 
     if aprovados:
-      df_u = pd.DataFrame(aprovados)[
-          ["nome", "usuario", "categoria", "vinculo", "status", "is_admin"]
+      df_u = pd.DataFrame(aprovados)
+
+      # Trava de segurança para evitar KeyError com colunas em cadastros antigos
+      cols_desejadas = [
+          "nome",
+          "usuario",
+          "categoria",
+          "vinculo",
+          "status",
+          "is_admin",
       ]
-      st.dataframe(df_u, use_container_width=True)
+      for col in cols_desejadas:
+        if col not in df_u.columns:
+          df_u[col] = "-"
+
+      st.dataframe(df_u[cols_desejadas], use_container_width=True)
 
       st.markdown("### 🗑️ Excluir Conta de Usuário Aprovado")
       usuarios_normais = [u for u in aprovados if not u.get("is_admin")]
