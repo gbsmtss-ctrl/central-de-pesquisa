@@ -9,7 +9,7 @@ import streamlit as st
 
 # Configuração da página
 st.set_page_config(
-    page_title="Central de Pesquisa - Gestão do Laboratório",
+    page_title="Central LTAB - Gestão do Laboratório",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -74,6 +74,7 @@ ARQUIVO_INTEGRANTES = "integrantes.json"
 ARQUIVO_AGENDA = "agenda.json"
 ARQUIVO_USUARIOS = "usuarios.json"
 ARQUIVO_ARQUIVOS = "arquivos.json"
+ARQUIVO_PASTAS = "pastas.json"
 PASTA_UPLOADS = "uploads"
 
 os.makedirs(PASTA_UPLOADS, exist_ok=True)
@@ -87,13 +88,37 @@ CATEGORIAS_PADRAO = [
     "Técnico / Pesquisador",
 ]
 
-CATEGORIAS_ARQUIVOS = [
-    "Protocolo / POP",
-    "Artigo Científico",
-    "Relatório de Pesquisa",
-    "Manual de Equipamento",
-    "Ficha de Segurança (FISPQ)",
-    "Outro Documento",
+PASTAS_INICIAIS = [
+    {
+        "nome": "Geral",
+        "descricao": "Arquivos gerais do laboratório",
+        "criador": "admin",
+        "status": "Aprovado",
+    },
+    {
+        "nome": "POPs e Protocolos",
+        "descricao": "Procedimentos Operacionais Padrão",
+        "criador": "admin",
+        "status": "Aprovado",
+    },
+    {
+        "nome": "Artigos Científicos",
+        "descricao": "Publicações e referências",
+        "criador": "admin",
+        "status": "Aprovado",
+    },
+    {
+        "nome": "Manuais de Equipamentos",
+        "descricao": "Guias de operação de máquinas",
+        "criador": "admin",
+        "status": "Aprovado",
+    },
+    {
+        "nome": "FISPQ / Segurança",
+        "descricao": "Fichas de segurança de reagentes",
+        "criador": "admin",
+        "status": "Aprovado",
+    },
 ]
 
 
@@ -111,7 +136,7 @@ def salvar_dados(arquivo, dados):
     json.dump(dados, f, ensure_ascii=False, indent=4)
 
 
-# Inicializa os dados no session_state
+# Inicializa dados no session_state
 if "integrantes" not in st.session_state:
   st.session_state.integrantes = carregar_dados(
       ARQUIVO_INTEGRANTES,
@@ -130,6 +155,9 @@ if "agenda" not in st.session_state:
 
 if "arquivos_db" not in st.session_state:
   st.session_state.arquivos_db = carregar_dados(ARQUIVO_ARQUIVOS, [])
+
+if "pastas_db" not in st.session_state:
+  st.session_state.pastas_db = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
 
 usuario_admin_padrao = [{
     "nome": "Administrador",
@@ -280,12 +308,12 @@ if st.session_state.usuario_logado is None:
                 " administrador."
             )
 
-# --- ÁREA LOGADA (SISTEMA PRINCIPAL COM ESTRUTURA IGUAL À IMAGEM) ---
+# --- ÁREA LOGADA (SISTEMA PRINCIPAL) ---
 else:
   usuario_atual = st.session_state.usuario_logado
   is_admin = usuario_atual.get("is_admin", False)
 
-  # Barra Lateral Estilizada com Seções Identicas à Imagem
+  # Barra Lateral Estilizada com Seções
   st.sidebar.title("🧪 Central LTAB")
   st.sidebar.caption("Laboratório de Pesquisa & Desenvolvimento")
 
@@ -310,6 +338,7 @@ else:
   )
   opcoes_menu.append("🏷️ Gerar QR Code de Amostras")
   opcoes_menu.append("📁 Repositório de Arquivos")
+  opcoes_menu.append("📝 Criador de POP Padrão")
 
   st.sidebar.markdown(
       '<div class="sidebar-section">MINHA CONTA</div>', unsafe_allow_html=True
@@ -329,12 +358,11 @@ else:
     st.session_state.usuario_logado = None
     st.rerun()
 
-  # --- 1. VISÃO GERAL (DESIGN DE PAINEL COM CARDS) ---
+  # --- 1. VISÃO GERAL ---
   if menu_selecionado == "🏠 Início / Visão Geral":
     st.title("Visão geral")
     st.caption("Informações e recursos do Laboratório de Pesquisa.")
 
-    # Bloco de Avisos Importantes
     with st.container():
       st.markdown(
           """
@@ -399,7 +427,7 @@ else:
       else:
         st.info("Nenhum compromisso agendado recentemente.")
 
-  # --- 2. AGENDA & COMPROMISSOS ---
+  # --- 2. AGENDA & COMPROMISSOS (PERMISSÃO DE CANCELAMENTO AO CRIADOR) ---
   elif menu_selecionado == "📅 Agenda & Compromissos":
     st.title("📅 Agenda do Laboratório")
 
@@ -454,6 +482,7 @@ else:
               "Término": hora_fim.strftime("%H:%M"),
               "Equipamento": equipamento,
               "Responsável": responsavel,
+              "criador": usuario_atual["usuario"],
               "Observações": obs,
           }
           st.session_state.agenda.append(novo_evento)
@@ -503,21 +532,38 @@ else:
           use_container_width=True,
       )
 
+      # PERMISSÃO DE CANCELAMENTO: Admin cancela todos; Usuário comum cancela seus eventos
+      st.markdown("### ❌ Cancelar / Excluir Meu Agendamento")
+
       if is_admin:
-        st.markdown("### ❌ Cancelar Compromisso")
+        meus_eventos = st.session_state.agenda
+      else:
+        meus_eventos = [
+            e
+            for e in st.session_state.agenda
+            if e.get("criador") == usuario_atual["usuario"]
+            or e.get("Responsável", "").lower()
+            == usuario_atual["nome"].lower()
+        ]
+
+      if meus_eventos:
         opcoes_c = [
             f"ID {e['ID']} - {e['Data']} [{e['Início']}] {e['Título']}"
-            for e in st.session_state.agenda
+            f" ({e.get('Responsável', '-')})"
+            for e in meus_eventos
         ]
-        sel_c = st.selectbox("Selecione o agendamento:", opcoes_c)
-        if st.button("Remover Agendamento", type="primary"):
+        sel_c = st.selectbox("Selecione o agendamento para remover:", opcoes_c)
+
+        if st.button("Remover Meu Agendamento", type="primary"):
           id_del = int(sel_c.split(" ")[1])
           st.session_state.agenda = [
               e for e in st.session_state.agenda if e["ID"] != id_del
           ]
           salvar_dados(ARQUIVO_AGENDA, st.session_state.agenda)
-          st.success("Agendamento cancelado!")
+          st.success("Agendamento cancelado e removido com sucesso!")
           st.rerun()
+      else:
+        st.caption("Você não possui agendamentos cadastrados para cancelar.")
 
   # --- 3. GESTÃO DE INTEGRANTES / EQUIPE ---
   elif menu_selecionado in [
@@ -593,7 +639,7 @@ else:
       df_eq = pd.DataFrame(st.session_state.integrantes)
       st.dataframe(df_eq, use_container_width=True)
 
-  # --- 4. FERRAMENTA: GERAR QR CODE DE AMOSTRAS ---
+  # --- 4. GERAR QR CODE DE AMOSTRAS ---
   elif menu_selecionado == "🏷️ Gerar QR Code de Amostras":
     st.title("🧪 Gerador de QR Code de Amostras")
 
@@ -684,22 +730,40 @@ else:
             mime="image/png",
         )
 
-  # --- 5. NOVA ÁREA: REPOSITÓRIO DE ARQUIVOS E DOCUMENTOS ---
+  # --- 5. REPOSITÓRIO DE ARQUIVOS (COM PASTAS E SOLICITAÇÃO DE NOVAS PASTAS) ---
   elif menu_selecionado == "📁 Repositório de Arquivos":
-    st.title("📁 Central de Arquivos & Documentos do Laboratório")
+    st.title("📁 Central de Arquivos & Documentos")
 
-    aba_docs, aba_upload = st.tabs(
-        ["📚 Documentos Aprovados", "📥 Enviar Novo Arquivo"]
+    aba_docs, aba_upload, aba_nova_pasta = st.tabs(
+        ["📚 Documentos por Pasta", "📥 Enviar Arquivo", "📁 Solicitara Nova Pasta"]
     )
 
-    # Aba de Consulta e Download
+    pastas_aprovadas = [
+        p["nome"]
+        for p in st.session_state.pastas_db
+        if p.get("status") == "Aprovado"
+    ]
+
+    # Aba 1: Consulta de Ficheiros com Filtro por Pasta
     with aba_docs:
-      st.subheader("Documentos e POPs Disponíveis")
+      st.subheader("Biblioteca de Documentos do Laboratório")
+
+      col_f1, col_f2 = st.columns([1, 2])
+      with col_f1:
+        pasta_filtro = st.selectbox(
+            "Filtrar por Pasta:", ["Todas as Pastas"] + pastas_aprovadas
+        )
+
       aprovados_arq = [
           a
           for a in st.session_state.arquivos_db
           if a.get("status") == "Aprovado"
       ]
+
+      if pasta_filtro != "Todas as Pastas":
+        aprovados_arq = [
+            a for a in aprovados_arq if a.get("pasta") == pasta_filtro
+        ]
 
       if aprovados_arq:
         for doc in aprovados_arq:
@@ -708,14 +772,13 @@ else:
                 f"""
                         <div class="css-card">
                             <h4 style="margin:0; color:#0D47A1;">📄 {doc['titulo']}</h4>
-                            <p style="margin:4px 0; color:#555;"><b>Categoria:</b> {doc['categoria']} | <b>Enviado por:</b> {doc['autor']} em {doc['data']}</p>
+                            <p style="margin:4px 0; color:#555;"><b>Pasta:</b> {doc.get('pasta', 'Geral')} | <b>Enviado por:</b> {doc['autor']} em {doc['data']}</p>
                             <p style="margin:4px 0; color:#666;"><i>{doc['descricao']}</i></p>
                         </div>
                         """,
                 unsafe_allow_html=True,
             )
 
-            # Botão para baixar o arquivo
             caminho_arq = doc.get("caminho")
             if caminho_arq and os.path.exists(caminho_arq):
               with open(caminho_arq, "rb") as f:
@@ -727,23 +790,20 @@ else:
                   key=f"dl_{doc['id']}",
               )
             else:
-              st.caption("Ficheiro não encontrado no servidor.")
+              st.caption("Ficheiro indisponível no servidor.")
             st.markdown("---")
       else:
-        st.info(
-            "Nenhum documento aprovado no momento. Envie um arquivo na aba ao"
-            " lado!"
-        )
+        st.info("Nenhum documento encontrado nesta pasta.")
 
-    # Aba de Envio de Arquivo pelo Usuário
+    # Aba 2: Upload de Arquivos vinculados a Pastas
     with aba_upload:
       st.subheader("Enviar Arquivo para Avaliação do Administrador")
       with st.form("form_upload_arq"):
         tit_doc = st.text_input("Título do Documento *")
-        cat_doc = st.selectbox("Categoria do Documento *", CATEGORIAS_ARQUIVOS)
+        pasta_doc = st.selectbox("Selecione a Pasta *", pastas_aprovadas)
         desc_doc = st.text_area("Descrição / Detalhes do Arquivo *", height=80)
         arq_up = st.file_uploader(
-            "Selecione o Ficheiro (PDF, DOCX, XLSX, PNG, JPG) *",
+            "Selecione o Ficheiro (PDF, DOCX, XLSX, PNG, JPG, CSV, TXT) *",
             type=["pdf", "docx", "xlsx", "png", "jpg", "csv", "txt"],
         )
 
@@ -753,7 +813,6 @@ else:
           if not (tit_doc and desc_doc and arq_up):
             st.error("Preencha todos os campos e selecione um ficheiro.")
           else:
-            # Salva o arquivo em disco
             data_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             nome_seguro = f"{data_str}_{arq_up.name}"
             caminho_final = os.path.join(PASTA_UPLOADS, nome_seguro)
@@ -764,7 +823,7 @@ else:
             novo_registro_arq = {
                 "id": len(st.session_state.arquivos_db) + 1,
                 "titulo": tit_doc.strip(),
-                "categoria": cat_doc,
+                "pasta": pasta_doc,
                 "descricao": desc_doc.strip(),
                 "nome_original": arq_up.name,
                 "caminho": caminho_final,
@@ -777,17 +836,169 @@ else:
             salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
 
             st.success(
-                "Documento enviado com sucesso! Ele aparecerá na biblioteca"
-                " assim que for aprovado pelo Administrador."
+                "Documento enviado com sucesso! Ele aparecerá no repositório"
+                " após a aprovação do Administrador."
             )
 
-  # --- 6. CENTRAL DE APROVAÇÕES (EXCLUSIVO ADMIN) ---
+    # Aba 3: Solicitação de Criação de Nova Pasta
+    with aba_nova_pasta:
+      st.subheader("Solicitar Criação de Nova Pasta")
+      with st.form("form_nova_pasta"):
+        nome_pasta = st.text_input("Nome da Nova Pasta (ex: Cromatografia) *")
+        desc_pasta = st.text_input("Descrição / Finalidade da Pasta *")
+        btn_pasta = st.form_submit_button("Enviar Solicitação de Pasta")
+
+        if btn_pasta:
+          if not (nome_pasta and desc_pasta):
+            st.error("Preencha o nome e a descrição da nova pasta.")
+          else:
+            p_clean = nome_pasta.strip()
+            ja_existe = any(
+                p["nome"].lower() == p_clean.lower()
+                for p in st.session_state.pastas_db
+            )
+
+            if ja_existe:
+              st.error("Esta pasta já existe ou foi solicitada previamente.")
+            else:
+              st.session_state.pastas_db.append({
+                  "nome": p_clean,
+                  "descricao": desc_pasta.strip(),
+                  "criador": usuario_atual["nome"],
+                  "status": "Pendente",
+              })
+              salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+              st.success(
+                  f"Solicitação para criar a pasta '{p_clean}' enviada com"
+                  " sucesso! Aguarde a aprovação do Administrador."
+              )
+
+  # --- 6. NOVO SETOR: CRIADOR DE POP PADRÃO (PROCEDIMENTO OPERACIONAL PADRÃO) ---
+  elif menu_selecionado == "📝 Criador de POP Padrão":
+    st.title("📝 Criador de POP Padrão (Procedimento Operacional)")
+    st.caption(
+        "Gere documentos padronizados de POP para equipamentos, análises e"
+        " rotinas de laboratório."
+    )
+
+    with st.form("form_pop_builder"):
+      col_p1, col_p2 = st.columns([1, 2])
+      with col_p1:
+        cod_pop = st.text_input("Código do POP *", "POP-LTAB-001")
+        versao_pop = st.text_input("Versão / Ano *", "v1.0 (2026)")
+        resp_pop = st.text_input(
+            "Elaborado por *", value=usuario_atual.get("nome", "")
+        )
+      with col_p2:
+        tit_pop = st.text_input(
+            "Título do Procedimento *",
+            "Operação e Higienização do Espectrofotômetro",
+        )
+        obj_pop = st.text_area(
+            "Objetivo do POP *",
+            "Padronizar a operação e limpeza do equipamento para garantir"
+            " medições precisas.",
+            height=70,
+        )
+
+      st.markdown("---")
+      mat_pop = st.text_area(
+          "Materiais, Reagentes e Equipamentos Utilizados *",
+          "Cubetas de quartzo, álcool 70%, lenço de papel macio, tampões.",
+          height=80,
+      )
+      passos_pop = st.text_area(
+          "Passo a Passo do Procedimento (Descreva em etapas numeradas) *",
+          value=(
+              "1. Ligar o equipamento 15 minutos antes da leitura para"
+              " estabilização da lâmpada.\n2. Ajustar o comprimento de onda"
+              " desejado no painel.\n3. Realizar o branco utilizando o tampão"
+              " de controle.\n4. Ler as amostras em triplicata.\n5. Limpar as"
+              " cubetas com solução apropriada ao final."
+          ),
+          height=150,
+      )
+      sec_pop = st.text_area(
+          "Cuidados de Segurança e Equipamentos de Proteção (EPIs) *",
+          "Uso obrigatório de jaleco, luvas de nitrilo e óculos de proteção.",
+          height=70,
+      )
+
+      btn_gerar_pop = st.form_submit_button(
+          "📝 Gerar e Visualizar POP Formatado", type="primary"
+      )
+
+    if btn_gerar_pop or cod_pop:
+      conteudo_pop = f"""================================================================================
+                    LABORATÓRIO LTAB - PROCEDIMENTO OPERACIONAL PADRÃO (POP)
+================================================================================
+CÓDIGO: {cod_pop}               VERSÃO: {versao_pop}
+DATA: {datetime.now().strftime('%d/%m/%Y')}
+TÍTULO: {tit_pop}
+ELABORADO POR: {resp_pop}
+================================================================================
+
+1. OBJETIVO:
+{obj_pop}
+
+2. MATERIAIS E EQUIPAMENTOS NECESSÁRIOS:
+{mat_pop}
+
+3. PROCEDIMENTO OPERACIONAL (PASSO A PASSO):
+{passos_pop}
+
+4. SEGURANÇA E EPIS:
+{sec_pop}
+================================================================================
+"""
+      st.markdown("---")
+      st.subheader("📄 Pré-visualização do POP Formatado")
+      st.code(conteudo_pop, language="markdown")
+
+      col_down, col_env = st.columns(2)
+      with col_down:
+        st.download_button(
+            label="⬇️ Baixar Arquivo do POP (.txt)",
+            data=conteudo_pop.encode("utf-8"),
+            file_name=f"{cod_pop}_POP.txt",
+            mime="text/plain",
+        )
+
+      with col_env:
+        if st.button("📤 Enviar POP Direto para Aprovação no Repositório"):
+          data_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+          nome_pop_file = f"{cod_pop}_{data_str}.txt"
+          caminho_pop = os.path.join(PASTA_UPLOADS, nome_pop_file)
+
+          with open(caminho_pop, "w", encoding="utf-8") as f:
+            f.write(conteudo_pop)
+
+          st.session_state.arquivos_db.append({
+              "id": len(st.session_state.arquivos_db) + 1,
+              "titulo": f"POP: {tit_pop}",
+              "pasta": "POPs e Protocolos",
+              "descricao": f"POP {cod_pop} gerado no sistema por {resp_pop}.",
+              "nome_original": nome_pop_file,
+              "caminho": caminho_pop,
+              "autor": resp_pop,
+              "data": datetime.now().strftime("%d/%m/%Y"),
+              "status": "Pendente",
+          })
+          salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+          st.success(
+              "POP enviado para a Central de Aprovações do Administrador!"
+          )
+
+  # --- 7. CENTRAL DE APROVAÇÕES (EXCLUSIVO ADMIN) ---
   elif menu_selecionado == "🔑 Central de Aprovações" and is_admin:
     st.title("🔑 Central de Aprovações (Administrador)")
 
-    tab_acessos, tab_perfis, tab_files = st.tabs(
-        ["1. Novos Acessos", "2. Alterações de Perfil", "3. Aprovar Arquivos"]
-    )
+    tab_acessos, tab_perfis, tab_files, tab_folders = st.tabs([
+        "1. Novos Acessos",
+        "2. Alterações de Perfil",
+        "3. Aprovar Arquivos",
+        "4. Aprovar Pastas",
+    ])
 
     # Tab 1: Novos Acessos
     with tab_acessos:
@@ -888,7 +1099,7 @@ else:
         for idx, doc in enumerate(pend_arquivos):
           c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
           with c_inf:
-            st.write(f"📄 **{doc['titulo']}** ({doc['categoria']})")
+            st.write(f"📄 **{doc['titulo']}** (Pasta: {doc.get('pasta','Geral')})")
             st.caption(
                 f"Enviado por: {doc['autor']} | Ficheiro:"
                 f" {doc['nome_original']}"
@@ -920,7 +1131,44 @@ else:
       else:
         st.info("Nenhum arquivo pendente de aprovação.")
 
-  # --- 7. MEU PERFIL ---
+    # Tab 4: Aprovação de Novas Pastas
+    with tab_folders:
+      pend_pastas = [
+          p for p in st.session_state.pastas_db if p.get("status") == "Pendente"
+      ]
+      if pend_pastas:
+        for idx, pst in enumerate(pend_pastas):
+          c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+          with c_inf:
+            st.write(f"📁 **Pasta: {pst['nome']}**")
+            st.caption(
+                f"Solicitada por: {pst['criador']} | Descrição:"
+                f" {pst['descricao']}"
+            )
+
+          with c_b1:
+            if st.button(
+                "✅ Aprovar Pasta", key=f"ap_fold_{idx}", type="primary"
+            ):
+              pst["status"] = "Aprovado"
+              salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+              st.success(f"Pasta '{pst['nome']}' aprovada com sucesso!")
+              st.rerun()
+
+          with c_b2:
+            if st.button("❌ Recusar Pasta", key=f"rec_fold_{idx}"):
+              st.session_state.pastas_db = [
+                  p
+                  for p in st.session_state.pastas_db
+                  if p["nome"] != pst["nome"]
+              ]
+              salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+              st.warning(f"Solicitação da pasta '{pst['nome']}' recusada.")
+              st.rerun()
+      else:
+        st.info("Nenhuma solicitação de nova pasta pendente.")
+
+  # --- 8. MEU PERFIL ---
   elif menu_selecionado == "👤 Meu Perfil":
     st.title("👤 Meu Perfil e Configurações")
 
