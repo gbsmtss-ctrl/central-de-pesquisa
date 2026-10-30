@@ -194,7 +194,7 @@ if st.session_state.usuario_logado is None:
                 " usuário."
             )
           else:
-            # Remove registros antigos/inativos para liberar nome de usuário
+            # Remove qualquer registro antigo/inativo desse nome de usuário para liberar o login
             st.session_state.usuarios = [
                 u
                 for u in st.session_state.usuarios
@@ -308,7 +308,6 @@ else:
     if st.session_state.integrantes:
       df = pd.DataFrame(st.session_state.integrantes)
 
-      # Garantia de exibição das colunas
       cols_exibir = [
           "Nome",
           "Categoria",
@@ -602,12 +601,32 @@ else:
 
       sel_resp = st.selectbox("Pesquisador Responsável", opcoes_resp)
 
+      tel_resp = "-"
+      email_resp = "-"
+
       if sel_resp == "Outro / Digitar manualmente...":
         responsavel = st.text_input(
             "Digite o Nome do Pesquisador", "Gabriela Mendes Farias Matos"
         )
+        tel_resp = st.text_input("Telefone do Pesquisador (Opcional)")
+        email_resp = st.text_input("E-mail do Pesquisador (Opcional)")
       else:
         responsavel = sel_resp
+        integrante_sel = next(
+            (
+                p
+                for p in st.session_state.integrantes
+                if p["Nome"] == sel_resp
+            ),
+            None,
+        )
+        if integrante_sel:
+          tel_resp = integrante_sel.get("Telefone", "-")
+          email_resp = integrante_sel.get("Email", "-")
+          st.info(
+              f"📞 **Contato do Responsável:**\n- **Telefone:**"
+              f" {tel_resp}\n- **E-mail:** {email_resp}"
+          )
 
       localizacao = st.text_input(
           "Local de Armazenamento", "Freezer -20°C / Caixa 3 / Posição B4"
@@ -632,6 +651,7 @@ else:
             f"ID: {id_amostra}\n"
             f"NOME: {nome_amostra}\n"
             f"RESPONSÁVEL: {responsavel}\n"
+            f"CONTATO: Tel {tel_resp} | Email {email_resp}\n"
             f"DATA OBTENÇÃO: {data_obtencao.strftime('%d/%m/%Y')}\n"
             f"LOCAL: {localizacao}\n"
             "------------------------\n"
@@ -667,7 +687,6 @@ else:
         u for u in st.session_state.usuarios if u.get("pendente_atualizacao")
     ]
 
-    # SEÇÃO A: SOLICITAÇÕES DE NOVOS ACESSOS
     st.subheader("1. Solicitações de Novo Acesso")
 
     if pendentes:
@@ -738,7 +757,6 @@ else:
 
     st.markdown("---")
 
-    # SEÇÃO B: SOLICITAÇÕES DE ALTERAÇÃO DE PERFIL
     st.subheader("2. Solicitações de Alteração de Perfil")
 
     if perfil_pendentes:
@@ -792,7 +810,6 @@ else:
 
     st.markdown("---")
 
-    # SEÇÃO C: USUÁRIOS APROVADOS E GESTÃO
     st.subheader("3. Usuários com Acesso Aprovado")
 
     if aprovados:
