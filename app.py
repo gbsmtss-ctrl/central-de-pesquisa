@@ -263,7 +263,8 @@ usuario_admin_padrao = [{
     "is_admin": True,
 }]
 
-st.session_state.integrantes = carregar_dados(
+# --- LIMPEZA DE USUÁRIOS NÃO OFICIAIS (Manter apenas quem está na planilha oficial de integrantes) ---
+integrantes_oficiais = carregar_dados(
     ARQUIVO_INTEGRANTES,
     [{
         "Nome": "Eliane Pereira Cipolatti",
@@ -274,13 +275,25 @@ st.session_state.integrantes = carregar_dados(
         "Situação": "Ativo",
     }],
 )
+nomes_na_planilha = [
+    p["Nome"].strip().lower() for p in integrantes_oficiais if "Nome" in p
+]
+
+usuarios_carregados = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
+usuarios_limpos = [
+    u
+    for u in usuarios_carregados
+    if u.get("is_admin")
+    or u.get("nome", "").strip().lower() in nomes_na_planilha
+]
+salvar_dados(ARQUIVO_USUARIOS, usuarios_limpos)
+
+st.session_state.integrantes = integrantes_oficiais
+st.session_state.usuarios = usuarios_limpos
 st.session_state.agenda = carregar_dados(ARQUIVO_AGENDA, [])
 st.session_state.arquivos_db = carregar_dados(ARQUIVO_ARQUIVOS, [])
 st.session_state.pastas_db = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
 st.session_state.pops_db = carregar_dados(ARQUIVO_POPS, POPS_INICIAIS)
-st.session_state.usuarios = carregar_dados(
-    ARQUIVO_USUARIOS, usuario_admin_padrao
-)
 
 # Sessão persistente via parâmetro da URL
 if "usr" in st.query_params:
@@ -420,7 +433,6 @@ if st.session_state.usuario_logado is None:
             usuarios_filtrados.append(novo_user_dict)
             salvar_dados(ARQUIVO_USUARIOS, usuarios_filtrados)
 
-            # Grava imediatamente na tabela de integrantes (visível em todos os seletores)
             integrantes_atuais = carregar_dados(ARQUIVO_INTEGRANTES, [])
             integrantes_filtrados = [
                 p
@@ -440,7 +452,7 @@ if st.session_state.usuario_logado is None:
 
             st.success(
                 f"Solicitação enviada com sucesso! O nome '{novo_nome.strip()}'"
-                " já aparece na tabela de integrantes e nos seletores."
+                " foi adicionado à lista de integrantes."
                 " Aguarde a aprovação do Administrador para realizar o login."
             )
 
@@ -597,7 +609,6 @@ else:
         )
 
         integrantes_ag = carregar_dados(ARQUIVO_INTEGRANTES, [])
-        # Inclui todos os integrantes cadastrados na lista de responsáveis
         lista_resp = [p["Nome"] for p in integrantes_ag if p.get("Nome")]
         responsavel = (
             st.selectbox("Pesquisador Responsável", lista_resp)
@@ -789,17 +800,18 @@ else:
       )
 
       integrantes_qr = carregar_dados(ARQUIVO_INTEGRANTES, [])
-      # Exibe todos os integrantes cadastrados na lista (Ativos e Pendentes)
       lista_cadastrados = [p["Nome"] for p in integrantes_qr if p.get("Nome")]
-      opcoes_resp = lista_cadastrados + ["Outro / Digitar manualmente..."]
+
+      # Opção de digitar manualmente no topo para fácil acesso
+      opcoes_resp = ["✍️ Digitar nome manualmente..."] + lista_cadastrados
       sel_resp = st.selectbox("Pesquisador Responsável", opcoes_resp)
 
       tel_resp = "-"
       email_resp = "-"
 
-      if sel_resp == "Outro / Digitar manualmente...":
+      if sel_resp == "✍️ Digitar nome manualmente...":
         responsavel = st.text_input(
-            "Nome do Pesquisador", "Gabriela Mendes Farias Matos"
+            "Nome do Pesquisador Responsável *", "Gabriela Mendes Farias Matos"
         )
         tel_resp = st.text_input("Telefone do Responsável")
         email_resp = st.text_input("E-mail do Responsável")
