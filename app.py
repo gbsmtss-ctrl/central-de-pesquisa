@@ -10,8 +10,42 @@ import streamlit as st
 # Configuração da página
 st.set_page_config(
     page_title="Central de Pesquisa",
+    page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
+)
+
+# --- ESTILIZAÇÃO VISUAL (AZUL CLARO E BRANCO) ---
+st.markdown(
+    """
+    <style>
+    /* Fundo principal da aplicação em azul super claro */
+    .stApp {
+        background-color: #F4F8FB;
+    }
+    /* Estilo da barra lateral (Sidebar) em azul claro */
+    [data-testid="stSidebar"] {
+        background-color: #E3F2FD;
+    }
+    /* Cor dos títulos principais */
+    h1, h2, h3 {
+        color: #0D47A1 !important;
+    }
+    /* Botões primários em azul vibrante */
+    div.stButton > button:first-child {
+        background-color: #1E88E5;
+        color: white;
+        border-radius: 8px;
+        border: none;
+        font-weight: bold;
+    }
+    div.stButton > button:first-child:hover {
+        background-color: #1565C0;
+        color: white;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
 )
 
 # --- SISTEMA DE PERSISTÊNCIA DE DADOS ---
@@ -21,7 +55,7 @@ ARQUIVO_USUARIOS = "usuarios.json"
 
 
 def carregar_dados(arquivo, padrao):
-  """Carrega os dados salvos em arquivo JSON no computador."""
+  """Carrega os dados salvos em arquivo JSON."""
   if os.path.exists(arquivo):
     with open(arquivo, "r", encoding="utf-8") as f:
       return json.load(f)
@@ -29,7 +63,7 @@ def carregar_dados(arquivo, padrao):
 
 
 def salvar_dados(arquivo, dados):
-  """Salva a lista atualizada no arquivo JSON no computador."""
+  """Salva a lista atualizada no arquivo JSON."""
   with open(arquivo, "w", encoding="utf-8") as f:
     json.dump(dados, f, ensure_ascii=False, indent=4)
 
@@ -49,7 +83,6 @@ if "integrantes" not in st.session_state:
 if "agenda" not in st.session_state:
   st.session_state.agenda = carregar_dados(ARQUIVO_AGENDA, [])
 
-# Conta Administradora Padrão
 usuario_admin_padrao = [{
     "nome": "Administrador",
     "usuario": "admin",
@@ -69,7 +102,7 @@ if "usuario_logado" not in st.session_state:
 
 # --- TELA DE LOGIN E SOLICITAÇÃO DE ACESSO ---
 if st.session_state.usuario_logado is None:
-  st.title("🔐 Central de Pesquisa - Controle de Acesso")
+  st.title("🧪 Central de Pesquisa - Controle de Acesso ⚗️")
 
   aba_login, aba_cadastro = st.tabs(["Entrar no Sistema", "Solicitar Acesso"])
 
@@ -118,7 +151,7 @@ if st.session_state.usuario_logado is None:
       nova_senha = st.text_input("Criar Senha", type="password")
       btn_solicitar = st.form_submit_button("Enviar Solicitação")
 
-      if btn_solicitar and novo_usuario and nova_senha:
+      if btn_solicitar and novo_nome and novo_usuario and nova_senha:
         existe = any(
             u["usuario"].lower() == novo_usuario.strip().lower()
             for u in st.session_state.usuarios
@@ -129,8 +162,9 @@ if st.session_state.usuario_logado is None:
               "Este nome de usuário já está cadastrado. Escolha outro usuário."
           )
         else:
+          # Salva o usuário no controle de acesso
           novo_user_dict = {
-              "nome": novo_nome,
+              "nome": novo_nome.strip(),
               "usuario": novo_usuario.strip(),
               "senha": nova_senha,
               "status": "Pendente",
@@ -138,29 +172,50 @@ if st.session_state.usuario_logado is None:
           }
           st.session_state.usuarios.append(novo_user_dict)
           salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+          # Adiciona automaticamente na lista de Integrantes como Pendente
+          if not any(
+              p["Nome"].lower() == novo_nome.strip().lower()
+              for p in st.session_state.integrantes
+          ):
+            st.session_state.integrantes.append({
+                "Nome": novo_nome.strip(),
+                "Categoria": "Aluno / Pesquisador",
+                "Vínculo": "Solicitante de Acesso",
+                "Situação": "Pendente",
+            })
+            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+
           st.success(
-              "Solicitação enviada com sucesso! Aguarde a aprovação do"
-              " administrador para conseguir entrar."
+              "Solicitação enviada com sucesso! Seu nome já consta na tabela de"
+              " integrantes como 'Pendente'. Aguarde a aprovação do"
+              " administrador."
           )
 
 # --- ÁREA LOGADA (SISTEMA PRINCIPAL) ---
 else:
   usuario_atual = st.session_state.usuario_logado
 
-  # Barra Lateral (Sidebar)
-  st.sidebar.title("Central de Pesquisa")
+  # Barra Lateral
+  st.sidebar.title("🧪 Central de Pesquisa ⚗️")
   st.sidebar.caption(f"Usuário: **{usuario_atual['nome']}**")
 
-  # Menu com opção "Visão Geral" no topo
-  opcoes_menu = [
-      "Visão Geral",
-      "Cadastrar Integrantes",
-      "Calendário / Agenda",
-      "Gerar QR Code de Amostras",
-  ]
-
+  # Define as opções de navegação de acordo com o nível de acesso
   if usuario_atual.get("is_admin"):
-    opcoes_menu.append("Aprovar Acessos")
+    opcoes_menu = [
+        "Visão Geral",
+        "Cadastrar Integrantes",
+        "Calendário / Agenda",
+        "Gerar QR Code de Amostras",
+        "Aprovar Acessos",
+    ]
+  else:
+    # Integrante comum cadastrado não pode acessar 'Cadastrar Integrantes' nem 'Aprovar Acessos'
+    opcoes_menu = [
+        "Visão Geral",
+        "Calendário / Agenda",
+        "Gerar QR Code de Amostras",
+    ]
 
   menu = st.sidebar.radio("Navegação", opcoes_menu)
 
@@ -171,17 +226,24 @@ else:
 
   # --- 1. VISÃO GERAL ---
   if menu == "Visão Geral":
-    st.title("Visão Geral do Laboratório")
+    st.title("🧪 Visão Geral do Laboratório")
 
-    # Métricas gerais
     col1, col2, col3 = st.columns(3)
-    col1.metric("Integrantes Ativos", len(st.session_state.integrantes))
+    col1.metric(
+        "Integrantes Ativos",
+        sum(
+            1
+            for p in st.session_state.integrantes
+            if p.get("Situação") == "Ativo"
+        ),
+    )
     col2.metric(
         "Alunos Ativos",
         sum(
             1
             for p in st.session_state.integrantes
-            if p["Categoria"] != "Orientador"
+            if p.get("Categoria") != "Orientador"
+            and p.get("Situação") == "Ativo"
         ),
     )
     col3.metric("Agendamentos Ativos", len(st.session_state.agenda))
@@ -189,14 +251,13 @@ else:
     st.markdown("---")
     st.subheader("Integrantes do Laboratório")
 
-    # Tabela de integrantes cadastrados
     if st.session_state.integrantes:
       df = pd.DataFrame(st.session_state.integrantes)
       st.dataframe(df, use_container_width=True)
     else:
       st.info("Nenhum integrante cadastrado no momento.")
 
-  # --- 2. CADASTRO E REMOÇÃO DE INTEGRANTES ---
+  # --- 2. CADASTRO E REMOÇÃO DE INTEGRANTES (EXCLUSIVO ADMIN) ---
   elif menu == "Cadastrar Integrantes":
     st.title("Gestão de Integrantes")
 
@@ -216,20 +277,34 @@ else:
       vinculo = st.text_input(
           "Vínculo / Curso", "UFRRJ - Engenharia de Alimentos"
       )
-      situacao = st.selectbox("Situação", ["Ativo", "Afastado", "Inativo"])
+      situacao = st.selectbox("Situação", ["Ativo", "Pendente", "Inativo"])
 
       btn_salvar = st.form_submit_button("Cadastrar Integrante")
 
       if btn_salvar and nome:
-        novo_integrante = {
-            "Nome": nome,
-            "Categoria": categoria,
-            "Vínculo": vinculo,
-            "Situação": situacao,
-        }
-        st.session_state.integrantes.append(novo_integrante)
+        # Se já existir na lista, atualiza dados; senão insere novo
+        existente = next(
+            (
+                p
+                for p in st.session_state.integrantes
+                if p["Nome"].lower() == nome.strip().lower()
+            ),
+            None,
+        )
+        if existente:
+          existente["Categoria"] = categoria
+          existente["Vínculo"] = vinculo
+          existente["Situação"] = situacao
+        else:
+          st.session_state.integrantes.append({
+              "Nome": nome.strip(),
+              "Categoria": categoria,
+              "Vínculo": vinculo,
+              "Situação": situacao,
+          })
+
         salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
-        st.success(f"Integrante '{nome}' cadastrado e salvo com sucesso!")
+        st.success(f"Integrante '{nome}' salvo com sucesso!")
         st.rerun()
 
     st.markdown("---")
@@ -251,8 +326,6 @@ else:
         salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
         st.success(f"Integrante '{pessoa_para_remover}' removido com sucesso!")
         st.rerun()
-    else:
-      st.info("Não há integrantes cadastrados para remover.")
 
   # --- 3. CALENDÁRIO / AGENDA ---
   elif menu == "Calendário / Agenda":
@@ -286,7 +359,11 @@ else:
             ],
         )
 
-        lista_resp = [p["Nome"] for p in st.session_state.integrantes]
+        lista_resp = [
+            p["Nome"]
+            for p in st.session_state.integrantes
+            if p.get("Situação") == "Ativo"
+        ]
         responsavel = (
             st.selectbox("Pesquisador Responsável", lista_resp)
             if lista_resp
@@ -425,12 +502,10 @@ else:
         salvar_dados(ARQUIVO_AGENDA, st.session_state.agenda)
         st.success("Agendamento removido!")
         st.rerun()
-    else:
-      st.info("Nenhum evento registrado na agenda.")
 
   # --- 4. GERADOR DE QR CODE PARA AMOSTRAS ---
   elif menu == "Gerar QR Code de Amostras":
-    st.title("Gerador de QR Code de Amostras")
+    st.title("🧪 Gerador de QR Code de Amostras")
 
     col_form, col_qr = st.columns([1, 1])
 
@@ -444,7 +519,11 @@ else:
           "Data de Obtenção / Produção", datetime.now().date()
       )
 
-      lista_cadastrados = [p["Nome"] for p in st.session_state.integrantes]
+      lista_cadastrados = [
+          p["Nome"]
+          for p in st.session_state.integrantes
+          if p.get("Situação") == "Ativo"
+      ]
       opcoes_resp = lista_cadastrados + ["Outro / Digitar manualmente..."]
 
       sel_resp = st.selectbox("Pesquisador Responsável", opcoes_resp)
@@ -500,7 +579,7 @@ else:
             mime="image/png",
         )
 
-  # --- 5. APROVAÇÃO DE ACESSOS (ADMIN) ---
+  # --- 5. APROVAÇÃO DE ACESSOS (EXCLUSIVO ADMIN) ---
   elif menu == "Aprovar Acessos":
     st.title("🔑 Gerenciamento e Aprovação de Acessos")
 
@@ -522,12 +601,26 @@ else:
           if st.button("✅ Aprovar", key=f"ap_{idx}", type="primary"):
             u["status"] = "Aprovado"
             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+            # Atualiza situação no cadastro do integrante para "Ativo"
+            for p in st.session_state.integrantes:
+              if p["Nome"].lower() == u["nome"].lower():
+                p["Situação"] = "Ativo"
+            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+
             st.success(f"Acesso aprovado para {u['nome']}!")
             st.rerun()
         with col_b2:
           if st.button("❌ Recusar", key=f"rec_{idx}"):
             u["status"] = "Recusado"
             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+            # Atualiza situação no cadastro para "Inativo"
+            for p in st.session_state.integrantes:
+              if p["Nome"].lower() == u["nome"].lower():
+                p["Situação"] = "Inativo"
+            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+
             st.warning(f"Solicitação de {u['nome']} recusada.")
             st.rerun()
     else:
