@@ -75,6 +75,7 @@ ARQUIVO_AGENDA = "agenda.json"
 ARQUIVO_USUARIOS = "usuarios.json"
 ARQUIVO_ARQUIVOS = "arquivos.json"
 ARQUIVO_PASTAS = "pastas.json"
+ARQUIVO_POPS = "pops.json"
 PASTA_UPLOADS = "uploads"
 
 os.makedirs(PASTA_UPLOADS, exist_ok=True)
@@ -121,6 +122,53 @@ PASTAS_INICIAIS = [
     },
 ]
 
+POPS_INICIAIS = [
+    {
+        "codigo": "POP-LTAB-001",
+        "titulo": "Operação e Higienização do Espectrofotômetro",
+        "versao": 1,
+        "objetivo": (
+            "Padronizar a operação e limpeza do equipamento para garantir"
+            " medições precisas."
+        ),
+        "materiais": (
+            "Cubetas de quartzo, álcool 70%, lenço de papel macio, tampões."
+        ),
+        "passos": (
+            "1. Ligar o equipamento 15 minutos antes da leitura.\n2. Ajustar o"
+            " comprimento de onda.\n3. Realizar o branco com a solução"
+            " controle.\n4. Ler amostras em triplicata.\n5. Higienizar as"
+            " cubetas após o uso."
+        ),
+        "seguranca": (
+            "Uso obrigatório de jaleco, luvas de nitrilo e óculos de proteção."
+        ),
+        "autor": "Eliane Pereira Cipolatti",
+    },
+    {
+        "codigo": "POP-LTAB-002",
+        "titulo": "Preparo de Soluções e Tampões",
+        "versao": 1,
+        "objetivo": (
+            "Padronizar o preparo de soluções aquosas e tampões de uso prévio."
+        ),
+        "materiais": (
+            "Balança analítica, Becker, Pisseta com água destilada, Peagametro."
+        ),
+        "passos": (
+            "1. Calcular e pesará a massa de reagente necessária.\n2. Dissolver"
+            " em béquer com água destilada sob agitação.\n3. Ajustar o pH no"
+            " peagâmetro.\n4. Transferir para balão volumétrico e aferir o"
+            " volume."
+        ),
+        "seguranca": (
+            "Jaleco, luvas, óculos de proteção e manipulação em capela se"
+            " volátil."
+        ),
+        "autor": "Eliane Pereira Cipolatti",
+    },
+]
+
 
 def carregar_dados(arquivo, padrao):
   """Carrega os dados salvos em arquivo JSON."""
@@ -158,6 +206,9 @@ if "arquivos_db" not in st.session_state:
 
 if "pastas_db" not in st.session_state:
   st.session_state.pastas_db = carregar_dados(ARQUIVO_PASTAS, PASTAS_INICIAIS)
+
+if "pops_db" not in st.session_state:
+  st.session_state.pops_db = carregar_dados(ARQUIVO_POPS, POPS_INICIAIS)
 
 usuario_admin_padrao = [{
     "nome": "Administrador",
@@ -427,7 +478,7 @@ else:
       else:
         st.info("Nenhum compromisso agendado recentemente.")
 
-  # --- 2. AGENDA & COMPROMISSOS (PERMISSÃO DE CANCELAMENTO AO CRIADOR) ---
+  # --- 2. AGENDA & COMPROMISSOS ---
   elif menu_selecionado == "📅 Agenda & Compromissos":
     st.title("📅 Agenda do Laboratório")
 
@@ -510,7 +561,7 @@ else:
             st.write(f"**Responsável:** {ev['Responsável']}")
             st.write(f"**Observações:** {ev['Observações']}")
       else:
-        st.info("Nenhum agendamento para este dia.")
+        st.info("Nenum agendamento para este dia.")
 
     st.markdown("---")
     st.subheader("📋 Lista Completa de Agendamentos")
@@ -532,8 +583,7 @@ else:
           use_container_width=True,
       )
 
-      # PERMISSÃO DE CANCELAMENTO: Admin cancela todos; Usuário comum cancela seus eventos
-      st.markdown("### ❌ Cancelar / Excluir Meu Agendamento")
+      st.markdown("### ❌ Cancelar / Excluir Agendamento")
 
       if is_admin:
         meus_eventos = st.session_state.agenda
@@ -554,13 +604,13 @@ else:
         ]
         sel_c = st.selectbox("Selecione o agendamento para remover:", opcoes_c)
 
-        if st.button("Remover Meu Agendamento", type="primary"):
+        if st.button("Remover Agendamento", type="primary"):
           id_del = int(sel_c.split(" ")[1])
           st.session_state.agenda = [
               e for e in st.session_state.agenda if e["ID"] != id_del
           ]
           salvar_dados(ARQUIVO_AGENDA, st.session_state.agenda)
-          st.success("Agendamento cancelado e removido com sucesso!")
+          st.success("Agendamento cancelado com sucesso!")
           st.rerun()
       else:
         st.caption("Você não possui agendamentos cadastrados para cancelar.")
@@ -730,12 +780,12 @@ else:
             mime="image/png",
         )
 
-  # --- 5. REPOSITÓRIO DE ARQUIVOS (COM PASTAS E SOLICITAÇÃO DE NOVAS PASTAS) ---
+  # --- 5. REPOSITÓRIO DE ARQUIVOS ---
   elif menu_selecionado == "📁 Repositório de Arquivos":
     st.title("📁 Central de Arquivos & Documentos")
 
     aba_docs, aba_upload, aba_nova_pasta = st.tabs(
-        ["📚 Documentos por Pasta", "📥 Enviar Arquivo", "📁 Solicitara Nova Pasta"]
+        ["📚 Documentos por Pasta", "📥 Enviar Arquivo", "📁 Solicitar Nova Pasta"]
     )
 
     pastas_aprovadas = [
@@ -744,7 +794,6 @@ else:
         if p.get("status") == "Aprovado"
     ]
 
-    # Aba 1: Consulta de Ficheiros com Filtro por Pasta
     with aba_docs:
       st.subheader("Biblioteca de Documentos do Laboratório")
 
@@ -795,7 +844,6 @@ else:
       else:
         st.info("Nenhum documento encontrado nesta pasta.")
 
-    # Aba 2: Upload de Arquivos vinculados a Pastas
     with aba_upload:
       st.subheader("Enviar Arquivo para Avaliação do Administrador")
       with st.form("form_upload_arq"):
@@ -840,7 +888,6 @@ else:
                 " após a aprovação do Administrador."
             )
 
-    # Aba 3: Solicitação de Criação de Nova Pasta
     with aba_nova_pasta:
       st.subheader("Solicitar Criação de Nova Pasta")
       with st.form("form_nova_pasta"):
@@ -873,69 +920,134 @@ else:
                   " sucesso! Aguarde a aprovação do Administrador."
               )
 
-  # --- 6. NOVO SETOR: CRIADOR DE POP PADRÃO (PROCEDIMENTO OPERACIONAL PADRÃO) ---
+  # --- 6. CRIADOR DE POP PADRÃO (CÓDIGO, VERSÃO E AUTOR AUTOMÁTICOS) ---
   elif menu_selecionado == "📝 Criador de POP Padrão":
-    st.title("📝 Criador de POP Padrão (Procedimento Operacional)")
+    st.title("📝 Criador e Atualizador de POP Padrão")
     st.caption(
-        "Gere documentos padronizados de POP para equipamentos, análises e"
-        " rotinas de laboratório."
+        "Gere ou atualize POPs do laboratório. O código e a versão são"
+        " gerenciados automaticamente."
     )
 
-    with st.form("form_pop_builder"):
-      col_p1, col_p2 = st.columns([1, 2])
+    opcoes_pops = [
+        f"{p['codigo']} - {p['titulo']}" for p in st.session_state.pops_db
+    ] + ["➕ Cadastrar Novo POP..."]
+
+    sel_pop_opcao = st.selectbox(
+        "Selecione o POP para Atualizar ou Crie um Novo:", opcoes_pops
+    )
+
+    if sel_pop_opcao == "➕ Cadastrar Novo POP...":
+      is_novo = True
+      num_pop = len(st.session_state.pops_db) + 1
+      cod_pop = f"POP-LTAB-{num_pop:03d}"
+      versao_num = 1
+      versao_pop = "v1.0"
+      titulo_default = ""
+      obj_default = ""
+      mat_default = ""
+      passos_default = ""
+      sec_default = ""
+    else:
+      is_novo = False
+      pop_existente = next(
+          p
+          for p in st.session_state.pops_db
+          if f"{p['codigo']} - {p['titulo']}" == sel_pop_opcao
+      )
+      cod_pop = pop_existente["codigo"]
+      versao_num = pop_existente.get("versao", 1) + 1
+      versao_pop = f"v{versao_num}.0"
+      titulo_default = pop_existente["titulo"]
+      obj_default = pop_existente.get("objetivo", "")
+      mat_default = pop_existente.get("materiais", "")
+      passos_default = pop_existente.get("passos", "")
+      sec_default = pop_existente.get("seguranca", "")
+
+    st.markdown("---")
+
+    with st.form("form_pop_auto"):
+      col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
       with col_p1:
-        cod_pop = st.text_input("Código do POP *", "POP-LTAB-001")
-        versao_pop = st.text_input("Versão / Ano *", "v1.0 (2026)")
-        resp_pop = st.text_input(
-            "Elaborado por *", value=usuario_atual.get("nome", "")
-        )
+        st.text_input("Código do POP (Automático)", value=cod_pop, disabled=True)
       with col_p2:
-        tit_pop = st.text_input(
-            "Título do Procedimento *",
-            "Operação e Higienização do Espectrofotômetro",
+        st.text_input(
+            "Versão do POP (Automático)", value=versao_pop, disabled=True
         )
-        obj_pop = st.text_area(
-            "Objetivo do POP *",
-            "Padronizar a operação e limpeza do equipamento para garantir"
-            " medições precisas.",
-            height=70,
+      with col_p3:
+        st.text_input(
+            "Elaborado por (Usuário Logado)",
+            value=usuario_atual["nome"],
+            disabled=True,
         )
 
-      st.markdown("---")
+      if is_novo:
+        tit_pop = st.text_input(
+            "Título do Novo POP *",
+            placeholder="ex: Preparo de Solução e Tampões",
+        )
+      else:
+        st.text_input("Título do POP", value=titulo_default, disabled=True)
+        tit_pop = titulo_default
+
+      obj_pop = st.text_area(
+          "Objetivo do POP *", value=obj_default, height=80
+      )
       mat_pop = st.text_area(
-          "Materiais, Reagentes e Equipamentos Utilizados *",
-          "Cubetas de quartzo, álcool 70%, lenço de papel macio, tampões.",
-          height=80,
+          "Materiais, Reagentes e Equipamentos *", value=mat_default, height=80
       )
       passos_pop = st.text_area(
-          "Passo a Passo do Procedimento (Descreva em etapas numeradas) *",
-          value=(
-              "1. Ligar o equipamento 15 minutos antes da leitura para"
-              " estabilização da lâmpada.\n2. Ajustar o comprimento de onda"
-              " desejado no painel.\n3. Realizar o branco utilizando o tampão"
-              " de controle.\n4. Ler as amostras em triplicata.\n5. Limpar as"
-              " cubetas com solução apropriada ao final."
-          ),
+          "Passo a Passo do Procedimento (Numerado) *",
+          value=passos_default,
           height=150,
       )
       sec_pop = st.text_area(
-          "Cuidados de Segurança e Equipamentos de Proteção (EPIs) *",
-          "Uso obrigatório de jaleco, luvas de nitrilo e óculos de proteção.",
-          height=70,
+          "Cuidados de Segurança e EPIs *", value=sec_default, height=80
       )
 
-      btn_gerar_pop = st.form_submit_button(
-          "📝 Gerar e Visualizar POP Formatado", type="primary"
+      btn_salvar_pop = st.form_submit_button(
+          "💾 Salvar e Gerar Documento POP", type="primary"
       )
 
-    if btn_gerar_pop or cod_pop:
+      if btn_salvar_pop:
+        if not (tit_pop and obj_pop and mat_pop and passos_pop and sec_pop):
+          st.error("Por favor, preencha todos os campos do formulário.")
+        else:
+          if is_novo:
+            novo_pop_dict = {
+                "codigo": cod_pop,
+                "titulo": tit_pop.strip(),
+                "versao": 1,
+                "objetivo": obj_pop.strip(),
+                "materiais": mat_pop.strip(),
+                "passos": passos_pop.strip(),
+                "seguranca": sec_pop.strip(),
+                "autor": usuario_atual["nome"],
+            }
+            st.session_state.pops_db.append(novo_pop_dict)
+          else:
+            pop_existente["versao"] = versao_num
+            pop_existente["objetivo"] = obj_pop.strip()
+            pop_existente["materiais"] = mat_pop.strip()
+            pop_existente["passos"] = passos_pop.strip()
+            pop_existente["seguranca"] = sec_pop.strip()
+            pop_existente["autor"] = usuario_atual["nome"]
+
+          salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+          st.success(
+              f"POP '{cod_pop}' ({versao_pop}) salvo com sucesso em nome de"
+              f" {usuario_atual['nome']}!"
+          )
+          st.rerun()
+
+    # Visualização e Exportação do POP selecionado
+    if tit_pop:
       conteudo_pop = f"""================================================================================
                     LABORATÓRIO LTAB - PROCEDIMENTO OPERACIONAL PADRÃO (POP)
 ================================================================================
 CÓDIGO: {cod_pop}               VERSÃO: {versao_pop}
-DATA: {datetime.now().strftime('%d/%m/%Y')}
+DATA DE EDIÇÃO: {datetime.now().strftime('%d/%m/%Y')}
 TÍTULO: {tit_pop}
-ELABORADO POR: {resp_pop}
+ELABORADO POR: {usuario_atual['nome']}
 ================================================================================
 
 1. OBJETIVO:
@@ -952,22 +1064,21 @@ ELABORADO POR: {resp_pop}
 ================================================================================
 """
       st.markdown("---")
-      st.subheader("📄 Pré-visualização do POP Formatado")
+      st.subheader("📄 Visualização do Documento Formatado")
       st.code(conteudo_pop, language="markdown")
 
-      col_down, col_env = st.columns(2)
-      with col_down:
+      col_d1, col_d2 = st.columns(2)
+      with col_d1:
         st.download_button(
-            label="⬇️ Baixar Arquivo do POP (.txt)",
+            label="⬇️ Baixar POP em Texto (.txt)",
             data=conteudo_pop.encode("utf-8"),
-            file_name=f"{cod_pop}_POP.txt",
+            file_name=f"{cod_pop}_{versao_pop}.txt",
             mime="text/plain",
         )
-
-      with col_env:
-        if st.button("📤 Enviar POP Direto para Aprovação no Repositório"):
+      with col_d2:
+        if st.button("📤 Enviar POP para Repositório (Requer Aprovação)"):
           data_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-          nome_pop_file = f"{cod_pop}_{data_str}.txt"
+          nome_pop_file = f"{cod_pop}_{versao_pop}_{data_str}.txt"
           caminho_pop = os.path.join(PASTA_UPLOADS, nome_pop_file)
 
           with open(caminho_pop, "w", encoding="utf-8") as f:
@@ -975,19 +1086,20 @@ ELABORADO POR: {resp_pop}
 
           st.session_state.arquivos_db.append({
               "id": len(st.session_state.arquivos_db) + 1,
-              "titulo": f"POP: {tit_pop}",
+              "titulo": f"POP {cod_pop}: {tit_pop} ({versao_pop})",
               "pasta": "POPs e Protocolos",
-              "descricao": f"POP {cod_pop} gerado no sistema por {resp_pop}.",
+              "descricao": (
+                  f"POP {cod_pop} ({versao_pop}) elaborado por"
+                  f" {usuario_atual['nome']}."
+              ),
               "nome_original": nome_pop_file,
               "caminho": caminho_pop,
-              "autor": resp_pop,
+              "autor": usuario_atual["nome"],
               "data": datetime.now().strftime("%d/%m/%Y"),
               "status": "Pendente",
           })
           salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
-          st.success(
-              "POP enviado para a Central de Aprovações do Administrador!"
-          )
+          st.success("POP enviado para aprovação do Administrador!")
 
   # --- 7. CENTRAL DE APROVAÇÕES (EXCLUSIVO ADMIN) ---
   elif menu_selecionado == "🔑 Central de Aprovações" and is_admin:
@@ -1000,7 +1112,6 @@ ELABORADO POR: {resp_pop}
         "4. Aprovar Pastas",
     ])
 
-    # Tab 1: Novos Acessos
     with tab_acessos:
       pend_acessos = [
           u for u in st.session_state.usuarios if u.get("status") == "Pendente"
@@ -1042,7 +1153,6 @@ ELABORADO POR: {resp_pop}
       else:
         st.info("Nenhuma solicitação de novo acesso pendente.")
 
-    # Tab 2: Alterações de Perfil
     with tab_perfis:
       pend_perfis = [
           u for u in st.session_state.usuarios if u.get("pendente_atualizacao")
@@ -1088,7 +1198,6 @@ ELABORADO POR: {resp_pop}
       else:
         st.info("Nenhuma alteração de perfil pendente.")
 
-    # Tab 3: Aprovação de Arquivos
     with tab_files:
       pend_arquivos = [
           a
@@ -1099,7 +1208,9 @@ ELABORADO POR: {resp_pop}
         for idx, doc in enumerate(pend_arquivos):
           c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
           with c_inf:
-            st.write(f"📄 **{doc['titulo']}** (Pasta: {doc.get('pasta','Geral')})")
+            st.write(
+                f"📄 **{doc['titulo']}** (Pasta: {doc.get('pasta','Geral')})"
+            )
             st.caption(
                 f"Enviado por: {doc['autor']} | Ficheiro:"
                 f" {doc['nome_original']}"
@@ -1131,7 +1242,6 @@ ELABORADO POR: {resp_pop}
       else:
         st.info("Nenhum arquivo pendente de aprovação.")
 
-    # Tab 4: Aprovação de Novas Pastas
     with tab_folders:
       pend_pastas = [
           p for p in st.session_state.pastas_db if p.get("status") == "Pendente"
