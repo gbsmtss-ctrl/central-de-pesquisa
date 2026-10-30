@@ -85,6 +85,8 @@ if "integrantes" not in st.session_state:
           "Nome": "Eliane Pereira Cipolatti",
           "Categoria": "Orientador",
           "Vínculo": "UFRRJ - Engenharia de Alimentos",
+          "Telefone": "-",
+          "Email": "eliane@ufrrj.br",
           "Situação": "Ativo",
       }],
   )
@@ -98,6 +100,8 @@ usuario_admin_padrao = [{
     "senha": "123",
     "categoria": "Orientador",
     "vinculo": "UFRRJ",
+    "telefone": "-",
+    "email": "admin@ufrrj.br",
     "status": "Aprovado",
     "is_admin": True,
 }]
@@ -154,84 +158,93 @@ if st.session_state.usuario_logado is None:
   with aba_cadastro:
     st.subheader("Pedir Permissão de Acesso")
     with st.form("form_solicitar_acesso"):
-      novo_nome = st.text_input("Nome Completo")
-      nova_categoria = st.selectbox("Categoria", CATEGORIAS_PADRAO)
+      novo_nome = st.text_input("Nome Completo *")
+      nova_categoria = st.selectbox("Categoria *", CATEGORIAS_PADRAO)
       novo_vinculo = st.text_input(
-          "Vínculo / Curso", "UFRRJ - Engenharia de Alimentos"
+          "Vínculo / Curso *", "UFRRJ - Engenharia de Alimentos"
       )
-      novo_usuario = st.text_input("Usuário Desejado (ex: gabriela)")
-      nova_senha = st.text_input("Criar Senha", type="password")
+      novo_telefone = st.text_input("Telefone para Contato *")
+      novo_email = st.text_input("E-mail para Contato *")
+      novo_usuario = st.text_input("Usuário Desejado (ex: gabriela) *")
+      nova_senha = st.text_input("Criar Senha *", type="password")
       btn_solicitar = st.form_submit_button("Enviar Solicitação")
 
-      if (
-          btn_solicitar
-          and novo_nome
-          and novo_usuario
-          and nova_senha
-          and novo_vinculo
-      ):
-        usr_clean = novo_usuario.strip().lower()
-
-        # Verifica existência considerando apenas contas ativas ou pendentes
-        existe = any(
-            u["usuario"].lower() == usr_clean
-            and u.get("status") in ["Aprovado", "Pendente"]
-            for u in st.session_state.usuarios
-        )
-
-        if existe:
-          st.error(
-              "Este nome de usuário já está em uso. Escolha outro nome de"
-              " usuário."
-          )
+      if btn_solicitar:
+        if not (
+            novo_nome
+            and novo_usuario
+            and nova_senha
+            and novo_vinculo
+            and novo_telefone
+            and novo_email
+        ):
+          st.error("Por favor, preencha todos os campos obrigatórios (*).")
         else:
-          # Remove qualquer registro antigo/inativo desse nome de usuário para liberar o login
-          st.session_state.usuarios = [
-              u
+          usr_clean = novo_usuario.strip().lower()
+
+          existe = any(
+              u["usuario"].lower() == usr_clean
+              and u.get("status") in ["Aprovado", "Pendente"]
               for u in st.session_state.usuarios
-              if u["usuario"].lower() != usr_clean
-          ]
-
-          # Cria o novo registro de solicitação incluindo Categoria e Vínculo
-          novo_user_dict = {
-              "nome": novo_nome.strip(),
-              "usuario": novo_usuario.strip(),
-              "senha": nova_senha,
-              "categoria": nova_categoria,
-              "vinculo": novo_vinculo.strip(),
-              "status": "Pendente",
-              "is_admin": False,
-          }
-          st.session_state.usuarios.append(novo_user_dict)
-          salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
-
-          # Atualiza ou adiciona na lista de integrantes como Pendente
-          integrante_existente = next(
-              (
-                  p
-                  for p in st.session_state.integrantes
-                  if p["Nome"].lower() == novo_nome.strip().lower()
-              ),
-              None,
           )
-          if integrante_existente:
-            integrante_existente["Categoria"] = nova_categoria
-            integrante_existente["Vínculo"] = novo_vinculo.strip()
-            integrante_existente["Situação"] = "Pendente"
+
+          if existe:
+            st.error(
+                "Este nome de usuário já está em uso. Escolha outro nome de"
+                " usuário."
+            )
           else:
-            st.session_state.integrantes.append({
-                "Nome": novo_nome.strip(),
-                "Categoria": nova_categoria,
-                "Vínculo": novo_vinculo.strip(),
-                "Situação": "Pendente",
-            })
-          salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+            # Remove registros antigos/inativos para liberar nome de usuário
+            st.session_state.usuarios = [
+                u
+                for u in st.session_state.usuarios
+                if u["usuario"].lower() != usr_clean
+            ]
 
-          st.success(
-              "Solicitação enviada com sucesso! Seu nome consta na tabela de"
-              " integrantes como 'Pendente'. Aguarde a aprovação do"
-              " administrador."
-          )
+            novo_user_dict = {
+                "nome": novo_nome.strip(),
+                "usuario": novo_usuario.strip(),
+                "senha": nova_senha,
+                "categoria": nova_categoria,
+                "vinculo": novo_vinculo.strip(),
+                "telefone": novo_telefone.strip(),
+                "email": novo_email.strip(),
+                "status": "Pendente",
+                "is_admin": False,
+            }
+            st.session_state.usuarios.append(novo_user_dict)
+            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+            integrante_existente = next(
+                (
+                    p
+                    for p in st.session_state.integrantes
+                    if p["Nome"].lower() == novo_nome.strip().lower()
+                ),
+                None,
+            )
+            if integrante_existente:
+              integrante_existente["Categoria"] = nova_categoria
+              integrante_existente["Vínculo"] = novo_vinculo.strip()
+              integrante_existente["Telefone"] = novo_telefone.strip()
+              integrante_existente["Email"] = novo_email.strip()
+              integrante_existente["Situação"] = "Pendente"
+            else:
+              st.session_state.integrantes.append({
+                  "Nome": novo_nome.strip(),
+                  "Categoria": nova_categoria,
+                  "Vínculo": novo_vinculo.strip(),
+                  "Telefone": novo_telefone.strip(),
+                  "Email": novo_email.strip(),
+                  "Situação": "Pendente",
+              })
+            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+
+            st.success(
+                "Solicitação enviada com sucesso! Seu nome consta na tabela de"
+                " integrantes como 'Pendente'. Aguarde a aprovação do"
+                " administrador."
+            )
 
 # --- ÁREA LOGADA (SISTEMA PRINCIPAL) ---
 else:
@@ -248,12 +261,14 @@ else:
         "Calendário / Agenda",
         "Gerar QR Code de Amostras",
         "Aprovar Acessos",
+        "Meu Perfil",
     ]
   else:
     opcoes_menu = [
         "Visão Geral",
         "Calendário / Agenda",
         "Gerar QR Code de Amostras",
+        "Meu Perfil",
     ]
 
   menu = st.sidebar.radio("Navegação", opcoes_menu)
@@ -292,7 +307,21 @@ else:
 
     if st.session_state.integrantes:
       df = pd.DataFrame(st.session_state.integrantes)
-      st.dataframe(df, use_container_width=True)
+
+      # Garantia de exibição das colunas
+      cols_exibir = [
+          "Nome",
+          "Categoria",
+          "Vínculo",
+          "Telefone",
+          "Email",
+          "Situação",
+      ]
+      for col in cols_exibir:
+        if col not in df.columns:
+          df[col] = "-"
+
+      st.dataframe(df[cols_exibir], use_container_width=True)
     else:
       st.info("Nenhum integrante cadastrado no momento.")
 
@@ -307,6 +336,8 @@ else:
       vinculo = st.text_input(
           "Vínculo / Curso", "UFRRJ - Engenharia de Alimentos"
       )
+      telefone = st.text_input("Telefone")
+      email = st.text_input("E-mail")
       situacao = st.selectbox("Situação", ["Ativo", "Pendente", "Inativo"])
 
       btn_salvar = st.form_submit_button("Cadastrar Integrante")
@@ -323,12 +354,16 @@ else:
         if existente:
           existente["Categoria"] = categoria
           existente["Vínculo"] = vinculo
+          existente["Telefone"] = telefone
+          existente["Email"] = email
           existente["Situação"] = situacao
         else:
           st.session_state.integrantes.append({
               "Nome": nome.strip(),
               "Categoria": categoria,
               "Vínculo": vinculo,
+              "Telefone": telefone,
+              "Email": email,
               "Situação": situacao,
           })
 
@@ -628,29 +663,39 @@ else:
     aprovados = [
         u for u in st.session_state.usuarios if u.get("status") == "Aprovado"
     ]
+    perfil_pendentes = [
+        u for u in st.session_state.usuarios if u.get("pendente_atualizacao")
+    ]
 
-    st.subheader("Solicitações Pendentes de Aprovação")
+    # SEÇÃO A: SOLICITAÇÕES DE NOVOS ACESSOS
+    st.subheader("1. Solicitações de Novo Acesso")
 
     if pendentes:
       for idx, u in enumerate(pendentes):
         col_u, col_b1, col_b2 = st.columns([3, 1, 1])
         with col_u:
-          cat_text = u.get("categoria", "Não informada")
-          vinc_text = u.get("vinculo", "Não informado")
+          cat_text = u.get("categoria", "-")
+          vinc_text = u.get("vinculo", "-")
+          tel_text = u.get("telefone", "-")
+          email_text = u.get("email", "-")
           st.write(f"👤 **{u['nome']}** (Usuário: `{u['usuario']}`)")
-          st.caption(f"Categoria: {cat_text} | Vínculo: {vinc_text}")
+          st.caption(
+              f"Categoria: {cat_text} | Vínculo: {vinc_text} | Tel: {tel_text} |"
+              f" Email: {email_text}"
+          )
 
         with col_b1:
           if st.button("✅ Aprovar", key=f"ap_{idx}", type="primary"):
             u["status"] = "Aprovado"
             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-            # Atualiza situação na tabela de integrantes para "Ativo"
             integrante_encontrado = False
             for p in st.session_state.integrantes:
               if p["Nome"].lower() == u["nome"].lower():
                 p["Categoria"] = u.get("categoria", p.get("Categoria"))
                 p["Vínculo"] = u.get("vinculo", p.get("Vínculo"))
+                p["Telefone"] = u.get("telefone", p.get("Telefone", "-"))
+                p["Email"] = u.get("email", p.get("Email", "-"))
                 p["Situação"] = "Ativo"
                 integrante_encontrado = True
 
@@ -659,15 +704,13 @@ else:
                   "Nome": u["nome"],
                   "Categoria": u.get("categoria", "Aluno / Pesquisador"),
                   "Vínculo": u.get("vinculo", "UFRRJ"),
+                  "Telefone": u.get("telefone", "-"),
+                  "Email": u.get("email", "-"),
                   "Situação": "Ativo",
               })
 
             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
-
-            st.success(
-                f"Acesso aprovado para {u['nome']}! Dados atualizados na Visão"
-                " Geral."
-            )
+            st.success(f"Acesso aprovado para {u['nome']}!")
             st.rerun()
 
         with col_b2:
@@ -691,20 +734,77 @@ else:
             )
             st.rerun()
     else:
-      st.info("Nenhuma solicitação de acesso pendente no momento.")
+      st.info("Nenhuma solicitação de novo acesso pendente.")
 
     st.markdown("---")
-    st.subheader("Usuários com Acesso Aprovado")
+
+    # SEÇÃO B: SOLICITAÇÕES DE ALTERAÇÃO DE PERFIL
+    st.subheader("2. Solicitações de Alteração de Perfil")
+
+    if perfil_pendentes:
+      for idx, u in enumerate(perfil_pendentes):
+        p_data = u["pendente_atualizacao"]
+        col_info, col_b1, col_b2 = st.columns([3, 1, 1])
+        with col_info:
+          st.write(f"👤 **{u['nome']}** (`{u['usuario']}`)")
+          st.caption(
+              f"<b>Nova Categoria:</b> {p_data.get('categoria')} | <b>Novo"
+              f" Vínculo:</b> {p_data.get('vinculo')}",
+              unsafe_allow_html=True,
+          )
+          st.caption(
+              f"<b>Novo Tel:</b> {p_data.get('telefone')} | <b>Novo Email:</b>"
+              f" {p_data.get('email')}",
+              unsafe_allow_html=True,
+          )
+
+        with col_b1:
+          if st.button(
+              "✅ Aprovar Mudança", key=f"ap_prof_{idx}", type="primary"
+          ):
+            u["categoria"] = p_data.get("categoria")
+            u["vinculo"] = p_data.get("vinculo")
+            u["telefone"] = p_data.get("telefone")
+            u["email"] = p_data.get("email")
+            del u["pendente_atualizacao"]
+
+            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+            for p in st.session_state.integrantes:
+              if p["Nome"].lower() == u["nome"].lower():
+                p["Categoria"] = u["categoria"]
+                p["Vínculo"] = u["vinculo"]
+                p["Telefone"] = u["telefone"]
+                p["Email"] = u["email"]
+
+            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+            st.success(f"Alterações de perfil de {u['nome']} aprovadas!")
+            st.rerun()
+
+        with col_b2:
+          if st.button("❌ Recusar Mudança", key=f"rec_prof_{idx}"):
+            del u["pendente_atualizacao"]
+            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+            st.warning(f"Alterações de perfil de {u['nome']} recusadas.")
+            st.rerun()
+    else:
+      st.info("Nenhuma solicitação de alteração de perfil pendente.")
+
+    st.markdown("---")
+
+    # SEÇÃO C: USUÁRIOS APROVADOS E GESTÃO
+    st.subheader("3. Usuários com Acesso Aprovado")
 
     if aprovados:
       df_u = pd.DataFrame(aprovados)
 
-      # Trava de segurança para evitar KeyError com colunas em cadastros antigos
       cols_desejadas = [
           "nome",
           "usuario",
           "categoria",
           "vinculo",
+          "telefone",
+          "email",
           "status",
           "is_admin",
       ]
@@ -746,3 +846,80 @@ else:
           st.rerun()
       else:
         st.caption("Apenas a conta administradora principal está cadastrada.")
+
+  # --- 6. MEU PERFIL (EDITAR DADOS DE CONTATO) ---
+  elif menu == "Meu Perfil":
+    st.title("👤 Meu Perfil e Dados de Contato")
+
+    st.subheader("Dados Atuais")
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+      st.write(f"**Nome:** {usuario_atual.get('nome')}")
+      st.write(f"**Usuário:** `{usuario_atual.get('usuario')}`")
+      st.write(f"**Categoria:** {usuario_atual.get('categoria', '-')}")
+    with col_p2:
+      st.write(f"**Vínculo / Curso:** {usuario_atual.get('vinculo', '-')}")
+      st.write(f"**Telefone:** {usuario_atual.get('telefone', '-')}")
+      st.write(f"**E-mail:** {usuario_atual.get('email', '-')}")
+
+    if usuario_atual.get("pendente_atualizacao"):
+      st.warning(
+          "⚠️ Você possui uma solicitação de alteração de dados aguardando"
+          " aprovação do administrador."
+      )
+
+    st.markdown("---")
+    st.subheader("✏️ Solicitar Alteração de Dados")
+
+    with st.form("form_editar_perfil"):
+      cat_atual = usuario_atual.get("categoria", CATEGORIAS_PADRAO[0])
+      idx_cat = (
+          CATEGORIAS_PADRAO.index(cat_atual)
+          if cat_atual in CATEGORIAS_PADRAO
+          else 0
+      )
+
+      nova_cat = st.selectbox("Categoria", CATEGORIAS_PADRAO, index=idx_cat)
+      novo_vinc = st.text_input(
+          "Vínculo / Curso", value=usuario_atual.get("vinculo", "UFRRJ")
+      )
+      novo_tel = st.text_input(
+          "Telefone para Contato (Obrigatório) *",
+          value=usuario_atual.get("telefone", ""),
+      )
+      novo_email = st.text_input(
+          "E-mail para Contato (Obrigatório) *",
+          value=usuario_atual.get("email", ""),
+      )
+
+      btn_salvar_perfil = st.form_submit_button(
+          "Enviar Alterações para Aprovação"
+      )
+
+      if btn_salvar_perfil:
+        if not novo_tel.strip() or not novo_email.strip():
+          st.error(
+              "Os campos Telefone e E-mail são obrigatórios. Por favor, preencha"
+              " ambos."
+          )
+        else:
+          dados_novos = {
+              "categoria": nova_cat,
+              "vinculo": novo_vinc.strip(),
+              "telefone": novo_tel.strip(),
+              "email": novo_email.strip(),
+          }
+
+          usuario_atual["pendente_atualizacao"] = dados_novos
+
+          for u in st.session_state.usuarios:
+            if u["usuario"] == usuario_atual["usuario"]:
+              u["pendente_atualizacao"] = dados_novos
+              break
+
+          salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+          st.success(
+              "Solicitação de alteração enviada! Aguarde a aprovação do"
+              " administrador para que seus dados sejam atualizados."
+          )
+          st.rerun()
