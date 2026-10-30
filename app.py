@@ -387,7 +387,6 @@ if st.session_state.usuario_logado is None:
               ARQUIVO_USUARIOS, usuario_admin_padrao
           )
 
-          # Verifica se já existe uma conta com esse mesmo usuário que JÁ FOI APROVADA
           ja_aprovado = any(
               u["usuario"].strip().lower() == usr_clean
               and u.get("status") == "Aprovado"
@@ -400,7 +399,6 @@ if st.session_state.usuario_logado is None:
                 " fazer o login na aba 'Entrar no Sistema'."
             )
           else:
-            # Remove qualquer registo pendente ou recusado anterior do mesmo usuário ou nome
             usuarios_filtrados = [
                 u
                 for u in usuarios_atuais
@@ -422,7 +420,7 @@ if st.session_state.usuario_logado is None:
             usuarios_filtrados.append(novo_user_dict)
             salvar_dados(ARQUIVO_USUARIOS, usuarios_filtrados)
 
-            # Sincroniza também na lista de integrantes do laboratório
+            # Grava imediatamente na tabela de integrantes (visível em todos os seletores)
             integrantes_atuais = carregar_dados(ARQUIVO_INTEGRANTES, [])
             integrantes_filtrados = [
                 p
@@ -441,8 +439,9 @@ if st.session_state.usuario_logado is None:
             salvar_dados(ARQUIVO_INTEGRANTES, integrantes_filtrados)
 
             st.success(
-                "Solicitação enviada com sucesso! Seu cadastro foi salvo como"
-                " 'Pendente'. Aguarde a aprovação do Administrador para entrar."
+                f"Solicitação enviada com sucesso! O nome '{novo_nome.strip()}'"
+                " já aparece na tabela de integrantes e nos seletores."
+                " Aguarde a aprovação do Administrador para realizar o login."
             )
 
 # --- ÁREA LOGADA (SISTEMA PRINCIPAL) ---
@@ -598,9 +597,8 @@ else:
         )
 
         integrantes_ag = carregar_dados(ARQUIVO_INTEGRANTES, [])
-        lista_resp = [
-            p["Nome"] for p in integrantes_ag if p.get("Situação") == "Ativo"
-        ]
+        # Inclui todos os integrantes cadastrados na lista de responsáveis
+        lista_resp = [p["Nome"] for p in integrantes_ag if p.get("Nome")]
         responsavel = (
             st.selectbox("Pesquisador Responsável", lista_resp)
             if lista_resp
@@ -791,9 +789,8 @@ else:
       )
 
       integrantes_qr = carregar_dados(ARQUIVO_INTEGRANTES, [])
-      lista_cadastrados = [
-          p["Nome"] for p in integrantes_qr if p.get("Situação") == "Ativo"
-      ]
+      # Exibe todos os integrantes cadastrados na lista (Ativos e Pendentes)
+      lista_cadastrados = [p["Nome"] for p in integrantes_qr if p.get("Nome")]
       opcoes_resp = lista_cadastrados + ["Outro / Digitar manualmente..."]
       sel_resp = st.selectbox("Pesquisador Responsável", opcoes_resp)
 
@@ -1253,7 +1250,6 @@ ELABORADO POR: {usuario_atual['nome']}
     ])
 
     with tab_acessos:
-      # Lê em tempo real direto do arquivo do servidor
       usrs_tempo_real = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
       pend_acessos = [
           u for u in usrs_tempo_real if u.get("status") == "Pendente"
@@ -1279,7 +1275,6 @@ ELABORADO POR: {usuario_atual['nome']}
 
               salvar_dados(ARQUIVO_USUARIOS, usrs_atuais)
 
-              # Atualiza integrante
               ints_atuais = carregar_dados(ARQUIVO_INTEGRANTES, [])
               for p in ints_atuais:
                 if p["Nome"].lower() == u["nome"].lower():
@@ -1452,7 +1447,6 @@ ELABORADO POR: {usuario_atual['nome']}
       else:
         st.info("Nenhuma solicitação de nova pasta pendente.")
 
-    # TAB DE EMERGÊNCIA: PERMITE AO ADMIN CADASTRAR DIRETO
     with tab_direto:
       st.subheader("⚡ Atalho: Cadastrar e Aprovar Usuário Instantaneamente")
       st.caption(
@@ -1485,7 +1479,6 @@ ELABORADO POR: {usuario_atual['nome']}
             )
             clean_u = dir_user.strip().lower()
 
-            # Remove duplicados antigos se existirem
             usrs_frescos = [
                 u
                 for u in usrs_frescos
@@ -1506,7 +1499,6 @@ ELABORADO POR: {usuario_atual['nome']}
             usrs_frescos.append(novo_usr_aprovado)
             salvar_dados(ARQUIVO_USUARIOS, usrs_frescos)
 
-            # Salva na lista de integrantes ativas
             ints_frescos = carregar_dados(ARQUIVO_INTEGRANTES, [])
             ints_frescos = [
                 p
