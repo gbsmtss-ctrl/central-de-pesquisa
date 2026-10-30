@@ -424,7 +424,7 @@ else:
   st.sidebar.title("🧪 Central LTAB")
   st.sidebar.caption("Laboratório de Pesquisa & Desenvolvimento")
 
-  # --- REORGANIZAÇÃO DOS TÓPICOS DA BARRA LATERAL ---
+  # --- REORGANIZAÇÃO EXATA DOS TÓPICOS DA BARRA LATERAL CONFORME SOLICITADO ---
   st.sidebar.markdown(
       '<div class="sidebar-section">VISÃO GERAL</div>', unsafe_allow_html=True
   )
@@ -439,7 +439,7 @@ else:
       unsafe_allow_html=True,
   )
   if is_admin:
-    opcoes_menu.append("👥 Gestão de Integrantes & Equipe")
+    opcoes_menu.append("👥 Equipe")
     opcoes_menu.append("🔑 Central de Aprovações")
   else:
     opcoes_menu.append("👥 Equipe")
@@ -673,8 +673,6 @@ else:
   elif menu_selecionado == "👤 Meu Perfil":
     st.title("👤 Meu Perfil e Configurações")
 
-    # Garante que exibirá os dados atuais persistidos da sessão/arquivo com segurança
-    # Buscando diretamente da lista de usuários atualizada
     usr_atual_reg = next(
         (u for u in st.session_state.usuarios if u["usuario"] == usuario_atual["usuario"]),
         usuario_atual
@@ -729,11 +727,8 @@ else:
           st.success("Solicitação enviada ao Administrador!")
           st.rerun()
 
-  # --- 4. EQUIPE / GESTÃO DE INTEGRANTES ---
-  elif menu_selecionado in [
-      "👥 Gestão de Integrantes & Equipe",
-      "👥 Equipe",
-  ]:
+  # --- 4. EQUIPE ---
+  elif menu_selecionado == "👥 Equipe":
     st.title("👥 Equipe do Laboratório")
 
     if is_admin:
@@ -1173,7 +1168,6 @@ else:
           {"nome": "Geral", "descricao": "Arquivos gerais do laboratório"}
       ]
 
-    # --- ABA DRIVE DE ARQUIVOS (Correção do carregamento de arquivos por pasta) ---
     with aba_docs:
       if st.session_state.pasta_aberta_drive is None:
         st.subheader("📂 Suas Pastas do Laboratório")
@@ -1184,7 +1178,6 @@ else:
           nome_p = pst["nome"]
           desc_p = pst.get("descricao", "Sem descrição")
 
-          # Conta quantos arquivos aprovados pertencem a esta pasta
           qtd_files = sum(
               1
               for a in st.session_state.arquivos_db
@@ -1221,7 +1214,6 @@ else:
 
         st.markdown("---")
 
-        # Correção robusta para carregar e listar os arquivos da pasta aberta corretamente
         arqs_da_pasta = [
             a
             for a in st.session_state.arquivos_db
@@ -1407,7 +1399,6 @@ else:
 
     st.markdown("---")
 
-    # Correção da lógica do formulário de POP para permitir submissão adequada de novos POPs sem conflitos de widget estático
     with st.form("form_pop_auto"):
       c1_p, c2_p, c3_p = st.columns(3)
       with c1_p:
@@ -1421,7 +1412,7 @@ else:
         tit_pop = st.text_input("Título do Novo POP *")
       else:
         st.write(f"**Título Atual:** {titulo_default}")
-        tit_pop = titulo_default # Mantém o título se for edição
+        tit_pop = titulo_default
 
       obj_pop = st.text_area("Objetivo *", value=obj_default, height=80)
       mat_pop = st.text_area("Materiais *", value=mat_default, height=80)
