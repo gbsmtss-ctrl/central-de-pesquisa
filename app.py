@@ -424,25 +424,23 @@ else:
   st.sidebar.title("🧪 Central LTAB")
   st.sidebar.caption("Laboratório de Pesquisa & Desenvolvimento")
 
-  # --- REORGANIZAÇÃO EXATA DOS TÓPICOS DA BARRA LATERAL CONFORME SOLICITADO ---
+  # --- NOVA ESTRUTURA EXATA SOLICITADA PARA A BARRA LATERAL ---
   st.sidebar.markdown(
       '<div class="sidebar-section">VISÃO GERAL</div>', unsafe_allow_html=True
   )
   opcoes_menu = [
       "🏠 Início",
       "📅 Agenda e Compromisso",
-      "👤 Meu Perfil",
   ]
 
   st.sidebar.markdown(
       '<div class="sidebar-section">GESTÃO DO LABORATÓRIO</div>',
       unsafe_allow_html=True,
   )
+  opcoes_menu.append("👥 Equipe")
+  opcoes_menu.append("👤 Meu Perfil")
   if is_admin:
-    opcoes_menu.append("👥 Equipe")
     opcoes_menu.append("🔑 Central de Aprovações")
-  else:
-    opcoes_menu.append("👥 Equipe")
 
   st.sidebar.markdown(
       '<div class="sidebar-section">FERRAMENTAS E DOCUMENTOS</div>',
@@ -669,7 +667,56 @@ else:
           st.success("Agendamento cancelado com sucesso!")
           st.rerun()
 
-  # --- 3. MEU PERFIL ---
+  # --- 3. EQUIPE ---
+  elif menu_selecionado == "👥 Equipe":
+    st.title("👥 Equipe do Laboratório")
+
+    if is_admin:
+      st.subheader("➕ Cadastrar ou Editar Integrante Manualmente")
+      with st.form("form_cad_int"):
+        nome = st.text_input("Nome Completo")
+        categoria = st.selectbox("Categoria", CATEGORIAS_PADRAO)
+        vinculo = st.text_input(
+            "Vínculo / Curso", "UFRRJ - Engenharia de Alimentos"
+        )
+        telefone = st.text_input("Telefone de Contato")
+        email = st.text_input("E-mail de Contato")
+        situacao = st.selectbox("Situação", ["Ativo", "Pendente", "Inativo"])
+        btn_salv = st.form_submit_button("Salvar Integrante")
+
+        if btn_salv and nome:
+          existente = next(
+              (
+                  p
+                  for p in st.session_state.integrantes
+                  if p["Nome"].lower() == nome.strip().lower()
+              ),
+              None,
+          )
+          if existente:
+            existente["Categoria"] = categoria
+            existente["Vínculo"] = vinculo
+            existente["Telefone"] = telefone
+            existente["Email"] = email
+            existente["Situação"] = situacao
+          else:
+            st.session_state.integrantes.append({
+                "Nome": nome.strip(),
+                "Categoria": categoria,
+                "Vínculo": vinculo,
+                "Telefone": telefone,
+                "Email": email,
+                "Situação": situacao,
+            })
+
+          salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+          st.success(f"Integrante {nome} salvo com sucesso!")
+          st.rerun()
+
+    df_eq = pd.DataFrame(st.session_state.integrantes)
+    st.dataframe(df_eq, use_container_width=True)
+
+  # --- 4. MEU PERFIL ---
   elif menu_selecionado == "👤 Meu Perfil":
     st.title("👤 Meu Perfil e Configurações")
 
@@ -726,55 +773,6 @@ else:
           salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
           st.success("Solicitação enviada ao Administrador!")
           st.rerun()
-
-  # --- 4. EQUIPE ---
-  elif menu_selecionado == "👥 Equipe":
-    st.title("👥 Equipe do Laboratório")
-
-    if is_admin:
-      st.subheader("➕ Cadastrar ou Editar Integrante Manualmente")
-      with st.form("form_cad_int"):
-        nome = st.text_input("Nome Completo")
-        categoria = st.selectbox("Categoria", CATEGORIAS_PADRAO)
-        vinculo = st.text_input(
-            "Vínculo / Curso", "UFRRJ - Engenharia de Alimentos"
-        )
-        telefone = st.text_input("Telefone de Contato")
-        email = st.text_input("E-mail de Contato")
-        situacao = st.selectbox("Situação", ["Ativo", "Pendente", "Inativo"])
-        btn_salv = st.form_submit_button("Salvar Integrante")
-
-        if btn_salv and nome:
-          existente = next(
-              (
-                  p
-                  for p in st.session_state.integrantes
-                  if p["Nome"].lower() == nome.strip().lower()
-              ),
-              None,
-          )
-          if existente:
-            existente["Categoria"] = categoria
-            existente["Vínculo"] = vinculo
-            existente["Telefone"] = telefone
-            existente["Email"] = email
-            existente["Situação"] = situacao
-          else:
-            st.session_state.integrantes.append({
-                "Nome": nome.strip(),
-                "Categoria": categoria,
-                "Vínculo": vinculo,
-                "Telefone": telefone,
-                "Email": email,
-                "Situação": situacao,
-            })
-
-          salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
-          st.success(f"Integrante {nome} salvo com sucesso!")
-          st.rerun()
-
-    df_eq = pd.DataFrame(st.session_state.integrantes)
-    st.dataframe(df_eq, use_container_width=True)
 
   # --- 5. CENTRAL DE APROVAÇÕES (ADMIN) ---
   elif menu_selecionado == "🔑 Central de Aprovações" and is_admin:
