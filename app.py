@@ -133,10 +133,7 @@ if st.session_state.usuario_logado is None:
                   " pelo administrador."
               )
             else:
-              st.error(
-                  "Sua solicitação de acesso foi recusada. Entre em contato com"
-                  " a coordenação."
-              )
+              st.error("Sua solicitação de acesso foi recusada ou removida.")
           else:
             st.error("Senha incorreta.")
         else:
@@ -152,17 +149,29 @@ if st.session_state.usuario_logado is None:
       btn_solicitar = st.form_submit_button("Enviar Solicitação")
 
       if btn_solicitar and novo_nome and novo_usuario and nova_senha:
+        usr_clean = novo_usuario.strip().lower()
+
+        # Verifica existência considerando apenas contas ativas ou pendentes
         existe = any(
-            u["usuario"].lower() == novo_usuario.strip().lower()
+            u["usuario"].lower() == usr_clean
+            and u.get("status") in ["Aprovado", "Pendente"]
             for u in st.session_state.usuarios
         )
 
         if existe:
           st.error(
-              "Este nome de usuário já está cadastrado. Escolha outro usuário."
+              "Este nome de usuário já está em uso por uma conta ativa ou"
+              " pendente. Escolha outro nome de usuário."
           )
         else:
-          # Salva o usuário no controle de acesso
+          # Remove qualquer registro antigo/inativo desse nome de usuário para liberar o login
+          st.session_state.usuarios = [
+              u
+              for u in st.session_state.usuarios
+              if u["usuario"].lower() != usr_clean
+          ]
+
+          # Cria o novo registro de solicitação
           novo_user_dict = {
               "nome": novo_nome.strip(),
               "usuario": novo_usuario.strip(),
@@ -173,21 +182,28 @@ if st.session_state.usuario_logado is None:
           st.session_state.usuarios.append(novo_user_dict)
           salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-          # Adiciona automaticamente na lista de Integrantes como Pendente
-          if not any(
-              p["Nome"].lower() == novo_nome.strip().lower()
-              for p in st.session_state.integrantes
-          ):
+          # Atualiza ou adiciona na lista de integrantes como Pendente
+          integrante_existente = next(
+              (
+                  p
+                  for p in st.session_state.integrantes
+                  if p["Nome"].lower() == novo_nome.strip().lower()
+              ),
+              None,
+          )
+          if integrante_existente:
+            integrante_existente["Situação"] = "Pendente"
+          else:
             st.session_state.integrantes.append({
                 "Nome": novo_nome.strip(),
                 "Categoria": "Aluno / Pesquisador",
                 "Vínculo": "Solicitante de Acesso",
                 "Situação": "Pendente",
             })
-            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+          salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
           st.success(
-              "Solicitação enviada com sucesso! Seu nome já consta na tabela de"
+              "Solicitação enviada com sucesso! Seu nome consta na tabela de"
               " integrantes como 'Pendente'. Aguarde a aprovação do"
               " administrador."
           )
@@ -200,7 +216,6 @@ else:
   st.sidebar.title("🧪 Central de Pesquisa ⚗️")
   st.sidebar.caption(f"Usuário: **{usuario_atual['nome']}**")
 
-  # Define as opções de navegação de acordo com o nível de acesso
   if usuario_atual.get("is_admin"):
     opcoes_menu = [
         "Visão Geral",
@@ -210,7 +225,6 @@ else:
         "Aprovar Acessos",
     ]
   else:
-    # Integrante comum cadastrado não pode acessar 'Cadastrar Integrantes' nem 'Aprovar Acessos'
     opcoes_menu = [
         "Visão Geral",
         "Calendário / Agenda",
@@ -282,7 +296,6 @@ else:
       btn_salvar = st.form_submit_button("Cadastrar Integrante")
 
       if btn_salvar and nome:
-        # Se já existir na lista, atualiza dados; senão insere novo
         existente = next(
             (
                 p
@@ -318,13 +331,26 @@ else:
       )
 
       if st.button("Apagar Integrante", type="primary"):
+        # Remove da lista de integrantes
         st.session_state.integrantes = [
             p
             for p in st.session_state.integrantes
             if p["Nome"] != pessoa_para_remover
         ]
         salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
-        st.success(f"Integrante '{pessoa_para_remover}' removido com sucesso!")
+
+        # Remove o usuário correspondente para LIBERAR O NOME DE USUÁRIO
+        st.session_state.usuarios = [
+            u
+            for u in st.session_state.usuarios
+            if u["nome"].lower() != pessoa_para_remover.lower()
+        ]
+        salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+        st.success(
+            f"Integrante '{pessoa_para_remover}' removido(a) com sucesso! O"
+            " nome de usuário foi liberado para novos cadastros."
+        )
         st.rerun()
 
   # --- 3. CALENDÁRIO / AGENDA ---
@@ -579,7 +605,7 @@ else:
             mime="image/png",
         )
 
-  # --- 5. APROVAÇÃO DE ACESSOS (EXCLUSIVO ADMIN) ---
+  # --- 5. APROVAÇÃO E GESTÃO DE ACESSOS (EXCLUSIVO ADMIN) ---
   elif menu == "Aprovar Acessos":
     st.title("🔑 Gerenciamento e Aprovação de Acessos")
 
@@ -602,7 +628,6 @@ else:
             u["status"] = "Aprovado"
             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-            # Atualiza situação no cadastro do integrante para "Ativo"
             for p in st.session_state.integrantes:
               if p["Nome"].lower() == u["nome"].lower():
                 p["Situação"] = "Ativo"
@@ -611,17 +636,26 @@ else:
             st.success(f"Acesso aprovado para {u['nome']}!")
             st.rerun()
         with col_b2:
-          if st.button("❌ Recusar", key=f"rec_{idx}"):
-            u["status"] = "Recusado"
+          if st.button("❌ Recusar e Excluir", key=f"rec_{idx}"):
+            # Exclui totalmente o usuário para liberar o login
+            st.session_state.usuarios = [
+                usr
+                for usr in st.session_state.usuarios
+                if usr["usuario"] != u["usuario"]
+            ]
             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-            # Atualiza situação no cadastro para "Inativo"
-            for p in st.session_state.integrantes:
-              if p["Nome"].lower() == u["nome"].lower():
-                p["Situação"] = "Inativo"
+            st.session_state.integrantes = [
+                p
+                for p in st.session_state.integrantes
+                if p["Nome"].lower() != u["nome"].lower()
+            ]
             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
-            st.warning(f"Solicitação de {u['nome']} recusada.")
+            st.warning(
+                f"Solicitação de {u['nome']} recusada. Nome de usuário liberado"
+                " com sucesso!"
+            )
             st.rerun()
     else:
       st.info("Nenhuma solicitação de acesso pendente no momento.")
@@ -632,3 +666,36 @@ else:
     if aprovados:
       df_u = pd.DataFrame(aprovados)[["nome", "usuario", "status", "is_admin"]]
       st.dataframe(df_u, use_container_width=True)
+
+      st.markdown("### 🗑️ Excluir Conta de Usuário Aprovado")
+      usuarios_normais = [u for u in aprovados if not u.get("is_admin")]
+      if usuarios_normais:
+        opcoes_excluir = [
+            f"{u['nome']} (Usuário: {u['usuario']})" for u in usuarios_normais
+        ]
+        sel_usr_del = st.selectbox(
+            "Selecione a conta para excluir permanentemente:", opcoes_excluir
+        )
+
+        if st.button("Excluir Conta do Usuário", type="primary"):
+          usr_alvo = sel_usr_del.split("(Usuário: ")[1].replace(")", "")
+
+          st.session_state.usuarios = [
+              u for u in st.session_state.usuarios if u["usuario"] != usr_alvo
+          ]
+          salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+          st.session_state.integrantes = [
+              p
+              for p in st.session_state.integrantes
+              if p["Nome"].lower() != sel_usr_del.split(" (Usuário:")[0].lower()
+          ]
+          salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+
+          st.success(
+              f"Usuário `{usr_alvo}` excluído com sucesso! O nome de usuário"
+              " está novamente disponível."
+          )
+          st.rerun()
+      else:
+        st.caption("Apenas a conta administradora principal está cadastrada.")
