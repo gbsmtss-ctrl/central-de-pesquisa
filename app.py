@@ -254,7 +254,7 @@ usuario_admin_padrao = [{
     "usuario": "admin",
     "senha": "123",
     "categoria": "Mestrando",
-    "vinculo": "UFRRJ",
+    "vinculo": "UFRRJ - Química Industrial",
     "telefone": "(21) 99677-8065",
     "email": "gbsmtsm@ufrrj.br",
     "status": "Aprovado",
@@ -358,7 +358,6 @@ if st.session_state.usuario_logado is None:
                 else:
                     usr_clean = novo_usuario.strip().lower()
 
-                    # Verifica se o nome de usuário já pertence a uma conta APROVADA
                     ja_aprovado = any(
                         str(u.get("usuario", "")).strip().lower() == usr_clean and u.get("status") == "Aprovado"
                         for u in st.session_state.usuarios
@@ -367,7 +366,6 @@ if st.session_state.usuario_logado is None:
                     if ja_aprovado:
                         st.error("Este nome de usuário já pertence a uma conta APROVADA.")
                     else:
-                        # Remove cadastros antigos pendentes ou recusados com o mesmo usuário/nome para permitir reutilização
                         st.session_state.usuarios = [
                             u for u in st.session_state.usuarios
                             if str(u.get("usuario", "")).strip().lower() != usr_clean
@@ -601,15 +599,13 @@ else:
                         if is_admin:
                             st.markdown("---")
                             if st.button("🗑️ Excluir Integrante", key=f"del_int_{idx}"):
-                                # Remove do cadastro de integrantes
                                 st.session_state.integrantes = [item for item in st.session_state.integrantes if item.get("Nome") != nome_str]
                                 salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
-                                # Remove também da lista de usuários para liberar o nome de usuário totalmente
                                 st.session_state.usuarios = [u for u in st.session_state.usuarios if str(u.get("nome", "")).strip().lower() != nome_str.strip().lower()]
                                 salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-                                st.warning(f"Integrante '{nome_str}' excluído com sucesso! Nome de usuário liberado.")
+                                st.warning(f"Integrante '{nome_str}' excluído com sucesso!")
                                 st.rerun()
 
                 st.markdown("<hr style='margin: 8px 0; border: none; border-top: 1px solid #F1F5F9;'/>", unsafe_allow_html=True)
@@ -825,7 +821,7 @@ else:
                         st.success("Solicitação de pasta enviada para aprovação!")
                     st.rerun()
 
-    # --- 5. GERAR QR CODE ---
+    # --- 5. GERAR QR CODE (FORMATADO PARA ABRIR EM NOTAS/TEXTO PURO) ---
     elif menu_selecionado == "🏷️ Gerar QR Code de Amostras":
         st.title("🧪 Gerador de QR Code de Amostras & Etiquetas")
 
@@ -840,12 +836,24 @@ else:
             dest_selecionado = st.selectbox("Tamanho da Etiqueta", list(DESTINOS_ETIQUETAS.keys()))
             tamanho_mm = DESTINOS_ETIQUETAS[dest_selecionado]
             qtd_etiquetas = st.number_input("Quantidade de Etiquetas", min_value=1, max_value=100, value=6)
-            descricao = st.text_area("Descrição / Protocolo", value="Amostra obtida via fermentação.")
+            descricao = st.text_area("Descrição / Protocolo", value="Amostra obtida via fermentação estado sólido. Tampão fosfato 0.1M pH 7.0.")
             gerar = st.button("Gerar Etiqueta QR Code", type="primary")
 
         with col_q:
             if gerar or id_amostra:
-                conteudo_qr = f"ID: {id_amostra}\nNOME: {nome_amostra}\nRESPONSÁVEL: {responsavel}\nLOCAL: {localizacao}\nDESCRIÇÃO: {descricao}"
+                # Formatação otimizada para câmeras lerem nativamente como nota de texto
+                conteudo_qr = (
+                    f"📋 FICHA DA AMOSTRA\n"
+                    f"------------------------\n"
+                    f"• ID: {id_amostra}\n"
+                    f"• Nome: {nome_amostra}\n"
+                    f"• Data de Obtenção: {data_obtencao.strftime('%d/%m/%Y')}\n"
+                    f"• Responsável: {responsavel}\n"
+                    f"• Local: {localizacao}\n"
+                    f"------------------------\n"
+                    f"• Descrição:\n{descricao}"
+                )
+
                 img = qrcode.make(conteudo_qr)
                 buffer = BytesIO()
                 img.save(buffer, format="PNG")
@@ -888,12 +896,13 @@ else:
                 else:
                     st.success(f"POP '{cod_pop}' enviado para aprovação do Administrador!")
 
-    # --- 7. ADMINISTRAÇÃO (CENTRAL DE APROVAÇÕES COMPLETA) ---
+    # --- 7. ADMINISTRAÇÃO (CENTRAL DE APROVAÇÕES) ---
     elif menu_selecionado == "🛡️ Administração" and is_admin:
         st.title("🛡️ Central de Aprovações (Administrador)")
 
-        tab_usr, tab_arq, tab_pops, tab_pastas = st.tabs([
+        tab_usr, tab_perfis, tab_arq, tab_pops, tab_pastas = st.tabs([
             "👤 Acessos de Usuários",
+            "✏️ Alterações de Perfil",
             "📄 Arquivos Inseridos",
             "📝 POPs",
             "📁 Pastas",
@@ -915,7 +924,6 @@ else:
                             u["status"] = "Aprovado"
                             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-                            # Atualiza status também em integrantes
                             for p in st.session_state.integrantes:
                                 if p.get("Nome", "").strip().lower() == u["nome"].strip().lower():
                                     p["Situação"] = "Ativo"
@@ -933,7 +941,68 @@ else:
             else:
                 st.info("Nenhuma solicitação de novo acesso pendente no momento.")
 
-        # TAB 2: ARQUIVOS PENDENTES
+        # TAB 2: ALTERAÇÕES DE PERFIL
+        with tab_perfis:
+            st.subheader("Solicitações de Atualização de Perfil")
+            pend_perfis = [u for u in st.session_state.usuarios if u.get("pendente_atualizacao")]
+
+            if pend_perfis:
+                for idx, u in enumerate(pend_perfis):
+                    p_data = u["pendente_atualizacao"]
+                    st.markdown(f"#### 👤 **{u['nome']}** (`{u['usuario']}`)")
+
+                    c_antes, c_depois = st.columns(2)
+                    with c_antes:
+                        st.markdown("**📌 Dados Atuais:**")
+                        st.write(f"- **Categoria:** {u.get('categoria', '-')}")
+                        st.write(f"- **Vínculo:** {u.get('vinculo', '-')}")
+                        st.write(f"- **Telefone:** {u.get('telefone', '-')}")
+                        st.write(f"- **E-mail:** {u.get('email', '-')}")
+
+                    with c_depois:
+                        st.markdown("**✏️ Dados Solicitados:**")
+                        st.write(f"- **Categoria:** {p_data.get('categoria', '-')}")
+                        st.write(f"- **Vínculo:** {p_data.get('vinculo', '-')}")
+                        st.write(f"- **Telefone:** {p_data.get('telefone', '-')}")
+                        st.write(f"- **E-mail:** {p_data.get('email', '-')}")
+                        st.write(f"- **Dias/Horários:** {p_data.get('horarios', '-')}")
+                        st.write(f"- **Lattes:** {p_data.get('lattes', '-')}")
+
+                    c_b1, c_b2 = st.columns([1, 1])
+                    with c_b1:
+                        if st.button("✅ Aprovar Mudança", key=f"ap_prf_{idx}", type="primary"):
+                            u["categoria"] = p_data.get("categoria")
+                            u["vinculo"] = p_data.get("vinculo")
+                            u["telefone"] = p_data.get("telefone")
+                            u["email"] = p_data.get("email")
+                            del u["pendente_atualizacao"]
+                            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+                            for p in st.session_state.integrantes:
+                                if p.get("Nome", "").strip().lower() == u["nome"].strip().lower() or p.get("Email", "").strip().lower() == u["email"].strip().lower():
+                                    p["Categoria"] = p_data.get("categoria")
+                                    p["Vínculo"] = p_data.get("vinculo")
+                                    p["Telefone"] = p_data.get("telefone")
+                                    p["Email"] = p_data.get("email")
+                                    p["DiasHorarios"] = p_data.get("horarios")
+                                    p["Lattes"] = p_data.get("lattes")
+
+                            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+                            st.success(f"Perfil de '{u['nome']}' atualizado com sucesso!")
+                            st.rerun()
+
+                    with c_b2:
+                        if st.button("❌ Recusar Mudança", key=f"rec_prf_{idx}"):
+                            del u["pendente_atualizacao"]
+                            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+                            st.warning("Solicitação de alteração recusada.")
+                            st.rerun()
+
+                    st.markdown("---")
+            else:
+                st.info("Nenhuma solicitação de alteração de perfil pendente.")
+
+        # TAB 3: ARQUIVOS PENDENTES
         with tab_arq:
             st.subheader("Arquivos Pendentes de Publicação")
             pend_arqs = [a for a in st.session_state.arquivos_db if a.get("status") == "Pendente"]
@@ -961,7 +1030,7 @@ else:
             else:
                 st.info("Nenhum arquivo pendente de aprovação.")
 
-        # TAB 3: POPS PENDENTES
+        # TAB 4: POPS PENDENTES
         with tab_pops:
             st.subheader("POPs Pendentes de Aprovação")
             pend_pops = [p for p in st.session_state.pops_db if p.get("status") == "Pendente"]
@@ -988,7 +1057,7 @@ else:
             else:
                 st.info("Nenhum POP pendente de aprovação.")
 
-        # TAB 4: PASTAS PENDENTES
+        # TAB 5: PASTAS PENDENTES
         with tab_pastas:
             st.subheader("Solicitações de Novas Pastas")
             pend_pastas = [p for p in st.session_state.pastas_db if p.get("status") == "Pendente"]
@@ -1019,13 +1088,64 @@ else:
     elif menu_selecionado == "👤 Meu perfil":
         st.title("👤 Meu Perfil e Configurações")
 
+        usr_atual_reg = next(
+            (u for u in st.session_state.usuarios if str(u.get("usuario")).lower() == str(usuario_atual["usuario"]).lower()),
+            usuario_atual
+        )
+
+        integrante_reg = next(
+            (p for p in st.session_state.integrantes if str(p.get("Nome", "")).strip().lower() == str(usr_atual_reg.get("nome", "")).strip().lower()),
+            {}
+        )
+
         st.subheader("Meus Dados Registrados")
         c1, c2 = st.columns(2)
         with c1:
-            st.write(f"**Nome:** {usuario_atual.get('nome')}")
-            st.write(f"**Usuário:** `{usuario_atual.get('usuario')}`")
-            st.write(f"**Categoria:** {usuario_atual.get('categoria', '-')}")
+            st.write(f"**Nome:** {usr_atual_reg.get('nome')}")
+            st.write(f"**Usuário:** `{usr_atual_reg.get('usuario')}`")
+            st.write(f"**Categoria:** {usr_atual_reg.get('categoria', '-')}")
         with c2:
-            st.write(f"**Vínculo:** {usuario_atual.get('vinculo', '-')}")
-            st.write(f"**Telefone:** {usuario_atual.get('telefone', '-')}")
-            st.write(f"**E-mail:** {usuario_atual.get('email', '-')}")
+            st.write(f"**Vínculo:** {usr_atual_reg.get('vinculo', '-')}")
+            st.write(f"**Telefone:** {usr_atual_reg.get('telefone', '-')}")
+            st.write(f"**E-mail:** {usr_atual_reg.get('email', '-')}")
+
+        if usr_atual_reg.get("pendente_atualizacao"):
+            st.warning("⚠️ Você possui uma solicitação de alteração de dados **PENDENTE** de aprovação do Administrador.")
+
+        st.markdown("---")
+        st.subheader("✏️ Solicitar Alteração de Dados")
+
+        idx_cat = CATEGORIAS_PADRAO.index(usr_atual_reg.get("categoria")) if usr_atual_reg.get("categoria") in CATEGORIAS_PADRAO else 0
+
+        with st.form("form_edit_perfil"):
+            nova_cat = st.selectbox("Categoria", CATEGORIAS_PADRAO, index=idx_cat)
+            novo_vinc = st.text_input("Vínculo / Curso", value=usr_atual_reg.get("vinculo", "UFRRJ - Engenharia Química"))
+            novo_tel = st.text_input("Telefone para Contato", value=usr_atual_reg.get("telefone", ""))
+            novo_email = st.text_input("E-mail para Contato", value=usr_atual_reg.get("email", ""))
+            novos_horarios = st.text_input("Dias e Horários no Laboratório", value=integrante_reg.get("DiasHorarios", "Não informado"))
+            novo_lattes = st.text_input("Link do Currículo Lattes", value=integrante_reg.get("Lattes", "http://lattes.cnpq.br/"))
+
+            btn_env_prof = st.form_submit_button("Enviar Alterações para Aprovação do Administrador", type="primary")
+
+            if btn_env_prof:
+                if not (novo_tel.strip() and novo_email.strip()):
+                    st.error("Telefone e E-mail são obrigatórios.")
+                else:
+                    dados_novos = {
+                        "categoria": nova_cat,
+                        "vinculo": novo_vinc.strip(),
+                        "telefone": novo_tel.strip(),
+                        "email": novo_email.strip(),
+                        "horarios": novos_horarios.strip(),
+                        "lattes": novo_lattes.strip(),
+                    }
+
+                    usr_atual_reg["pendente_atualizacao"] = dados_novos
+                    for u in st.session_state.usuarios:
+                        if str(u.get("usuario")).lower() == str(usr_atual_reg["usuario"]).lower():
+                            u["pendente_atualizacao"] = dados_novos
+                            break
+
+                    salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+                    st.success("✅ Solicitação de alteração enviada com sucesso! Aguarde a aprovação do Administrador.")
+                    st.rerun()
