@@ -38,6 +38,14 @@ st.markdown(
         background-color: #FFFFFF;
         border-right: 1px solid #E2E8F0;
     }
+    /* Estilização para botões do menu lateral alinhados à esquerda */
+    [data-testid="stSidebar"] div.stButton > button {
+        text-align: left !important;
+        justify-content: flex-start !important;
+        padding-left: 12px !important;
+        width: 100% !important;
+        margin-bottom: 2px !important;
+    }
     h1, h2, h3 {
         color: #0F172A !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -478,6 +486,8 @@ if "pasta_aberta_drive" not in st.session_state:
     st.session_state.pasta_aberta_drive = None
 if "seq_amostra" not in st.session_state:
     st.session_state.seq_amostra = 1
+if "menu_selecionado" not in st.session_state:
+    st.session_state.menu_selecionado = "🏠 Página Inicial & Avisos"
 
 usr_param = st.query_params.get("usr")
 if usr_param:
@@ -662,7 +672,23 @@ else:
     usuario_atual = st.session_state.usuario_logado
     is_admin = usuario_atual.get("is_admin", False)
 
-    # --- BARRA LATERAL ---
+    # --- CÁLCULO DINÂMICO DE NOTIFICAÇÕES ---
+    num_pend_usr = len([u for u in st.session_state.usuarios if u.get("status") == "Pendente"])
+    num_pend_perfis = len([u for u in st.session_state.usuarios if u.get("pendente_atualizacao")])
+    num_pend_arqs = len([a for a in st.session_state.arquivos_db if a.get("status") == "Pendente"])
+    num_pend_pops = len([p for p in st.session_state.pops_db if p.get("status") == "Pendente"])
+    num_pend_pastas = len([p for p in st.session_state.pastas_db if p.get("status") == "Pendente"])
+
+    total_notif_admin = num_pend_usr + num_pend_perfis + num_pend_arqs + num_pend_pops + num_pend_pastas
+
+    usr_atual_reg = next((u for u in st.session_state.usuarios if str(u.get("usuario")).lower() == str(usuario_atual["usuario"]).lower()), usuario_atual)
+    notif_meu_perfil = 1 if usr_atual_reg.get("pendente_atualizacao") else 0
+
+    hoje_str = datetime.now().strftime("%Y-%m-%d")
+    notif_agenda_hoje = len([e for e in st.session_state.agenda if e.get("data") == hoje_str])
+    notif_avisos = len(st.session_state.avisos_db)
+
+    # --- BARRA LATERAL ORGANIZADA POR ÁREAS ---
     st.sidebar.markdown(
         """
         <div style="display: flex; align-items: center; gap: 10px; padding: 5px 0 15px 0;">
@@ -678,32 +704,40 @@ else:
         unsafe_allow_html=True,
     )
 
+    # Função auxiliar para renderizar botões da barra lateral
+    def item_menu(nome_base, label_exibicao, count=0):
+        is_sel = (st.session_state.menu_selecionado == nome_base)
+        text_badge = f" 🔴 ({count})" if count > 0 else ""
+        btn_label = f"{'▶ ' if is_sel else ''}{label_exibicao}{text_badge}"
+        
+        if st.sidebar.button(btn_label, key=f"btn_nav_{nome_base}", use_container_width=True, type="primary" if is_sel else "secondary"):
+            st.session_state.menu_selecionado = nome_base
+            st.rerun()
+
+    # 1. PAINEL PRINCIPAL
     st.sidebar.markdown('<div class="sidebar-section">PAINEL PRINCIPAL</div>', unsafe_allow_html=True)
-    opcoes_menu = [
-        "🏠 Página Inicial & Avisos",
-        "📅 Agenda & Calendário",
-    ]
+    item_menu("🏠 Página Inicial & Avisos", "🏠 Página Inicial & Avisos", notif_avisos)
+    item_menu("📅 Agenda & Calendário", "📅 Agenda & Calendário", notif_agenda_hoje)
 
+    # 2. GESTÃO DO LABORATÓRIO
     st.sidebar.markdown('<div class="sidebar-section">GESTÃO DO LABORATÓRIO</div>', unsafe_allow_html=True)
-    opcoes_menu.extend([
-        "👥 Equipe",
-        "🎓 Orientados",
-        "🕒 Presença no Laboratório",
-    ])
+    item_menu("👥 Equipe", "👥 Equipe")
+    item_menu("🎓 Orientados", "🎓 Orientados")
+    item_menu("🕒 Presença no Laboratório", "🕒 Presença no Laboratório")
 
+    # 3. CONHECIMENTO
     st.sidebar.markdown('<div class="sidebar-section">CONHECIMENTO</div>', unsafe_allow_html=True)
-    opcoes_menu.extend([
-        "📁 Repositório de Arquivos",
-        "🏷️ Gerar QR Code de Amostras",
-        "📝 Criador de POP",
-    ])
+    item_menu("📁 Repositório de Arquivos", "📁 Repositório de Arquivos")
+    item_menu("🏷️ Gerar QR Code de Amostras", "🏷️ Gerar QR Code de Amostras")
+    item_menu("📝 Criador de POP", "📝 Criador de POP")
 
+    # 4. CONFIGURAÇÕES
     st.sidebar.markdown('<div class="sidebar-section">CONFIGURAÇÕES</div>', unsafe_allow_html=True)
     if is_admin:
-        opcoes_menu.append("🛡️ Administração")
-    opcoes_menu.append("👤 Meu perfil")
+        item_menu("🛡️ Administração", "🛡️ Administração", total_notif_admin)
+    item_menu("👤 Meu perfil", "👤 Meu perfil", notif_meu_perfil)
 
-    menu_selecionado = st.sidebar.radio("Navegação", opcoes_menu, label_visibility="collapsed")
+    menu_selecionado = st.session_state.menu_selecionado
 
     st.sidebar.markdown("---")
     st.sidebar.markdown(
@@ -726,11 +760,9 @@ else:
         st.title("🏠 Painel Principal - Central de Pesquisa")
         st.caption(f"Bem-vindo(a), **{usuario_atual['nome']}**! Acompanhe os avisos e compromissos do laboratório.")
 
-        # --- MÉTRICAS RÁPIDAS ---
         m1, m2, m3, m4 = st.columns(4)
         m1.markdown(f"<div class='metric-container'><span style='font-size: 1.5rem; font-weight:bold; color:#2563EB;'>{len(st.session_state.integrantes)}</span><br/><span style='color:#64748B; font-size:0.85rem;'>Integrantes</span></div>", unsafe_allow_html=True)
         
-        hoje_str = datetime.now().strftime("%Y-%m-%d")
         eventos_futuros = [e for e in st.session_state.agenda if e.get("data", "") >= hoje_str]
         m2.markdown(f"<div class='metric-container'><span style='font-size: 1.5rem; font-weight:bold; color:#16A34A;'>{len(eventos_futuros)}</span><br/><span style='color:#64748B; font-size:0.85rem;'>Próximos Eventos</span></div>", unsafe_allow_html=True)
         
@@ -743,7 +775,6 @@ else:
 
         col_left, col_right = st.columns([1.3, 1])
 
-        # COLUNA DA ESQUERDA: MURAL DE AVISOS
         with col_left:
             st.subheader("📢 Mural de Avisos do Laboratório")
 
@@ -805,12 +836,10 @@ else:
             else:
                 st.info("Nenhum aviso publicado no mural.")
 
-        # COLUNA DA DIREITA: PRÓXIMOS COMPROMISSOS DA AGENDA
         with col_right:
             st.subheader("📅 Próximas Reuniões & Compromissos")
             st.caption("Atividades agendadas no Calendário")
 
-            # Ordena os compromissos por data e hora
             eventos_ordenados = sorted(
                 st.session_state.agenda,
                 key=lambda x: (x.get("data", ""), x.get("hora_inicio", ""))
@@ -818,7 +847,7 @@ else:
             eventos_validos = [e for e in eventos_ordenados if e.get("data", "") >= hoje_str]
 
             if eventos_validos:
-                for ev in eventos_validos[:5]: # Exibe até os 5 próximos
+                for ev in eventos_validos[:5]:
                     cor_ev = ev.get("cor", "#2563EB")
                     try:
                         dt_obj = datetime.strptime(ev["data"], "%Y-%m-%d")
@@ -857,7 +886,6 @@ else:
         ])
 
         with aba_ver_agenda:
-            # Filtro por Mês/Ano
             col_m1, col_m2 = st.columns(2)
             ano_atual = datetime.now().year
             mes_atual = datetime.now().month
@@ -867,18 +895,15 @@ else:
             with col_m2:
                 ano_sel = st.number_input("Ano", min_value=2024, max_value=2030, value=ano_atual)
 
-            # Matriz do Calendário Mensal
             st.markdown(f"### 🗓️ Calendário de {calendar.month_name[mes_sel].capitalize()} de {ano_sel}")
             
             cal = calendar.monthcalendar(ano_sel, mes_sel)
             dias_semana = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
 
-            # Cabeçalho dos dias
             cols_hdr = st.columns(7)
             for i, d in enumerate(dias_semana):
                 cols_hdr[i].markdown(f"<div style='text-align:center; font-weight:bold; color:#64748B;'>{d}</div>", unsafe_allow_html=True)
 
-            # Mapeamento de eventos por dia do mês selecionado
             eventos_mes = {}
             for ev in st.session_state.agenda:
                 try:
@@ -1788,7 +1813,7 @@ else:
                             st.rerun()
                     st.markdown("---")
             else:
-                st.info("Nenum arquivo pendente de aprovação.")
+                st.info("Nenhum arquivo pendente de aprovação.")
 
         with tab_pops:
             st.subheader("POPs Pendentes de Aprovação")
@@ -1862,11 +1887,6 @@ else:
     # --- 8. MEU PERFIL ---
     elif menu_selecionado == "👤 Meu perfil":
         st.title("👤 Meu Perfil e Configurações")
-
-        usr_atual_reg = next(
-            (u for u in st.session_state.usuarios if str(u.get("usuario")).lower() == str(usuario_atual["usuario"]).lower()),
-            usuario_atual
-        )
 
         integrante_reg = next(
             (p for p in st.session_state.integrantes if str(p.get("Nome", "")).strip().lower() == str(usr_atual_reg.get("nome", "")).strip().lower()),
