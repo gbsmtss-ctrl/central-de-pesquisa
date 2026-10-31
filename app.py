@@ -52,7 +52,7 @@ st.markdown(
         transition: all 0.2s ease-in-out !important;
     }
     
-    /* Botões Inativos: Fundo transparente, texto escuro suave */
+    /* Botões Inativos */
     [data-testid="stSidebar"] div.stButton > button[kind="secondary"] {
         background-color: transparent !important;
         color: #475569 !important;
@@ -64,7 +64,7 @@ st.markdown(
         color: #1E40AF !important;
     }
     
-    /* Botão Ativo: Destaque suave em azul com borda elegante */
+    /* Botão Ativo */
     [data-testid="stSidebar"] div.stButton > button[kind="primary"] {
         background-color: #EFF6FF !important;
         color: #2563EB !important;
@@ -261,6 +261,7 @@ INTEGRANTES_INICIAIS = [
         "Lattes": "http://lattes.cnpq.br/",
         "Situação": "Ativo",
         "Orientador": "-",
+        "Coorientador": "-",
         "OrientadorStatus": "Aprovado"
     },
     {
@@ -273,6 +274,7 @@ INTEGRANTES_INICIAIS = [
         "Lattes": "-",
         "Situação": "Ativo",
         "Orientador": "Eliane Pereira Cipolatti",
+        "Coorientador": "-",
         "OrientadorStatus": "Aprovado"
     },
 ]
@@ -327,8 +329,9 @@ GRUPOS_INICIAIS = [
     {
         "id": 1,
         "nome": "Biocatalise & Tecnologia Enzimática",
-        "descricao": "Pesquisa focada no uso de lipases imobilizadas para produção de biocombustíveis e bioprorodutos.",
+        "descricao": "Pesquisa focada no uso de lipases imobilizadas para produção de biocombustíveis e bioprodtos.",
         "lider": "Eliane Pereira Cipolatti",
+        "senha": "123",
         "membros": ["Eliane Pereira Cipolatti", "Gabriela Mendes Farias Matos"],
         "status": "Aprovado",
         "solicitante": "Eliane Pereira Cipolatti",
@@ -529,6 +532,7 @@ usuario_admin_padrao = [{
     "status": "Aprovado",
     "is_admin": True,
     "orientador": "Eliane Pereira Cipolatti",
+    "coorientador": "-",
     "orientador_status": "Aprovado"
 }]
 
@@ -549,6 +553,8 @@ if "pops_db" not in st.session_state:
     st.session_state.pops_db = carregar_dados(ARQUIVO_POPS, POPS_INICIAIS)
 if "grupos_db" not in st.session_state:
     st.session_state.grupos_db = carregar_dados(ARQUIVO_GRUPOS, GRUPOS_INICIAIS)
+if "grupos_autenticados" not in st.session_state:
+    st.session_state.grupos_autenticados = []
 if "pasta_aberta_drive" not in st.session_state:
     st.session_state.pasta_aberta_drive = None
 if "seq_amostra" not in st.session_state:
@@ -681,6 +687,7 @@ if st.session_state.usuario_logado is None:
                             "status": "Pendente",
                             "is_admin": False,
                             "orientador": orient_val,
+                            "coorientador": "-",
                             "orientador_status": "Pendente" if orient_val != "-" else "Aprovado"
                         })
                         salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
@@ -695,6 +702,7 @@ if st.session_state.usuario_logado is None:
                             "Lattes": "-",
                             "Situação": "Pendente",
                             "Orientador": orient_val,
+                            "Coorientador": "-",
                             "OrientadorStatus": "Pendente" if orient_val != "-" else "Aprovado"
                         })
                         salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
@@ -1122,6 +1130,7 @@ else:
                     f_nome = st.text_input("Nome Completo *")
                     f_cat = st.selectbox("Categoria", CATEGORIAS_PADRAO)
                     f_orient = st.selectbox("Orientador Responsável", lista_orientadores)
+                    f_coorient = st.selectbox("Coorientador Responsável", lista_orientadores)
                     f_vinc = st.text_input("Vínculo / Curso", "UFRRJ - Engenharia Química")
                     f_tel = st.text_input("Telefone")
                     f_email = st.text_input("E-mail *")
@@ -1144,6 +1153,7 @@ else:
                             existente["Lattes"] = f_lattes
                             existente["Situação"] = f_situacao
                             existente["Orientador"] = f_orient
+                            existente["Coorientador"] = f_coorient
                             existente["OrientadorStatus"] = "Aprovado"
                         else:
                             st.session_state.integrantes.append({
@@ -1156,6 +1166,7 @@ else:
                                 "Lattes": f_lattes.strip(),
                                 "Situação": f_situacao,
                                 "Orientador": f_orient,
+                                "Coorientador": f_coorient,
                                 "OrientadorStatus": "Aprovado"
                             })
                         salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
@@ -1241,6 +1252,7 @@ else:
                         st.markdown(f"### 👤 {nome_str}")
                         st.write(f"**Categoria:** {cat_str}")
                         st.write(f"**Orientador:** {p.get('Orientador', '-')}")
+                        st.write(f"**Coorientador:** {p.get('Coorientador', '-')}")
                         st.write(f"**Vínculo:** {vinc_str}")
                         st.write(f"**Telefone:** {p.get('Telefone', '-')}")
                         st.write(f"**E-mail:** {email_str}")
@@ -1274,7 +1286,7 @@ else:
     # --- 2. ORIENTADOS ---
     elif menu_selecionado == "🎓 Orientados":
         st.title("🎓 Orientados e Alunos por Sequência de Orientador")
-        st.caption("Acompanhamento hierárquico encadeado: **Orientador ➔ Alunos Orientados** (com aprovação do Administrador).")
+        st.caption("Acompanhamento hierárquico encadeado: **Orientador ➔ Alunos Orientados (e Coorientadores)** (Definido exclusivamente pelo Administrador).")
 
         orientadores = [p for p in st.session_state.integrantes if p.get("Categoria") == "Orientador"]
         alunos = [
@@ -1301,13 +1313,16 @@ else:
 
             if alunos_do_orientador:
                 for al in alunos_do_orientador:
+                    coorient_txt = f" | <b>Coorientador:</b> {al.get('Coorientador')}" if al.get('Coorientador') and al.get('Coorientador') != "-" else ""
                     st.markdown(
                         f"""
                         <div class="tree-orientado">
                             <div>
                                 <span style="color:#2563EB; font-weight:bold;">└─ 🎓 {al['Nome']}</span> 
                                 <span style="font-size:0.82rem; color:#475569;">({al.get('Categoria')})</span>
-                                <div style="font-size:0.78rem; color:#64748B; margin-left: 20px;">E-mail: {al.get('Email')} | Vínculo: {al.get('Vínculo')}</div>
+                                <div style="font-size:0.78rem; color:#64748B; margin-left: 20px;">
+                                    E-mail: {al.get('Email')} | Vínculo: {al.get('Vínculo')}{coorient_txt}
+                                </div>
                             </div>
                             <div>
                                 <span class="badge-ativo">Vínculo Confirmado</span>
@@ -1327,7 +1342,7 @@ else:
 
         if sem_orientador:
             for al in sem_orientador:
-                st_txt = "Aguardando Aprovação do Admin" if al.get("OrientadorStatus") == "Pendente" else "Sem Orientador"
+                st_txt = "Aguardando Atribuição do Admin" if al.get("OrientadorStatus") == "Pendente" else "Sem Orientador"
                 st.markdown(
                     f"""
                     <div class="tree-orientado" style="margin-left:0; border-left:4px solid #F59E0B;">
@@ -1345,12 +1360,11 @@ else:
         else:
             st.info("Todos os alunos cadastrados estão oficialmente vinculados aos seus orientadores!")
 
-    # --- 2.1 GRUPOS DE PESQUISA (ÁREA INDIVIDUAL E RESTRITA) ---
+    # --- 2.1 GRUPOS DE PESQUISA (PROTEGIDO POR SENHA INDIVIDUAL) ---
     elif menu_selecionado == "🔬 Grupo de Pesquisa":
         st.title("🔬 Área de Grupos de Pesquisa")
-        st.caption("Espaço individual do pesquisador. Você visualiza e gerencia apenas as informações do(s) grupo(s) de pesquisa nos quais está inserido.")
+        st.caption("Acesso restrito por senha individual por grupo. Cada pesquisador só acessa e edita as informações do seu grupo.")
 
-        # Filtrar grupos onde o usuário está inserido ou se for Administrador
         meus_grupos = [
             g for g in st.session_state.grupos_db
             if g.get("status") == "Aprovado" and (usuario_atual["nome"] in g.get("membros", []) or is_admin)
@@ -1367,110 +1381,150 @@ else:
                 grp_sel_nome = st.selectbox("Selecione o Grupo de Pesquisa", nomes_meus_grupos)
                 grupo_ativo = next((g for g in meus_grupos if g["nome"] == grp_sel_nome), meus_grupos[0])
 
-                st.markdown(
-                    f"""
-                    <div class="css-card" style="border-left: 5px solid #2563EB;">
-                        <h2 style="margin:0; color:#0F172A;">🔬 {grupo_ativo['nome']}</h2>
-                        <p style="color:#475569; margin: 6px 0;">{grupo_ativo.get('descricao', '')}</p>
-                        <div style="font-size:0.85rem; color:#64748B;">
-                            👨‍🔬 <b>Líder do Grupo:</b> {grupo_ativo.get('lider', 'N/A')} | 👥 <b>Membros Aprovados:</b> {len(grupo_ativo.get('membros', []))}
+                # VERIFICAÇÃO DE SENHA DO GRUPO (Com bypass para Administrador)
+                grp_id = grupo_ativo["id"]
+                autenticado = (grp_id in st.session_state.grupos_autenticados) or is_admin
+
+                if not autenticado:
+                    st.warning(f"🔒 O Grupo **{grupo_ativo['nome']}** é protegido por senha. Insira a senha do grupo para ter acesso.")
+                    with st.form(f"form_auth_grp_{grp_id}"):
+                        senha_grp_input = st.text_input("Senha do Grupo", type="password")
+                        btn_entrar_grp = st.form_submit_button("🔓 Acessar Área do Grupo", type="primary")
+
+                        if btn_entrar_grp:
+                            if senha_grp_input == grupo_ativo.get("senha", ""):
+                                st.session_state.grupos_autenticados.append(grp_id)
+                                st.success("Senha correta! Acesso liberado.")
+                                st.rerun()
+                            else:
+                                st.error("Senha incorreta.")
+                else:
+                    st.markdown(
+                        f"""
+                        <div class="css-card" style="border-left: 5px solid #2563EB;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <h2 style="margin:0; color:#0F172A;">🔬 {grupo_ativo['nome']}</h2>
+                                <span class="badge-ativo">🔓 Área Autenticada</span>
+                            </div>
+                            <p style="color:#475569; margin: 6px 0;">{grupo_ativo.get('descricao', '')}</p>
+                            <div style="font-size:0.85rem; color:#64748B;">
+                                👨‍🔬 <b>Líder do Grupo:</b> {grupo_ativo.get('lider', 'N/A')} | 👥 <b>Membros:</b> {len(grupo_ativo.get('membros', []))}
+                            </div>
                         </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                        """,
+                        unsafe_allow_html=True
+                    )
 
-                st.markdown("<br>", unsafe_allow_html=True)
-                sub_tab1, sub_tab2, sub_tab3 = st.tabs([
-                    "📅 Calendário Exclusivo do Grupo",
-                    "📝 Mural & Projetos Internos",
-                    "👥 Membros do Grupo"
-                ])
+                    # ÁREA DE EDIÇÃO DO ADMIN / LÍDER DENTRO DO GRUPO
+                    if is_admin or usuario_atual["nome"] == grupo_ativo.get("lider"):
+                        with st.expander("⚙️ Painel de Edição das Informações do Grupo (Admin / Líder)"):
+                            with st.form(f"form_edit_grp_{grp_id}"):
+                                ed_nome_g = st.text_input("Nome do Grupo", value=grupo_ativo["nome"])
+                                ed_desc_g = st.text_area("Descrição do Grupo", value=grupo_ativo.get("descricao", ""))
+                                ed_lider_g = st.text_input("Líder do Grupo", value=grupo_ativo.get("lider", ""))
+                                ed_senha_g = st.text_input("Senha de Acesso do Grupo", value=grupo_ativo.get("senha", "123"))
+                                btn_salv_grp_edit = st.form_submit_button("💾 Salvar Alterações do Grupo", type="primary")
 
-                # Sub-aba 1: Calendário Individual do Grupo
-                with sub_tab1:
-                    st.subheader("📅 Calendário Individual de Atividades do Grupo")
-                    st.caption("Agendamentos e compromissos visíveis somente aos participantes deste grupo.")
+                                if btn_salv_grp_edit:
+                                    grupo_ativo["nome"] = ed_nome_g.strip()
+                                    grupo_ativo["descricao"] = ed_desc_g.strip()
+                                    grupo_ativo["lider"] = ed_lider_g.strip()
+                                    grupo_ativo["senha"] = ed_senha_g.strip()
+                                    salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                    st.success("Informações do grupo atualizadas com sucesso!")
+                                    st.rerun()
 
-                    c_ag1, c_ag2 = st.columns([1.5, 1])
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    sub_tab1, sub_tab2, sub_tab3 = st.tabs([
+                        "📅 Calendário Exclusivo do Grupo",
+                        "📝 Mural & Projetos Internos",
+                        "👥 Membros do Grupo"
+                    ])
 
-                    with c_ag1:
-                        st.markdown("##### 📋 Compromissos Agendados")
-                        agenda_grp = grupo_ativo.get("agenda", [])
-                        if agenda_grp:
-                            for idx_a, ev in enumerate(agenda_grp):
-                                st.markdown(
-                                    f"""
-                                    <div class="event-card" style="border-left: 4px solid #16A34A;">
-                                        <div style="font-weight:bold; color:#0F172A;">{ev['titulo']}</div>
-                                        <div style="font-size:0.82rem; color:#475569;">
-                                            📅 <b>{ev['data']}</b> das 🕒 <b>{ev.get('hora_inicio')} às {ev.get('hora_fim')}</b>
+                    # Sub-aba 1: Calendário Individual
+                    with sub_tab1:
+                        st.subheader("📅 Calendário Individual de Atividades do Grupo")
+                        st.caption("Agendamentos e compromissos visíveis somente aos participantes deste grupo.")
+
+                        c_ag1, c_ag2 = st.columns([1.5, 1])
+
+                        with c_ag1:
+                            st.markdown("##### 📋 Compromissos Agendados")
+                            agenda_grp = grupo_ativo.get("agenda", [])
+                            if agenda_grp:
+                                for idx_a, ev in enumerate(agenda_grp):
+                                    st.markdown(
+                                        f"""
+                                        <div class="event-card" style="border-left: 4px solid #16A34A;">
+                                            <div style="font-weight:bold; color:#0F172A;">{ev['titulo']}</div>
+                                            <div style="font-size:0.82rem; color:#475569;">
+                                                📅 <b>{ev['data']}</b> das 🕒 <b>{ev.get('hora_inicio')} às {ev.get('hora_fim')}</b>
+                                            </div>
+                                            <div style="font-size:0.8rem; color:#64748B; margin-top:4px;">{ev.get('descricao', '')}</div>
+                                            <div style="font-size:0.75rem; color:#94A3B8; margin-top:2px;">Criado por: {ev.get('autor','-')}</div>
                                         </div>
-                                        <div style="font-size:0.8rem; color:#64748B; margin-top:4px;">{ev.get('descricao', '')}</div>
-                                        <div style="font-size:0.75rem; color:#94A3B8; margin-top:2px;">Criado por: {ev.get('autor','-')}</div>
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True
-                                )
-                                if is_admin or ev.get("autor") == usuario_atual["nome"]:
-                                    if st.button("🗑️ Remover Evento", key=f"del_ev_grp_{idx_a}"):
-                                        grupo_ativo["agenda"].pop(idx_a)
-                                        salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
-                                        st.warning("Evento removido da agenda do grupo.")
-                                        st.rerun()
-                        else:
-                            st.info("Nenhum evento agendado na agenda deste grupo.")
+                                        """,
+                                        unsafe_allow_html=True
+                                    )
+                                    if is_admin or ev.get("autor") == usuario_atual["nome"]:
+                                        if st.button("🗑️ Remover Evento", key=f"del_ev_grp_{idx_a}"):
+                                            grupo_ativo["agenda"].pop(idx_a)
+                                            salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                            st.warning("Evento removido da agenda do grupo.")
+                                            st.rerun()
+                            else:
+                                st.info("Nenhum evento agendado na agenda deste grupo.")
 
-                    with c_ag2:
-                        st.markdown("##### ➕ Novo Evento do Grupo")
-                        with st.form(f"form_evento_grp_{grupo_ativo['id']}"):
-                            tit_ev_g = st.text_input("Título do Evento *")
-                            dt_ev_g = st.date_input("Data *", datetime.now().date())
-                            c_h1, c_h2 = st.columns(2)
-                            with c_h1:
-                                hi_g = st.time_input("Início", time(14, 0))
-                            with c_h2:
-                                hf_g = st.time_input("Fim", time(15, 0))
-                            desc_ev_g = st.text_area("Descrição / Pauta")
-                            btn_salv_ev_g = st.form_submit_button("📅 Salvar no Grupo", type="primary")
+                        with c_ag2:
+                            st.markdown("##### ➕ Novo Evento do Grupo")
+                            with st.form(f"form_evento_grp_{grupo_ativo['id']}"):
+                                tit_ev_g = st.text_input("Título do Evento *")
+                                dt_ev_g = st.date_input("Data *", datetime.now().date())
+                                c_h1, c_h2 = st.columns(2)
+                                with c_h1:
+                                    hi_g = st.time_input("Início", time(14, 0))
+                                with c_h2:
+                                    hf_g = st.time_input("Fim", time(15, 0))
+                                desc_ev_g = st.text_area("Descrição / Pauta")
+                                btn_salv_ev_g = st.form_submit_button("📅 Salvar no Grupo", type="primary")
 
-                            if btn_salv_ev_g and tit_ev_g.strip():
-                                if "agenda" not in grupo_ativo:
-                                    grupo_ativo["agenda"] = []
-                                grupo_ativo["agenda"].append({
-                                    "id": len(grupo_ativo["agenda"]) + 1,
-                                    "titulo": tit_ev_g.strip(),
-                                    "data": dt_ev_g.strftime("%Y-%m-%d"),
-                                    "hora_inicio": hi_g.strftime("%H:%M"),
-                                    "hora_fim": hf_g.strftime("%H:%M"),
-                                    "descricao": desc_ev_g.strip(),
-                                    "autor": usuario_atual["nome"]
-                                })
+                                if btn_salv_ev_g and tit_ev_g.strip():
+                                    if "agenda" not in grupo_ativo:
+                                        grupo_ativo["agenda"] = []
+                                    grupo_ativo["agenda"].append({
+                                        "id": len(grupo_ativo["agenda"]) + 1,
+                                        "titulo": tit_ev_g.strip(),
+                                        "data": dt_ev_g.strftime("%Y-%m-%d"),
+                                        "hora_inicio": hi_g.strftime("%H:%M"),
+                                        "hora_fim": hf_g.strftime("%H:%M"),
+                                        "descricao": desc_ev_g.strip(),
+                                        "autor": usuario_atual["nome"]
+                                    })
+                                    salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                    st.success("Evento adicionado ao calendário do grupo!")
+                                    st.rerun()
+
+                    # Sub-aba 2: Mural
+                    with sub_tab2:
+                        st.subheader("📝 Mural & Projetos Internos do Grupo")
+                        st.caption("Anotações gerais, atas de reuniões e avisos internos.")
+
+                        mural_atual = grupo_ativo.get("mural", "Nenhuma anotação postada ainda.")
+                        st.markdown(f"<div class='css-card'>{mural_atual}</div>", unsafe_allow_html=True)
+
+                        with st.expander("✏️ Editar Mural e Anotações do Grupo"):
+                            novo_mural = st.text_area("Escreva as anotações do grupo (Suporta texto e Markdown)", value=mural_atual, height=150)
+                            if st.button("💾 Atualizar Mural"):
+                                grupo_ativo["mural"] = novo_mural
                                 salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
-                                st.success("Evento adicionado ao calendário do grupo!")
+                                st.success("Mural do grupo atualizado!")
                                 st.rerun()
 
-                # Sub-aba 2: Mural & Projetos
-                with sub_tab2:
-                    st.subheader("📝 Mural & Projetos Internos do Grupo")
-                    st.caption("Anotações gerais, atas de reuniões e avisos internos.")
-
-                    mural_atual = grupo_ativo.get("mural", "Nenhuma anotação postada ainda.")
-                    st.markdown(f"<div class='css-card'>{mural_atual}</div>", unsafe_allow_html=True)
-
-                    with st.expander("✏️ Editar Mural e Anotações do Grupo"):
-                        novo_mural = st.text_area("Escreva as anotações do grupo (Suporta texto e Markdown)", value=mural_atual, height=150)
-                        if st.button("💾 Atualizar Mural"):
-                            grupo_ativo["mural"] = novo_mural
-                            salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
-                            st.success("Mural do grupo atualizado!")
-                            st.rerun()
-
-                # Sub-aba 3: Membros
-                with sub_tab3:
-                    st.subheader("👥 Integrantes do Grupo")
-                    for mbr in grupo_ativo.get("membros", []):
-                        st.markdown(f"- 👨‍🔬 **{mbr}** {'*(Líder)*' if mbr == grupo_ativo.get('lider') else ''}")
+                    # Sub-aba 3: Membros
+                    with sub_tab3:
+                        st.subheader("👥 Integrantes do Grupo")
+                        for mbr in grupo_ativo.get("membros", []):
+                            st.markdown(f"- 👨‍🔬 **{mbr}** {'*(Líder)*' if mbr == grupo_ativo.get('lider') else ''}")
 
             else:
                 st.warning("⚠️ Você ainda não está vinculado a nenhum Grupo de Pesquisa aprovado.")
@@ -1484,16 +1538,18 @@ else:
                 with st.form("form_novo_grupo_pesq"):
                     nome_novo_grp = st.text_input("Nome do Grupo de Pesquisa *")
                     desc_novo_grp = st.text_area("Descrição / Objetivos do Grupo *", height=100)
+                    senha_novo_grp = st.text_input("Definir Senha de Acesso ao Grupo *", type="password", value="123")
                     btn_sol_grp = st.form_submit_button("🚀 Enviar Solicitação para o Admin", type="primary")
 
                     if btn_sol_grp:
-                        if nome_novo_grp.strip() and desc_novo_grp.strip():
+                        if nome_novo_grp.strip() and desc_novo_grp.strip() and senha_novo_grp.strip():
                             novo_id_g = max([g.get("id", 0) for g in st.session_state.grupos_db], default=0) + 1
                             st.session_state.grupos_db.append({
                                 "id": novo_id_g,
                                 "nome": nome_novo_grp.strip(),
                                 "descricao": desc_novo_grp.strip(),
                                 "lider": usuario_atual["nome"],
+                                "senha": senha_novo_grp.strip(),
                                 "membros": [usuario_atual["nome"]],
                                 "status": "Pendente",
                                 "solicitante": usuario_atual["nome"],
@@ -1505,7 +1561,7 @@ else:
                             st.success("✅ Solicitação de novo grupo enviada para aprovação do Administrador!")
                             st.rerun()
                         else:
-                            st.error("Preencha o nome e a descrição do grupo.")
+                            st.error("Preencha o nome, a descrição e a senha do grupo.")
 
             with c_sol2:
                 st.subheader("🙋‍♂️ Solicitar Entrada em Grupo Existente")
@@ -1990,11 +2046,11 @@ else:
 
     # --- 7. ADMINISTRAÇÃO (CENTRAL DE APROVAÇÕES COMPLETA) ---
     elif menu_selecionado == "🛡️ Administração" and is_admin:
-        st.title("🛡️ Central de Aprovações do Administrador")
+        st.title("🛡️ Central de Aprovações e Atribuições do Administrador")
 
         tab_usr, tab_orient, tab_grupos, tab_perfis, tab_arq, tab_pops = st.tabs([
             "👤 Acessos de Usuários",
-            "🎓 Vínculos de Orientação",
+            "🎓 Orientação (Orientador & Coorientador)",
             "🔬 Grupos de Pesquisa",
             "✏️ Alterações de Perfil",
             "📄 Arquivos Inseridos",
@@ -2036,7 +2092,47 @@ else:
                 st.info("Nenhuma solicitação de novo acesso pendente.")
 
         with tab_orient:
-            st.subheader("Solicitações de Vínculo de Orientação")
+            st.subheader("🎓 Gestão e Atribuição de Orientador & Coorientador")
+            st.caption("Apenas o Administrador pode definir ou alterar quem é o Orientador e o Coorientador de cada aluno registrado.")
+
+            lista_professores = ["-"] + [p["Nome"] for p in st.session_state.integrantes if p.get("Categoria") == "Orientador"]
+            lista_alunos_cad = [p for p in st.session_state.integrantes if p.get("Categoria") in ["Iniciação Científica", "Mestrado", "Doutorado", "Pós-Doutorado"]]
+
+            if lista_alunos_cad:
+                with st.form("form_admin_orientacao"):
+                    dict_alunos = {f"{a['Nome']} ({a['Categoria']})": a for a in lista_alunos_cad}
+                    aluno_sel_lbl = st.selectbox("Selecione o Aluno / Pesquisador *", list(dict_alunos.keys()))
+                    aluno_objeto = dict_alunos[aluno_sel_lbl]
+
+                    idx_or_def = lista_professores.index(aluno_objeto.get("Orientador")) if aluno_objeto.get("Orientador") in lista_professores else 0
+                    idx_co_def = lista_professores.index(aluno_objeto.get("Coorientador")) if aluno_objeto.get("Coorientador") in lista_professores else 0
+
+                    c_o1, c_o2 = st.columns(2)
+                    with c_o1:
+                        orient_escolhido = st.selectbox("Orientador Principal *", lista_professores, index=idx_or_def)
+                    with c_o2:
+                        coorient_escolhido = st.selectbox("Coorientador (Opcional)", lista_professores, index=idx_co_def)
+
+                    btn_salvar_vinculo = st.form_submit_button("💾 Confirmar Atribuição do Admin", type="primary")
+
+                    if btn_salvar_vinculo:
+                        aluno_objeto["Orientador"] = orient_escolhido
+                        aluno_objeto["Coorientador"] = coorient_escolhido
+                        aluno_objeto["OrientadorStatus"] = "Aprovado"
+                        salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+
+                        for u in st.session_state.usuarios:
+                            if u.get("nome", "").strip().lower() == aluno_objeto["Nome"].strip().lower():
+                                u["orientador"] = orient_escolhido
+                                u["coorientador"] = coorient_escolhido
+                                u["orientador_status"] = "Aprovado"
+                        salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+                        st.success(f"Vínculos atualizados para {aluno_objeto['Nome']}!")
+                        st.rerun()
+
+            st.markdown("---")
+            st.subheader("Solicitações Pendentes de Orientação")
             pend_orient_list = [p for p in st.session_state.integrantes if p.get("OrientadorStatus") == "Pendente"]
 
             if pend_orient_list:
@@ -2046,7 +2142,7 @@ else:
                         st.write(f"🎓 **Aluno(a):** {al['Nome']} ({al.get('Categoria')})")
                         st.write(f"👨‍🏫 **Orientador Solicitado:** `{al.get('Orientador')}`")
                     with c_b1:
-                        if st.button("✅ Confirmar Vínculo", key=f"ap_or_{idx}", type="primary"):
+                        if st.button("✅ Aprovar Vínculo", key=f"ap_or_{idx}", type="primary"):
                             al["OrientadorStatus"] = "Aprovado"
                             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
@@ -2079,7 +2175,7 @@ else:
                     c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
                     with c_inf:
                         st.write(f"🔬 **Grupo:** {g['nome']}")
-                        st.caption(f"Solicitante / Líder: {g.get('lider')} | Descrição: {g.get('descricao')}")
+                        st.caption(f"Solicitante / Líder: {g.get('lider')} | Senha Definida: `{g.get('senha')}` | Descrição: {g.get('descricao')}")
                     with c_b1:
                         if st.button("✅ Aprovar Grupo", key=f"ap_grp_{idx}", type="primary"):
                             g["status"] = "Aprovado"
@@ -2243,6 +2339,7 @@ else:
             st.write(f"**Usuário:** `{usr_atual_reg.get('usuario')}`")
             st.write(f"**Categoria:** {usr_atual_reg.get('categoria', '-')}")
             st.write(f"**Orientador:** {integrante_reg.get('Orientador', '-')}")
+            st.write(f"**Coorientador:** {integrante_reg.get('Coorientador', '-')}")
         with c2:
             st.write(f"**Vínculo:** {usr_atual_reg.get('vinculo', '-')}")
             st.write(f"**Telefone:** {usr_atual_reg.get('telefone', '-')}")
@@ -2252,16 +2349,12 @@ else:
             st.warning("⚠️ Você possui uma solicitação de alteração de dados **PENDENTE** de aprovação do Administrador.")
 
         st.markdown("---")
-        st.subheader("✏️ Solicitar Alteração de Dados / Troca de Orientador")
+        st.subheader("✏️ Solicitar Alteração de Dados de Perfil")
 
         idx_cat = CATEGORIAS_PADRAO.index(usr_atual_reg.get("categoria")) if usr_atual_reg.get("categoria") in CATEGORIAS_PADRAO else 0
-        lista_orientadores_opts = ["Sem Orientador / Não se aplica"] + [
-            p["Nome"] for p in st.session_state.integrantes if p.get("Categoria") == "Orientador"
-        ]
 
         with st.form("form_edit_perfil"):
             nova_cat = st.selectbox("Categoria", CATEGORIAS_PADRAO, index=idx_cat)
-            novo_orient = st.selectbox("Orientador Responsável", lista_orientadores_opts)
             novo_vinc = st.text_input("Vínculo / Curso", value=usr_atual_reg.get("vinculo", "UFRRJ - Engenharia Química"))
             novo_tel = st.text_input("Telefone para Contato", value=usr_atual_reg.get("telefone", ""))
             novo_email = st.text_input("E-mail para Contato", value=usr_atual_reg.get("email", ""))
@@ -2274,10 +2367,9 @@ else:
                 if not (novo_tel.strip() and novo_email.strip()):
                     st.error("Telefone e E-mail são obrigatórios.")
                 else:
-                    orient_val = "-" if novo_orient.startswith("Sem Orientador") else novo_orient
                     dados_novos = {
                         "categoria": nova_cat,
-                        "orientador": orient_val,
+                        "orientador": integrante_reg.get("Orientador", "-"),
                         "vinculo": novo_vinc.strip(),
                         "telefone": novo_tel.strip(),
                         "email": novo_email.strip(),
