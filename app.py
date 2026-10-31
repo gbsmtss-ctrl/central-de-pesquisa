@@ -5,15 +5,19 @@ from io import BytesIO
 import json
 import os
 import pandas as pd
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import qrcode
 import streamlit as st
 
-# ReportLab para geração de PDF dos POPs
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+# Tenta importar o ReportLab; caso não esteja instalado no Streamlit Cloud, usa fallback com PIL
+try:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    REPORTLAB_DISPONIVEL = True
+except ImportError:
+    REPORTLAB_DISPONIVEL = False
 
 # Configuração da página
 st.set_page_config(
@@ -230,60 +234,89 @@ def gerar_codigo_pop(titulo, versao=1):
     return f"POP-{sigla}-v{versao}"
 
 def gerar_pdf_pop(pop_dict):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
-    styles = getSampleStyleSheet()
-    story = []
+    if REPORTLAB_DISPONIVEL:
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+        styles = getSampleStyleSheet()
+        story = []
 
-    header_data = [
-        [Paragraph(f"<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", styles['Normal']), Paragraph(f"<b>CÓDIGO:</b> {pop_dict['codigo']}", styles['Normal'])],
-        [Paragraph(f"<b>Título:</b> {pop_dict['titulo']}", styles['Normal']), Paragraph(f"<b>Versão:</b> {pop_dict['versao']}", styles['Normal'])],
-        [Paragraph(f"<b>Elaborado por:</b> {pop_dict.get('autor', 'N/A')}", styles['Normal']), Paragraph(f"<b>Status:</b> {pop_dict.get('status', 'Aprovado')}", styles['Normal'])]
-    ]
-    t_header = Table(header_data, colWidths=[350, 180])
-    t_header.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
-        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING', (0,0), (-1,-1), 6),
-    ]))
-    story.append(t_header)
-    story.append(Spacer(1, 15))
+        header_data = [
+            [Paragraph(f"<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", styles['Normal']), Paragraph(f"<b>CÓDIGO:</b> {pop_dict['codigo']}", styles['Normal'])],
+            [Paragraph(f"<b>Título:</b> {pop_dict['titulo']}", styles['Normal']), Paragraph(f"<b>Versão:</b> {pop_dict['versao']}", styles['Normal'])],
+            [Paragraph(f"<b>Elaborado por:</b> {pop_dict.get('autor', 'N/A')}", styles['Normal']), Paragraph(f"<b>Status:</b> {pop_dict.get('status', 'Aprovado')}", styles['Normal'])]
+        ]
+        t_header = Table(header_data, colWidths=[350, 180])
+        t_header.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('PADDING', (0,0), (-1,-1), 6),
+        ]))
+        story.append(t_header)
+        story.append(Spacer(1, 15))
 
-    sections = [
-        ("1. OBJETIVO", pop_dict.get("objetivo", "")),
-        ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
-        ("3. PROCEDIMENTO / PASSO A PASSO", pop_dict.get("passos", "")),
-        ("4. SEGURANÇA E EPIs", pop_dict.get("seguranca", "")),
-    ]
+        sections = [
+            ("1. OBJETIVO", pop_dict.get("objetivo", "")),
+            ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
+            ("3. PROCEDIMENTO / PASSO A PASSO", pop_dict.get("passos", "")),
+            ("4. SEGURANÇA E EPIs", pop_dict.get("seguranca", "")),
+        ]
 
-    sec_title_style = ParagraphStyle(
-        'SecTitle',
-        parent=styles['Heading2'],
-        fontSize=11,
-        leading=14,
-        textColor=colors.HexColor('#2563EB'),
-        bold=True
-    )
+        sec_title_style = ParagraphStyle(
+            'SecTitle',
+            parent=styles['Heading2'],
+            fontSize=11,
+            leading=14,
+            textColor=colors.HexColor('#2563EB'),
+            bold=True
+        )
 
-    body_style = ParagraphStyle(
-        'BodyTextCustom',
-        parent=styles['Normal'],
-        fontSize=9.5,
-        leading=13.5,
-        textColor=colors.HexColor('#334155')
-    )
+        body_style = ParagraphStyle(
+            'BodyTextCustom',
+            parent=styles['Normal'],
+            fontSize=9.5,
+            leading=13.5,
+            textColor=colors.HexColor('#334155')
+        )
 
-    for title, content in sections:
-        story.append(Paragraph(title, sec_title_style))
-        story.append(Spacer(1, 4))
-        content_p = content.replace('\n', '<br/>')
-        story.append(Paragraph(content_p, body_style))
-        story.append(Spacer(1, 10))
+        for title, content in sections:
+            story.append(Paragraph(title, sec_title_style))
+            story.append(Spacer(1, 4))
+            content_p = content.replace('\n', '<br/>')
+            story.append(Paragraph(content_p, body_style))
+            story.append(Spacer(1, 10))
 
-    doc.build(story)
-    return buffer.getvalue()
+        doc.build(story)
+        return buffer.getvalue()
+    else:
+        page = Image.new("RGB", (612, 792), "white")
+        draw = ImageDraw.Draw(page)
+
+        draw.rectangle([30, 30, 582, 100], fill="#F1F5F9", outline="#CBD5E1")
+        draw.text((40, 40), f"PROCEDIMENTO OPERACIONAL PADRÃO - {pop_dict['codigo']}", fill="black")
+        draw.text((40, 60), f"Título: {pop_dict['titulo']} (Versão {pop_dict['versao']})", fill="black")
+        draw.text((40, 80), f"Autor: {pop_dict.get('autor','N/A')}", fill="black")
+
+        y = 120
+        secoes = [
+            ("1. OBJETIVO", pop_dict.get("objetivo", "")),
+            ("2. MATERIAIS", pop_dict.get("materiais", "")),
+            ("3. PASSO A PASSO", pop_dict.get("passos", "")),
+            ("4. SEGURANÇA", pop_dict.get("seguranca", "")),
+        ]
+
+        for tit, txt in secoes:
+            draw.text((40, y), tit, fill="#2563EB")
+            y += 20
+            for line in txt.split("\n"):
+                draw.text((50, y), line[:80], fill="#334155")
+                y += 15
+            y += 10
+
+        buf = BytesIO()
+        page.save(buf, format="PDF")
+        return buf.getvalue()
 
 def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra=""):
     dpi = 150
@@ -396,12 +429,31 @@ else:
     if "usuario_logado" not in st.session_state:
         st.session_state.usuario_logado = None
 
+# --- VALIDAÇÃO GLOBAL DE ACESSO (REVOGAÇÃO IMEDIATA AO SER EXCLUÍDO) ---
+if st.session_state.usuario_logado:
+    usr_ativo = next(
+        (
+            u for u in st.session_state.usuarios
+            if str(u.get("usuario", "")).strip().lower() == str(st.session_state.usuario_logado.get("usuario", "")).strip().lower()
+            and u.get("status") == "Aprovado"
+        ),
+        None,
+    )
+    if not usr_ativo:
+        st.session_state.usuario_logado = None
+        st.query_params.clear()
+        st.rerun()
 
-# --- TELA DE LOGIN E SOLICITAÇÃO DE ACESSO ---
+
+# --- TELA DE LOGIN, SOLICITAÇÃO DE ACESSO E RECUPERAÇÃO DE SENHA ---
 if st.session_state.usuario_logado is None:
     st.title("🧪 Central de Pesquisa - Controle de Acesso ⚗️")
 
-    aba_login, aba_cadastro = st.tabs(["Entrar no Sistema", "Solicitar Acesso"])
+    aba_login, aba_cadastro, aba_recuperar = st.tabs([
+        "Entrar no Sistema", 
+        "Solicitar Acesso", 
+        "🔑 Recuperar Senha"
+    ])
 
     with aba_login:
         st.subheader("Login")
@@ -463,8 +515,9 @@ if st.session_state.usuario_logado is None:
                     )
 
                     if ja_aprovado:
-                        st.error("Este nome de usuário já pertence a uma conta APROVADA.")
+                        st.error("Este nome de usuário pertence a uma conta ativa no sistema.")
                     else:
+                        # Limpa registros antigos do mesmo usuário/nome para re-cadastro limpo
                         st.session_state.usuarios = [
                             u for u in st.session_state.usuarios
                             if str(u.get("usuario", "")).strip().lower() != usr_clean
@@ -502,6 +555,38 @@ if st.session_state.usuario_logado is None:
                         salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
                         st.success("Solicitação enviada com sucesso! Aguarde a aprovação do Administrador.")
+
+    with aba_recuperar:
+        st.subheader("🔑 Recuperação e Redefinição de Senha")
+        st.caption("Informe seu usuário ou e-mail cadastrado para redefinir a sua senha.")
+        with st.form("form_recuperar_senha"):
+            rec_identificador = st.text_input("Usuário ou E-mail Cadastrado *")
+            nova_senha_rec = st.text_input("Nova Senha *", type="password")
+            conf_senha_rec = st.text_input("Confirmar Nova Senha *", type="password")
+            btn_recuperar = st.form_submit_button("Redefinir Senha", type="primary")
+
+            if btn_recuperar:
+                if not rec_identificador.strip() or not nova_senha_rec:
+                    st.error("Preencha todos os campos obrigatórios (*).")
+                elif nova_senha_rec != conf_senha_rec:
+                    st.error("A confirmação da nova senha não coincide.")
+                else:
+                    ident_clean = rec_identificador.strip().lower()
+                    usr_alvo = next(
+                        (
+                            u for u in st.session_state.usuarios
+                            if str(u.get("usuario", "")).strip().lower() == ident_clean
+                            or str(u.get("email", "")).strip().lower() == ident_clean
+                        ),
+                        None,
+                    )
+
+                    if usr_alvo:
+                        usr_alvo["senha"] = nova_senha_rec
+                        salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+                        st.success("✅ Senha redefinida com sucesso! Você já pode entrar com a nova senha na aba 'Entrar no Sistema'.")
+                    else:
+                        st.error("Nenhum usuário aprovado ou pendente foi encontrado com este Usuário/E-mail.")
 
 # --- ÁREA LOGADA ---
 else:
@@ -698,13 +783,26 @@ else:
                         if is_admin:
                             st.markdown("---")
                             if st.button("🗑️ Excluir Integrante", key=f"del_int_{idx}"):
-                                st.session_state.integrantes = [item for item in st.session_state.integrantes if item.get("Nome") != nome_str]
+                                nome_del = nome_str.strip().lower()
+                                email_del = email_str.strip().lower()
+
+                                # 1. Remocao da lista de integrantes
+                                st.session_state.integrantes = [
+                                    item for item in st.session_state.integrantes
+                                    if str(item.get("Nome", "")).strip().lower() != nome_del
+                                    and str(item.get("Email", "")).strip().lower() != email_del
+                                ]
                                 salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
-                                st.session_state.usuarios = [u for u in st.session_state.usuarios if str(u.get("nome", "")).strip().lower() != nome_str.strip().lower()]
+                                # 2. Remocao total da lista de usuarios para revogar o acesso
+                                st.session_state.usuarios = [
+                                    u for u in st.session_state.usuarios
+                                    if str(u.get("nome", "")).strip().lower() != nome_del
+                                    and str(u.get("email", "")).strip().lower() != email_del
+                                ]
                                 salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-                                st.warning(f"Integrante '{nome_str}' excluído com sucesso!")
+                                st.warning(f"Integrante '{nome_str}' excluído com sucesso! Acesso revogado.")
                                 st.rerun()
 
                 st.markdown("<hr style='margin: 8px 0; border: none; border-top: 1px solid #F1F5F9;'/>", unsafe_allow_html=True)
