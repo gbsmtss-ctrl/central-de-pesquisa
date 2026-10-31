@@ -1,6 +1,6 @@
 import base64
 import calendar
-from datetime import datetime, time
+from datetime import datetime, date, time
 from io import BytesIO
 import json
 import os
@@ -100,6 +100,21 @@ st.markdown(
         box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         margin-bottom: 12px;
     }
+    .aviso-card {
+        background-color: #FFFFFF;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        border-left: 5px solid #2563EB;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .event-card {
+        background-color: #FFFFFF;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
     .pop-preview-card {
         background-color: #FFFFFF;
         border: 1px solid #CBD5E1;
@@ -119,18 +134,26 @@ st.markdown(
         border-bottom: 1px solid #E2E8F0;
         margin-bottom: 12px;
     }
+    .metric-container {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+    }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# --- SISTEMA DE PERSISTÊNCIA DE DADOS ---
+# --- PERSISTÊNCIA DE DADOS ---
 ARQUIVO_INTEGRANTES = "integrantes.json"
 ARQUIVO_AGENDA = "agenda.json"
 ARQUIVO_USUARIOS = "usuarios.json"
 ARQUIVO_ARQUIVOS = "arquivos.json"
 ARQUIVO_PASTAS = "pastas.json"
 ARQUIVO_POPS = "pops.json"
+ARQUIVO_AVISOS = "avisos.json"
 
 CATEGORIAS_PADRAO = [
     "Iniciação Científica",
@@ -140,6 +163,16 @@ CATEGORIAS_PADRAO = [
     "Orientador",
     "Técnico / Pesquisador",
 ]
+
+CORES_GOOGLE_AGENDA = {
+    "🔵 Azul (Reunião / Geral)": "#2563EB",
+    "🟢 Verde (Ensaio / Experimento)": "#16A34A",
+    "🔴 Vermelho (Urgente / Importante)": "#DC2626",
+    "🟣 Roxo (Apresentação / Defesa)": "#7C3AED",
+    "🟠 Laranja (Manutenção / Limpeza)": "#EA580C",
+    "🟡 Dourado (Prazo / Entrega)": "#D97706",
+    "🩵 Ciano (Treinamento)": "#0891B2",
+}
 
 REAGENTES_CADASTRADOS = [
     "Extrato Enzimático de Lipase",
@@ -174,7 +207,7 @@ INTEGRANTES_INICIAIS = [
         "Vínculo": "UFRRJ - Engenharia de Alimentos",
         "Telefone": "(21) 99999-9999",
         "Email": "elianecipolatti@ufrrj.br",
-        "DiasHorarios": "Não informado",
+        "DiasHorarios": "Seg e Qua - 08:00 às 17:00",
         "Lattes": "http://lattes.cnpq.br/",
         "Situação": "Ativo",
     },
@@ -184,10 +217,45 @@ INTEGRANTES_INICIAIS = [
         "Vínculo": "UFRRJ - Química Industrial",
         "Telefone": "(21) 99677-8065",
         "Email": "gbsmtsm@ufrrj.br",
-        "DiasHorarios": "Não informado",
+        "DiasHorarios": "Ter e Qui - 09:00 às 18:00",
         "Lattes": "-",
         "Situação": "Ativo",
     },
+]
+
+AVISOS_INICIAIS = [
+    {
+        "id": 1,
+        "titulo": "📢 Manutenção da Autoclave e Capela",
+        "conteudo": "A manutenção preventiva ocorrerá nesta sexta-feira pela manhã. Agende seus ensaios com antecedência.",
+        "categoria": "Manutenção",
+        "cor": "#EA580C",
+        "autor": "Gabriela Mendes Farias Matos",
+        "data": datetime.now().strftime("%d/%m/%Y"),
+    },
+    {
+        "id": 2,
+        "titulo": "🧪 Atualização dos Protocolos de POP",
+        "conteudo": "Os POPs de espectrofotometria foram atualizados para a versão 2. Por favor, verifiquem no repositório.",
+        "categoria": "Informativo",
+        "cor": "#2563EB",
+        "autor": "Eliane Pereira Cipolatti",
+        "data": datetime.now().strftime("%d/%m/%Y"),
+    }
+]
+
+AGENDA_INICIAL = [
+    {
+        "id": 1,
+        "titulo": "Reunião de Alinhamento Semanal",
+        "data": datetime.now().strftime("%Y-%m-%d"),
+        "hora_inicio": "09:00",
+        "hora_fim": "10:30",
+        "tipo": "Reunião",
+        "cor": "#2563EB",
+        "descricao": "Discussão dos resultados de fermentação da semana.",
+        "autor": "Gabriela Mendes Farias Matos"
+    }
 ]
 
 PASTAS_INICIAIS = [
@@ -397,7 +465,9 @@ if "usuarios" not in st.session_state:
 if "integrantes" not in st.session_state:
     st.session_state.integrantes = carregar_dados(ARQUIVO_INTEGRANTES, INTEGRANTES_INICIAIS)
 if "agenda" not in st.session_state:
-    st.session_state.agenda = carregar_dados(ARQUIVO_AGENDA, [])
+    st.session_state.agenda = carregar_dados(ARQUIVO_AGENDA, AGENDA_INICIAL)
+if "avisos_db" not in st.session_state:
+    st.session_state.avisos_db = carregar_dados(ARQUIVO_AVISOS, AVISOS_INICIAIS)
 if "arquivos_db" not in st.session_state:
     st.session_state.arquivos_db = carregar_dados(ARQUIVO_ARQUIVOS, [])
 if "pastas_db" not in st.session_state:
@@ -517,7 +587,6 @@ if st.session_state.usuario_logado is None:
                     if ja_aprovado:
                         st.error("Este nome de usuário pertence a uma conta ativa no sistema.")
                     else:
-                        # Limpa registros antigos do mesmo usuário/nome para re-cadastro limpo
                         st.session_state.usuarios = [
                             u for u in st.session_state.usuarios
                             if str(u.get("usuario", "")).strip().lower() != usr_clean
@@ -609,13 +678,18 @@ else:
         unsafe_allow_html=True,
     )
 
-    st.sidebar.markdown('<div class="sidebar-section">GESTÃO DO LABORATÓRIO</div>', unsafe_allow_html=True)
-    
+    st.sidebar.markdown('<div class="sidebar-section">PAINEL PRINCIPAL</div>', unsafe_allow_html=True)
     opcoes_menu = [
+        "🏠 Página Inicial & Avisos",
+        "📅 Agenda & Calendário",
+    ]
+
+    st.sidebar.markdown('<div class="sidebar-section">GESTÃO DO LABORATÓRIO</div>', unsafe_allow_html=True)
+    opcoes_menu.extend([
         "👥 Equipe",
         "🎓 Orientados",
         "🕒 Presença no Laboratório",
-    ]
+    ])
 
     st.sidebar.markdown('<div class="sidebar-section">CONHECIMENTO</div>', unsafe_allow_html=True)
     opcoes_menu.extend([
@@ -647,8 +721,290 @@ else:
         st.session_state.usuario_logado = None
         st.rerun()
 
+    # --- 0. PÁGINA INICIAL & AVISOS ---
+    if menu_selecionado == "🏠 Página Inicial & Avisos":
+        st.title("🏠 Painel Principal - Central de Pesquisa")
+        st.caption(f"Bem-vindo(a), **{usuario_atual['nome']}**! Acompanhe os avisos e compromissos do laboratório.")
+
+        # --- MÉTRICAS RÁPIDAS ---
+        m1, m2, m3, m4 = st.columns(4)
+        m1.markdown(f"<div class='metric-container'><span style='font-size: 1.5rem; font-weight:bold; color:#2563EB;'>{len(st.session_state.integrantes)}</span><br/><span style='color:#64748B; font-size:0.85rem;'>Integrantes</span></div>", unsafe_allow_html=True)
+        
+        hoje_str = datetime.now().strftime("%Y-%m-%d")
+        eventos_futuros = [e for e in st.session_state.agenda if e.get("data", "") >= hoje_str]
+        m2.markdown(f"<div class='metric-container'><span style='font-size: 1.5rem; font-weight:bold; color:#16A34A;'>{len(eventos_futuros)}</span><br/><span style='color:#64748B; font-size:0.85rem;'>Próximos Eventos</span></div>", unsafe_allow_html=True)
+        
+        m3.markdown(f"<div class='metric-container'><span style='font-size: 1.5rem; font-weight:bold; color:#EA580C;'>{len(st.session_state.avisos_db)}</span><br/><span style='color:#64748B; font-size:0.85rem;'>Avisos Ativos</span></div>", unsafe_allow_html=True)
+        
+        pops_aprov = len([p for p in st.session_state.pops_db if p.get("status") == "Aprovado"])
+        m4.markdown(f"<div class='metric-container'><span style='font-size: 1.5rem; font-weight:bold; color:#7C3AED;'>{pops_aprov}</span><br/><span style='color:#64748B; font-size:0.85rem;'>POPs Vigentes</span></div>", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        col_left, col_right = st.columns([1.3, 1])
+
+        # COLUNA DA ESQUERDA: MURAL DE AVISOS
+        with col_left:
+            st.subheader("📢 Mural de Avisos do Laboratório")
+
+            if is_admin:
+                with st.expander("➕ Publicar Novo Aviso (Apenas Administrador)"):
+                    with st.form("form_novo_aviso"):
+                        tit_aviso = st.text_input("Título do Aviso *")
+                        cat_aviso = st.selectbox("Categoria", ["Informativo", "Manutenção", "Urgente", "Segurança", "Eventos"])
+                        cor_aviso = st.selectbox("Cor de Destaque", list(CORES_GOOGLE_AGENDA.keys()))
+                        txt_aviso = st.text_area("Conteúdo do Aviso *", height=100)
+                        btn_postar = st.form_submit_button("📌 Publicar Aviso", type="primary")
+
+                        if btn_postar:
+                            if tit_aviso.strip() and txt_aviso.strip():
+                                novo_id = max([a.get("id", 0) for a in st.session_state.avisos_db], default=0) + 1
+                                st.session_state.avisos_db.insert(0, {
+                                    "id": novo_id,
+                                    "titulo": tit_aviso.strip(),
+                                    "conteudo": txt_aviso.strip(),
+                                    "categoria": cat_aviso,
+                                    "cor": CORES_GOOGLE_AGENDA[cor_aviso],
+                                    "autor": usuario_atual["nome"],
+                                    "data": datetime.now().strftime("%d/%m/%Y"),
+                                })
+                                salvar_dados(ARQUIVO_AVISOS, st.session_state.avisos_db)
+                                st.success("Aviso publicado com sucesso!")
+                                st.rerun()
+                            else:
+                                st.error("Preencha o título e o conteúdo do aviso.")
+
+            if st.session_state.avisos_db:
+                for idx, av in enumerate(st.session_state.avisos_db):
+                    c_hex = av.get("cor", "#2563EB")
+                    st.markdown(
+                        f"""
+                        <div class="aviso-card" style="border-left-color: {c_hex};">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h4 style="margin: 0; color: #0F172A;">{av['titulo']}</h4>
+                                <span style="font-size: 0.75rem; background-color: #F1F5F9; padding: 2px 8px; border-radius: 10px; color: #475569; font-weight: 600;">
+                                    {av.get('categoria', 'Geral')}
+                                </span>
+                            </div>
+                            <p style="margin: 8px 0; color: #334155; font-size: 0.9rem;">{av['conteudo']}</p>
+                            <div style="font-size: 0.75rem; color: #94A3B8; text-align: right;">
+                                Postado por <b>{av.get('autor','Admin')}</b> em {av.get('data','-')}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    if is_admin:
+                        c_d1, c_d2 = st.columns([5, 1])
+                        with c_d2:
+                            if st.button("🗑️ Excluir", key=f"del_aviso_{av.get('id', idx)}"):
+                                st.session_state.avisos_db = [item for item in st.session_state.avisos_db if item.get("id") != av.get("id")]
+                                salvar_dados(ARQUIVO_AVISOS, st.session_state.avisos_db)
+                                st.warning("Aviso excluído.")
+                                st.rerun()
+            else:
+                st.info("Nenhum aviso publicado no mural.")
+
+        # COLUNA DA DIREITA: PRÓXIMOS COMPROMISSOS DA AGENDA
+        with col_right:
+            st.subheader("📅 Próximas Reuniões & Compromissos")
+            st.caption("Atividades agendadas no Calendário")
+
+            # Ordena os compromissos por data e hora
+            eventos_ordenados = sorted(
+                st.session_state.agenda,
+                key=lambda x: (x.get("data", ""), x.get("hora_inicio", ""))
+            )
+            eventos_validos = [e for e in eventos_ordenados if e.get("data", "") >= hoje_str]
+
+            if eventos_validos:
+                for ev in eventos_validos[:5]: # Exibe até os 5 próximos
+                    cor_ev = ev.get("cor", "#2563EB")
+                    try:
+                        dt_obj = datetime.strptime(ev["data"], "%Y-%m-%d")
+                        dt_formatada = dt_obj.strftime("%d/%m/%Y (%a)")
+                    except Exception:
+                        dt_formatada = ev.get("data", "-")
+
+                    st.markdown(
+                        f"""
+                        <div class="event-card" style="border-left: 5px solid {cor_ev}; background-color: white;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong style="color: #0F172A; font-size: 0.95rem;">{ev['titulo']}</strong>
+                                <span style="font-size: 0.75rem; font-weight: bold; color: {cor_ev};">{ev.get('tipo', 'Reunião')}</span>
+                            </div>
+                            <div style="font-size: 0.82rem; color: #475569; margin-top: 4px;">
+                                🕒 <b>{dt_formatada}</b> das {ev.get('hora_inicio','--')} às {ev.get('hora_fim','--')}
+                            </div>
+                            <div style="font-size: 0.8rem; color: #64748B; margin-top: 4px;">
+                                {ev.get('descricao', '')}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.info("Não há reuniões ou compromissos futuros agendados.")
+
+    # --- 0.1 AGENDA & CALENDÁRIO ---
+    elif menu_selecionado == "📅 Agenda & Calendário":
+        st.title("📅 Agenda & Calendário de Atividades")
+        st.caption("Organização de reuniões, uso de equipamentos e compromissos do grupo no estilo Google Agenda.")
+
+        aba_ver_agenda, aba_add_agenda = st.tabs([
+            "📆 Visualizar Agenda",
+            "➕ Agendar Compromisso / Reunião"
+        ])
+
+        with aba_ver_agenda:
+            # Filtro por Mês/Ano
+            col_m1, col_m2 = st.columns(2)
+            ano_atual = datetime.now().year
+            mes_atual = datetime.now().month
+
+            with col_m1:
+                mes_sel = st.selectbox("Selecione o Mês", list(range(1, 13)), index=mes_atual - 1, format_func=lambda m: calendar.month_name[m].capitalize())
+            with col_m2:
+                ano_sel = st.number_input("Ano", min_value=2024, max_value=2030, value=ano_atual)
+
+            # Matriz do Calendário Mensal
+            st.markdown(f"### 🗓️ Calendário de {calendar.month_name[mes_sel].capitalize()} de {ano_sel}")
+            
+            cal = calendar.monthcalendar(ano_sel, mes_sel)
+            dias_semana = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+
+            # Cabeçalho dos dias
+            cols_hdr = st.columns(7)
+            for i, d in enumerate(dias_semana):
+                cols_hdr[i].markdown(f"<div style='text-align:center; font-weight:bold; color:#64748B;'>{d}</div>", unsafe_allow_html=True)
+
+            # Mapeamento de eventos por dia do mês selecionado
+            eventos_mes = {}
+            for ev in st.session_state.agenda:
+                try:
+                    ev_dt = datetime.strptime(ev["data"], "%Y-%m-%d")
+                    if ev_dt.year == ano_sel and ev_dt.month == mes_sel:
+                        d_num = ev_dt.day
+                        if d_num not in eventos_mes:
+                            eventos_mes[d_num] = []
+                        eventos_mes[d_num].append(ev)
+                except Exception:
+                    pass
+
+            for semana in cal:
+                cols_dias = st.columns(7)
+                for i, dia in enumerate(semana):
+                    if dia == 0:
+                        cols_dias[i].markdown("<div style='height:60px; background:#F1F5F9; border-radius:6px; margin:2px;'></div>", unsafe_allow_html=True)
+                    else:
+                        evs_dia = eventos_mes.get(dia, [])
+                        bolinhas = "".join([f"<span style='color:{e.get('cor','#2563EB')}; font-size:1.2rem; line-height:1;'>●</span>" for e in evs_dia])
+                        
+                        bg_style = "background:#EFF6FF; border:1px solid #93C5FD;" if dia == datetime.now().day and mes_sel == mes_atual and ano_sel == ano_atual else "background:white; border:1px solid #E2E8F0;"
+                        
+                        cols_dias[i].markdown(
+                            f"""
+                            <div style='height:60px; {bg_style} border-radius:6px; padding:4px; margin:2px;'>
+                                <div style='font-weight:bold; font-size:0.8rem; color:#334155;'>{dia}</div>
+                                <div style='margin-top:2px;'>{bolinhas}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+
+            st.markdown("---")
+            st.subheader("📋 Lista Detalhada de Compromissos do Mês")
+
+            eventos_do_mes_lista = []
+            for ev in st.session_state.agenda:
+                try:
+                    ev_dt = datetime.strptime(ev["data"], "%Y-%m-%d")
+                    if ev_dt.year == ano_sel and ev_dt.month == mes_sel:
+                        eventos_do_mes_lista.append(ev)
+                except Exception:
+                    pass
+
+            eventos_do_mes_lista = sorted(eventos_do_mes_lista, key=lambda x: (x.get("data", ""), x.get("hora_inicio", "")))
+
+            if eventos_do_mes_lista:
+                for idx, ev in enumerate(eventos_do_mes_lista):
+                    cor_ev = ev.get("cor", "#2563EB")
+                    dt_f = datetime.strptime(ev["data"], "%Y-%m-%d").strftime("%d/%m/%Y")
+                    
+                    c_ev1, c_ev2 = st.columns([4, 1])
+                    with c_ev1:
+                        st.markdown(
+                            f"""
+                            <div class="event-card" style="border-left: 6px solid {cor_ev};">
+                                <h4 style="margin: 0; color: #0F172A;">{ev['titulo']}</h4>
+                                <div style="color: #475569; font-size: 0.85rem; margin-top: 4px;">
+                                    📅 <b>{dt_f}</b> | 🕒 <b>{ev.get('hora_inicio')} às {ev.get('hora_fim')}</b> | 🏷️ <b>{ev.get('tipo')}</b>
+                                </div>
+                                <div style="color: #64748B; font-size: 0.85rem; margin-top: 4px;">
+                                    {ev.get('descricao')}
+                                </div>
+                                <div style="color: #94A3B8; font-size: 0.75rem; margin-top: 4px;">
+                                    Organizado por: <b>{ev.get('autor', 'Desconhecido')}</b>
+                                </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    with c_ev2:
+                        if is_admin or ev.get("autor") == usuario_atual["nome"]:
+                            if st.button("🗑️ Cancelar", key=f"del_agenda_{ev.get('id', idx)}"):
+                                st.session_state.agenda = [e for e in st.session_state.agenda if e.get("id") != ev.get("id")]
+                                salvar_dados(ARQUIVO_AGENDA, st.session_state.agenda)
+                                st.warning("Compromisso removido da agenda.")
+                                st.rerun()
+            else:
+                st.info(f"Nenhum compromisso agendado para {calendar.month_name[mes_sel].capitalize()} de {ano_sel}.")
+
+        with aba_add_agenda:
+            st.subheader("➕ Agendar Novo Compromisso / Reunião")
+            with st.form("form_novo_evento"):
+                tit_event = st.text_input("Título do Evento / Reunião *")
+                
+                c_d1, c_d2, c_d3 = st.columns(3)
+                with c_d1:
+                    data_event = st.date_input("Data *", datetime.now().date())
+                with c_d2:
+                    h_inicio = st.time_input("Horário de Início *", time(9, 0))
+                with c_d3:
+                    h_fim = st.time_input("Horário de Término *", time(10, 0))
+
+                c_c1, c_c2 = st.columns(2)
+                with c_c1:
+                    tipo_event = st.selectbox("Categoria do Evento", ["Reunião", "Ensaio de Bancada", "Uso de Equipamento", "Apresentação / Defesa", "Manutenção", "Outro"])
+                with c_c2:
+                    cor_label = st.selectbox("Cor na Agenda (Estilo Google)", list(CORES_GOOGLE_AGENDA.keys()))
+
+                desc_event = st.text_area("Descrição / Link da Videochamada / Pauta", height=80)
+
+                btn_add_agenda = st.form_submit_button("📅 Salvar na Agenda", type="primary")
+
+                if btn_add_agenda:
+                    if tit_event.strip():
+                        novo_id_e = max([e.get("id", 0) for e in st.session_state.agenda], default=0) + 1
+                        st.session_state.agenda.append({
+                            "id": novo_id_e,
+                            "titulo": tit_event.strip(),
+                            "data": data_event.strftime("%Y-%m-%d"),
+                            "hora_inicio": h_inicio.strftime("%H:%M"),
+                            "hora_fim": h_fim.strftime("%H:%M"),
+                            "tipo": tipo_event,
+                            "cor": CORES_GOOGLE_AGENDA[cor_label],
+                            "descricao": desc_event.strip(),
+                            "autor": usuario_atual["nome"]
+                        })
+                        salvar_dados(ARQUIVO_AGENDA, st.session_state.agenda)
+                        st.success("✅ Compromisso agendado com sucesso! Já está visível na Página Inicial e na Agenda.")
+                        st.rerun()
+                    else:
+                        st.error("Informe o título do evento.")
+
     # --- 1. EQUIPE ---
-    if menu_selecionado == "👥 Equipe":
+    elif menu_selecionado == "👥 Equipe":
         st.title("Cadastro de Integrantes")
 
         c_busca, c_vazia = st.columns([2, 1])
@@ -786,7 +1142,6 @@ else:
                                 nome_del = nome_str.strip().lower()
                                 email_del = email_str.strip().lower()
 
-                                # 1. Remocao da lista de integrantes
                                 st.session_state.integrantes = [
                                     item for item in st.session_state.integrantes
                                     if str(item.get("Nome", "")).strip().lower() != nome_del
@@ -794,7 +1149,6 @@ else:
                                 ]
                                 salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
-                                # 2. Remocao total da lista de usuarios para revogar o acesso
                                 st.session_state.usuarios = [
                                     u for u in st.session_state.usuarios
                                     if str(u.get("nome", "")).strip().lower() != nome_del
@@ -1146,7 +1500,6 @@ else:
             "➕ Criar / Atualizar POP",
         ])
 
-        # TAB 1: PRÉVIAS, PDF E TRANSFERÊNCIA DIRETA PARA REPOSITÓRIO
         with aba_pops_view:
             st.subheader("📚 Acervo de POPs do Laboratório")
             pops_aprovados = [p for p in st.session_state.pops_db if p.get("status") == "Aprovado"]
@@ -1217,7 +1570,6 @@ else:
             else:
                 st.info("Nenhum POP aprovado cadastrado até o momento.")
 
-        # TAB 2: CRIAR OU ATUALIZAR POP
         with aba_pop_form:
             st.subheader("➕ Formulário de Criação / Atualização de POP")
 
@@ -1238,7 +1590,7 @@ else:
                 else:
                     st.warning("Nenhum POP cadastrado para atualizar. Alterne para 'Criar Novo POP'.")
 
-            else: # Criar Novo POP
+            else:
                 opcoes_titulos_pop = POPS_PADRAO + ["✍️ Outro (Digitar manualmente)"]
                 sel_pop_pre = st.selectbox("Selecione um Título Padrão ou Digite Manualmente", opcoes_titulos_pop)
 
@@ -1319,7 +1671,6 @@ else:
             "📁 Pastas",
         ])
 
-        # TAB 1: USUÁRIOS PENDENTES
         with tab_usr:
             st.subheader("Solicitações de Acesso Pendentes")
             pend_acessos = [u for u in st.session_state.usuarios if u.get("status") == "Pendente"]
@@ -1352,7 +1703,6 @@ else:
             else:
                 st.info("Nenhuma solicitação de novo acesso pendente no momento.")
 
-        # TAB 2: ALTERAÇÕES DE PERFIL
         with tab_perfis:
             st.subheader("Solicitações de Atualização de Perfil")
             pend_perfis = [u for u in st.session_state.usuarios if u.get("pendente_atualizacao")]
@@ -1413,7 +1763,6 @@ else:
             else:
                 st.info("Nenhuma solicitação de alteração de perfil pendente.")
 
-        # TAB 3: ARQUIVOS PENDENTES
         with tab_arq:
             st.subheader("Arquivos Pendentes de Publicação")
             pend_arqs = [a for a in st.session_state.arquivos_db if a.get("status") == "Pendente"]
@@ -1439,9 +1788,8 @@ else:
                             st.rerun()
                     st.markdown("---")
             else:
-                st.info("Nenhum arquivo pendente de aprovação.")
+                st.info("Nenum arquivo pendente de aprovação.")
 
-        # TAB 4: POPS PENDENTES
         with tab_pops:
             st.subheader("POPs Pendentes de Aprovação")
             pend_pops = [p for p in st.session_state.pops_db if p.get("status") == "Pendente"]
@@ -1485,7 +1833,6 @@ else:
             else:
                 st.info("Nenhum POP pendente de aprovação.")
 
-        # TAB 5: PASTAS PENDENTES
         with tab_pastas:
             st.subheader("Solicitações de Novas Pastas")
             pend_pastas = [p for p in st.session_state.pastas_db if p.get("status") == "Pendente"]
