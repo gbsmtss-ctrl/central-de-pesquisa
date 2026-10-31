@@ -11,7 +11,7 @@ import streamlit as st
 
 # Configuração da página
 st.set_page_config(
-    page_title="Central LTAB - Gestão do Laboratório",
+    page_title="Central de Pesquisa - Gestão do Laboratório",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
