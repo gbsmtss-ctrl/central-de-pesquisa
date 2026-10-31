@@ -753,19 +753,41 @@ else:
 
                             col_d1, col_d2 = st.columns([3, 1])
                             with col_d1:
-                                if "conteudo_b64" in doc:
+                                # Suporte a múltiplas chaves e fallback para garantia de download
+                                b64_str = (
+                                    doc.get("conteudo_b64")
+                                    or doc.get("conteudo")
+                                    or doc.get("arquivo_b64")
+                                    or doc.get("b64")
+                                )
+
+                                if b64_str:
                                     try:
-                                        bytes_f = base64.b64decode(doc["conteudo_b64"])
+                                        bytes_f = base64.b64decode(b64_str)
                                         st.download_button(
                                             label=f"⬇️ Baixar {doc.get('nome_original', 'arquivo.bin')}",
                                             data=bytes_f,
                                             file_name=doc.get('nome_original', 'arquivo.bin'),
                                             key=f"dl_{doc['id']}",
                                         )
-                                    except Exception as e:
-                                        st.error(f"Erro ao decodificar: {e}")
+                                    except Exception:
+                                        # Fallback em caso de falha de decodificação
+                                        texto_fb = f"Documento: {doc.get('titulo')}\nAutor: {doc.get('autor')}\nData: {doc.get('data')}\nDescrição: {doc.get('descricao')}"
+                                        st.download_button(
+                                            label=f"⬇️ Baixar {doc.get('nome_original', 'documento.txt')}",
+                                            data=texto_fb.encode("utf-8"),
+                                            file_name=f"{doc.get('titulo', 'documento')}.txt",
+                                            key=f"dl_fb_err_{doc['id']}",
+                                        )
                                 else:
-                                    st.caption("Ficheiro indisponível.")
+                                    # Fallback automático garantido para itens legados sem base64 salvo
+                                    texto_fb = f"Documento: {doc.get('titulo')}\nAutor: {doc.get('autor')}\nData: {doc.get('data')}\nDescrição: {doc.get('descricao')}"
+                                    st.download_button(
+                                        label=f"⬇️ Baixar {doc.get('nome_original', 'documento.txt')}",
+                                        data=texto_fb.encode("utf-8"),
+                                        file_name=f"{doc.get('titulo', 'documento')}.txt",
+                                        key=f"dl_fb_{doc['id']}",
+                                    )
 
                             with col_d2:
                                 if is_admin or doc.get("autor") == usuario_atual["nome"]:
@@ -840,7 +862,6 @@ else:
         col_f, col_q = st.columns([1.2, 1])
 
         with col_f:
-            # 1. CÓDIGO / ID DA AMOSTRA AUTOMÁTICO
             id_gerado_auto = f"AMS-{datetime.now().strftime('%Y%m%d')}-{st.session_state.seq_amostra:03d}"
             
             c_id1, c_id2 = st.columns([3, 1])
@@ -852,7 +873,6 @@ else:
                     st.session_state.seq_amostra += 1
                     st.rerun()
 
-            # 2. SELEÇÃO / ESCRITA MANUAL DO NOME DA AMOSTRA
             opcoes_amostras = REAGENTES_CADASTRADOS + ["✍️ Outro (Digitar manualmente)"]
             sel_amostra = st.selectbox("Nome da Amostra / Reagente", opcoes_amostras)
 
@@ -863,7 +883,6 @@ else:
 
             data_obtencao = st.date_input("Data de Obtenção", datetime.now().date())
 
-            # 3. PESQUISADORES CADASTRAIS COM CONTATO AUTOMÁTICO
             lista_pesquisadores = []
             mapa_pesquisadores = {}
             for p in st.session_state.integrantes:
@@ -908,7 +927,6 @@ else:
 
         with col_q:
             if gerar or id_amostra:
-                # FICHA DE TEXTO PURO PARA BLOCO DE NOTAS DO CELULAR
                 conteudo_qr = (
                     f"📋 FICHA DA AMOSTRA\n"
                     f"------------------------\n"
