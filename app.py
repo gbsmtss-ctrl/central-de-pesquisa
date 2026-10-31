@@ -151,36 +151,6 @@ INTEGRANTES_INICIAIS = [
         "Lattes": "-",
         "Situação": "Ativo",
     },
-    {
-        "Nome": "Isabela de Souza Marques Couto",
-        "Categoria": "Mestrando",
-        "Vínculo": "UFRRJ - Engenharia Química",
-        "Telefone": "(21) 98888-8888",
-        "Email": "isabelamarques.couto@hotmail.com",
-        "DiasHorarios": "Não informado",
-        "Lattes": "-",
-        "Situação": "Ativo",
-    },
-    {
-        "Nome": "Larissa Maria Souza de Carvalho",
-        "Categoria": "Mestrando",
-        "Vínculo": "UFRRJ - Engenharia Química/ Mestrado",
-        "Telefone": "(21) 97777-7777",
-        "Email": "larissamana@ufrrj.br",
-        "DiasHorarios": "Ter 10:30-17:00 - Qua 08:00-17:00",
-        "Lattes": "-",
-        "Situação": "Ativo",
-    },
-    {
-        "Nome": "Lucas de Oliveira Santos",
-        "Categoria": "Mestrando",
-        "Vínculo": "UFRRJ - Engenharia Química",
-        "Telefone": "(21) 96666-6666",
-        "Email": "lucaslidor@hotmail.com",
-        "DiasHorarios": "Seg 08:00-12:00 - Ter 09:00-17:00 - Qua 08:00-17:00 - Qui 13:00-17:00 - Sex 08:00-17:00",
-        "Lattes": "http://lattes.cnpq.br/",
-        "Situação": "Ativo",
-    },
 ]
 
 PASTAS_INICIAIS = [
@@ -201,6 +171,7 @@ POPS_INICIAIS = [
         "passos": "1. Ligar o equipamento 15 minutos antes da leitura.\n2. Ajustar o comprimento de onda.\n3. Realizar o branco com a solução controle.\n4. Ler amostras em triplicata.\n5. Higienizar as cubetas após o uso.",
         "seguranca": "Uso obrigatório de jaleco, luvas de nitrilo e óculos de proteção.",
         "autor": "Eliane Pereira Cipolatti",
+        "status": "Aprovado",
     }
 ]
 
@@ -374,7 +345,7 @@ if st.session_state.usuario_logado is None:
         with st.form("form_solicitar_acesso"):
             novo_nome = st.text_input("Nome Completo *")
             nova_categoria = st.selectbox("Categoria *", CATEGORIAS_PADRAO)
-            novo_vinculo = st.text_input("Vínculo / Curso *", "UFRRJ - Engenharia de Alimentos")
+            novo_vinculo = st.text_input("Vínculo / Curso *", "UFRRJ - Engenharia Química")
             novo_telefone = st.text_input("Telefone para Contato *")
             novo_email = st.text_input("E-mail para Contato *")
             novo_usuario = st.text_input("Usuário Desejado *")
@@ -386,6 +357,8 @@ if st.session_state.usuario_logado is None:
                     st.error("Por favor, preencha todos os campos obrigatórios (*).")
                 else:
                     usr_clean = novo_usuario.strip().lower()
+
+                    # Verifica se o nome de usuário já pertence a uma conta APROVADA
                     ja_aprovado = any(
                         str(u.get("usuario", "")).strip().lower() == usr_clean and u.get("status") == "Aprovado"
                         for u in st.session_state.usuarios
@@ -394,6 +367,13 @@ if st.session_state.usuario_logado is None:
                     if ja_aprovado:
                         st.error("Este nome de usuário já pertence a uma conta APROVADA.")
                     else:
+                        # Remove cadastros antigos pendentes ou recusados com o mesmo usuário/nome para permitir reutilização
+                        st.session_state.usuarios = [
+                            u for u in st.session_state.usuarios
+                            if str(u.get("usuario", "")).strip().lower() != usr_clean
+                            and str(u.get("nome", "")).strip().lower() != novo_nome.strip().lower()
+                        ]
+
                         st.session_state.usuarios.append({
                             "nome": novo_nome.strip(),
                             "usuario": novo_usuario.strip(),
@@ -407,6 +387,11 @@ if st.session_state.usuario_logado is None:
                         })
                         salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
+                        st.session_state.integrantes = [
+                            p for p in st.session_state.integrantes
+                            if str(p.get("Nome", "")).strip().lower() != novo_nome.strip().lower()
+                        ]
+
                         st.session_state.integrantes.append({
                             "Nome": novo_nome.strip(),
                             "Categoria": nova_categoria,
@@ -419,14 +404,14 @@ if st.session_state.usuario_logado is None:
                         })
                         salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
-                        st.success("Solicitação enviada com sucesso! Aguarde a aprovação.")
+                        st.success("Solicitação enviada com sucesso! Aguarde a aprovação do Administrador.")
 
 # --- ÁREA LOGADA ---
 else:
     usuario_atual = st.session_state.usuario_logado
     is_admin = usuario_atual.get("is_admin", False)
 
-    # --- BARRA LATERAL (NOME ATUALIZADO PARA CENTRAL DE PESQUISA) ---
+    # --- BARRA LATERAL ---
     st.sidebar.markdown(
         """
         <div style="display: flex; align-items: center; gap: 10px; padding: 5px 0 15px 0;">
@@ -495,7 +480,7 @@ else:
                 with st.form("form_cad_int"):
                     f_nome = st.text_input("Nome Completo *")
                     f_cat = st.selectbox("Categoria", CATEGORIAS_PADRAO)
-                    f_vinc = st.text_input("Vínculo / Curso", "UFRRJ - Engenharia de Alimentos")
+                    f_vinc = st.text_input("Vínculo / Curso", "UFRRJ - Engenharia Química")
                     f_tel = st.text_input("Telefone")
                     f_email = st.text_input("E-mail *")
                     f_horarios = st.text_input("Dias e Horários", "Não informado")
@@ -541,7 +526,7 @@ else:
             integrantes_filtrados = [
                 p for p in integrantes_filtrados
                 if tb in str(p.get("Nome", "")).lower()
-                or tb in str(p.get("Vínculo", "")).lower()
+                or tb in str(p.get("Vínculo", p.get("Vinculo", ""))).lower()
                 or tb in str(p.get("Email", "")).lower()
             ]
 
@@ -616,16 +601,22 @@ else:
                         if is_admin:
                             st.markdown("---")
                             if st.button("🗑️ Excluir Integrante", key=f"del_int_{idx}"):
+                                # Remove do cadastro de integrantes
                                 st.session_state.integrantes = [item for item in st.session_state.integrantes if item.get("Nome") != nome_str]
                                 salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
-                                st.warning("Integrante removido!")
+
+                                # Remove também da lista de usuários para liberar o nome de usuário totalmente
+                                st.session_state.usuarios = [u for u in st.session_state.usuarios if str(u.get("nome", "")).strip().lower() != nome_str.strip().lower()]
+                                salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+                                st.warning(f"Integrante '{nome_str}' excluído com sucesso! Nome de usuário liberado.")
                                 st.rerun()
 
                 st.markdown("<hr style='margin: 8px 0; border: none; border-top: 1px solid #F1F5F9;'/>", unsafe_allow_html=True)
         else:
             st.info("Nenhum integrante encontrado.")
 
-    # --- 2. ORIENTADOS (CORRIGIDO SEM KEYERROR) ---
+    # --- 2. ORIENTADOS ---
     elif menu_selecionado == "🎓 Orientados":
         st.title("🎓 Orientados e Alunos")
         st.caption("Acompanhamento de alunos e projetos de orientação.")
@@ -639,7 +630,6 @@ else:
             df_or = pd.DataFrame(orientados)
             cols_desejadas = ["Nome", "Categoria", "Vínculo", "Email", "Situação"]
 
-            # Tratamento para evitar KeyError
             for col in cols_desejadas:
                 if col not in df_or.columns:
                     if col == "Vínculo" and "Vinculo" in df_or.columns:
@@ -796,6 +786,8 @@ else:
                 else:
                     b64_str = base64.b64encode(arq_up.getvalue()).decode("utf-8")
                     novo_id = max([a.get("id", 0) for a in st.session_state.arquivos_db], default=0) + 1
+                    status_doc = "Aprovado" if is_admin else "Pendente"
+
                     st.session_state.arquivos_db.append({
                         "id": novo_id,
                         "titulo": tit_doc.strip(),
@@ -805,10 +797,13 @@ else:
                         "conteudo_b64": b64_str,
                         "autor": usuario_atual["nome"],
                         "data": datetime.now().strftime("%d/%m/%Y"),
-                        "status": "Aprovado" if is_admin else "Pendente",
+                        "status": status_doc,
                     })
                     salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
-                    st.success("✅ Documento enviado com sucesso!")
+                    if is_admin:
+                        st.success("✅ Documento publicado!")
+                    else:
+                        st.success("✅ Documento enviado para aprovação do Administrador!")
 
         with aba_nova_pasta:
             st.subheader("Criar Nova Pasta")
@@ -816,14 +811,18 @@ else:
             desc_pasta = st.text_input("Descrição / Finalidade *")
             if st.button("Criar Pasta", type="primary"):
                 if nome_pasta and desc_pasta:
+                    status_p = "Aprovado" if is_admin else "Pendente"
                     st.session_state.pastas_db.append({
                         "nome": nome_pasta.strip(),
                         "descricao": desc_pasta.strip(),
                         "criador": usuario_atual["nome"],
-                        "status": "Aprovado" if is_admin else "Pendente",
+                        "status": status_p,
                     })
                     salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
-                    st.success("Pasta criada!")
+                    if is_admin:
+                        st.success("Pasta criada!")
+                    else:
+                        st.success("Solicitação de pasta enviada para aprovação!")
                     st.rerun()
 
     # --- 5. GERAR QR CODE ---
@@ -871,6 +870,7 @@ else:
 
         if st.button("💾 Salvar Documento POP", type="primary"):
             if tit_pop and obj_pop and passos_pop:
+                status_pop = "Aprovado" if is_admin else "Pendente"
                 st.session_state.pops_db.append({
                     "codigo": cod_pop.strip(),
                     "titulo": tit_pop.strip(),
@@ -880,36 +880,140 @@ else:
                     "passos": passos_pop.strip(),
                     "seguranca": sec_pop.strip(),
                     "autor": usuario_atual["nome"],
+                    "status": status_pop,
                 })
                 salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
-                st.success(f"POP '{cod_pop}' salvo com sucesso!")
+                if is_admin:
+                    st.success(f"POP '{cod_pop}' salvo e APROVADO com sucesso!")
+                else:
+                    st.success(f"POP '{cod_pop}' enviado para aprovação do Administrador!")
 
-    # --- 7. ADMINISTRAÇÃO ---
+    # --- 7. ADMINISTRAÇÃO (CENTRAL DE APROVAÇÕES COMPLETA) ---
     elif menu_selecionado == "🛡️ Administração" and is_admin:
         st.title("🛡️ Central de Aprovações (Administrador)")
 
-        pend_acessos = [u for u in st.session_state.usuarios if u.get("status") == "Pendente"]
+        tab_usr, tab_arq, tab_pops, tab_pastas = st.tabs([
+            "👤 Acessos de Usuários",
+            "📄 Arquivos Inseridos",
+            "📝 POPs",
+            "📁 Pastas",
+        ])
 
-        if pend_acessos:
-            for idx, u in enumerate(pend_acessos):
-                c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
-                with c_inf:
-                    st.write(f"👤 **{u['nome']}** (Usuário: `{u['usuario']}`)")
-                    st.caption(f"Cat: {u.get('categoria','-')} | Email: {u.get('email','-')}")
-                with c_b1:
-                    if st.button("✅ Aprovar", key=f"ap_usr_{idx}", type="primary"):
-                        u["status"] = "Aprovado"
-                        salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
-                        st.success(f"Acesso aprovado para {u['nome']}!")
-                        st.rerun()
-                with c_b2:
-                    if st.button("❌ Recusar", key=f"rec_usr_{idx}"):
-                        u["status"] = "Recusado"
-                        salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
-                        st.warning(f"Solicitação recusada.")
-                        st.rerun()
-        else:
-            st.info("Nenhuma solicitação de novo acesso pendente no momento.")
+        # TAB 1: USUÁRIOS PENDENTES
+        with tab_usr:
+            st.subheader("Solicitações de Acesso Pendentes")
+            pend_acessos = [u for u in st.session_state.usuarios if u.get("status") == "Pendente"]
+
+            if pend_acessos:
+                for idx, u in enumerate(pend_acessos):
+                    c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                    with c_inf:
+                        st.write(f"👤 **{u['nome']}** (Usuário: `{u['usuario']}`)")
+                        st.caption(f"Categoria: {u.get('categoria','-')} | E-mail: {u.get('email','-')} | Vínculo: {u.get('vinculo','-')}")
+                    with c_b1:
+                        if st.button("✅ Aprovar", key=f"ap_usr_{idx}", type="primary"):
+                            u["status"] = "Aprovado"
+                            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+                            # Atualiza status também em integrantes
+                            for p in st.session_state.integrantes:
+                                if p.get("Nome", "").strip().lower() == u["nome"].strip().lower():
+                                    p["Situação"] = "Ativo"
+                            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+
+                            st.success(f"Acesso aprovado para {u['nome']}!")
+                            st.rerun()
+                    with c_b2:
+                        if st.button("❌ Recusar", key=f"rec_usr_{idx}"):
+                            u["status"] = "Recusado"
+                            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+                            st.warning("Solicitação recusada.")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("Nenhuma solicitação de novo acesso pendente no momento.")
+
+        # TAB 2: ARQUIVOS PENDENTES
+        with tab_arq:
+            st.subheader("Arquivos Pendentes de Publicação")
+            pend_arqs = [a for a in st.session_state.arquivos_db if a.get("status") == "Pendente"]
+
+            if pend_arqs:
+                for idx, a in enumerate(pend_arqs):
+                    c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                    with c_inf:
+                        st.write(f"📄 **{a['titulo']}** (Pasta: `{a.get('pasta', 'Geral')}`)")
+                        st.caption(f"Enviado por: {a.get('autor', '-')} em {a.get('data', '-')}")
+                        st.caption(f"Descrição: {a.get('descricao', '-')}")
+                    with c_b1:
+                        if st.button("✅ Aprovar Arquivo", key=f"ap_arq_{idx}", type="primary"):
+                            a["status"] = "Aprovado"
+                            salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                            st.success(f"Arquivo '{a['titulo']}' publicado!")
+                            st.rerun()
+                    with c_b2:
+                        if st.button("❌ Apagar Arquivo", key=f"del_arq_p_{idx}"):
+                            st.session_state.arquivos_db = [item for item in st.session_state.arquivos_db if item["id"] != a["id"]]
+                            salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                            st.warning("Arquivo removido.")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("Nenhum arquivo pendente de aprovação.")
+
+        # TAB 3: POPS PENDENTES
+        with tab_pops:
+            st.subheader("POPs Pendentes de Aprovação")
+            pend_pops = [p for p in st.session_state.pops_db if p.get("status") == "Pendente"]
+
+            if pend_pops:
+                for idx, p in enumerate(pend_pops):
+                    c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                    with c_inf:
+                        st.write(f"📝 **{p['codigo']} - {p['titulo']}**")
+                        st.caption(f"Autor: {p.get('autor', '-')} | Objetivo: {p.get('objetivo', '-')}")
+                    with c_b1:
+                        if st.button("✅ Aprovar POP", key=f"ap_pop_{idx}", type="primary"):
+                            p["status"] = "Aprovado"
+                            salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+                            st.success(f"POP '{p['codigo']}' aprovado!")
+                            st.rerun()
+                    with c_b2:
+                        if st.button("❌ Recusar POP", key=f"rec_pop_{idx}"):
+                            st.session_state.pops_db = [item for item in st.session_state.pops_db if item.get("codigo") != p.get("codigo")]
+                            salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+                            st.warning("POP recusado e removido.")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("Nenhum POP pendente de aprovação.")
+
+        # TAB 4: PASTAS PENDENTES
+        with tab_pastas:
+            st.subheader("Solicitações de Novas Pastas")
+            pend_pastas = [p for p in st.session_state.pastas_db if p.get("status") == "Pendente"]
+
+            if pend_pastas:
+                for idx, pst in enumerate(pend_pastas):
+                    c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                    with c_inf:
+                        st.write(f"📁 **Pasta: {pst['nome']}**")
+                        st.caption(f"Criador: {pst.get('criador', '-')} | Descrição: {pst.get('descricao', '-')}")
+                    with c_b1:
+                        if st.button("✅ Aprovar Pasta", key=f"ap_pst_{idx}", type="primary"):
+                            pst["status"] = "Aprovado"
+                            salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+                            st.success(f"Pasta '{pst['nome']}' aprovada!")
+                            st.rerun()
+                    with c_b2:
+                        if st.button("❌ Recusar Pasta", key=f"rec_pst_{idx}"):
+                            st.session_state.pastas_db = [item for item in st.session_state.pastas_db if item["nome"] != pst["nome"]]
+                            salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+                            st.warning("Pasta recusada.")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("Nenhuma solicitação de pasta pendente.")
 
     # --- 8. MEU PERFIL ---
     elif menu_selecionado == "👤 Meu perfil":
