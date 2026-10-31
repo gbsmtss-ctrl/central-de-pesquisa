@@ -11,7 +11,7 @@ import streamlit as st
 
 # Configuração da página
 st.set_page_config(
-    page_title="Central LTAB - Gestão do Laboratório",
+    page_title="Central de Pesquisa - Gestão do Laboratório",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -100,15 +100,6 @@ st.markdown(
         border-bottom: 1px solid #E2E8F0;
         margin-bottom: 12px;
     }
-    .table-row {
-        background-color: white;
-        padding: 12px 16px;
-        border-radius: 8px;
-        border: 1px solid #F1F5F9;
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -173,7 +164,7 @@ INTEGRANTES_INICIAIS = [
     {
         "Nome": "Larissa Maria Souza de Carvalho",
         "Categoria": "Mestrando",
-        "Vínculo": "UFRRJ - Engenharia Química / Mestrado",
+        "Vínculo": "UFRRJ - Engenharia Química/ Mestrado",
         "Telefone": "(21) 97777-7777",
         "Email": "larissamana@ufrrj.br",
         "DiasHorarios": "Ter 10:30-17:00 - Qua 08:00-17:00",
@@ -299,7 +290,7 @@ usuario_admin_padrao = [{
     "is_admin": True,
 }]
 
-# --- INICIALIZAÇÃO DE SESSÃO PERSISTENTE NO SESSION_STATE ---
+# --- INICIALIZAÇÃO DE SESSÃO PERSISTENTE ---
 if "usuarios" not in st.session_state:
     st.session_state.usuarios = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
 if "integrantes" not in st.session_state:
@@ -370,11 +361,9 @@ if st.session_state.usuario_logado is None:
                             st.success(f"Bem-vindo(a), {usuario_encontrado['nome']}!")
                             st.rerun()
                         elif usuario_encontrado["status"] == "Pendente":
-                            st.warning(
-                                "⚠️ O seu cadastro está PENDENTE de aprovação. Peça ao Administrador que aprove o acesso na 'Central de Aprovações'."
-                            )
+                            st.warning("⚠️ O seu cadastro está PENDENTE de aprovação.")
                         else:
-                            st.error("❌ Sua solicitação de acesso foi recusada. Você pode tentar se cadastrar novamente na aba 'Solicitar Acesso'.")
+                            st.error("❌ Sua solicitação de acesso foi recusada.")
                     else:
                         st.error("Senha incorreta.")
                 else:
@@ -388,7 +377,7 @@ if st.session_state.usuario_logado is None:
             novo_vinculo = st.text_input("Vínculo / Curso *", "UFRRJ - Engenharia de Alimentos")
             novo_telefone = st.text_input("Telefone para Contato *")
             novo_email = st.text_input("E-mail para Contato *")
-            novo_usuario = st.text_input("Usuário Desejado (ex: gabriela matos) *")
+            novo_usuario = st.text_input("Usuário Desejado *")
             nova_senha = st.text_input("Criar Senha *", type="password")
             btn_solicitar = st.form_submit_button("Enviar Solicitação")
 
@@ -403,15 +392,9 @@ if st.session_state.usuario_logado is None:
                     )
 
                     if ja_aprovado:
-                        st.error("Este nome de usuário já pertence a uma conta APROVADA. Tente fazer o login na aba 'Entrar no Sistema'.")
+                        st.error("Este nome de usuário já pertence a uma conta APROVADA.")
                     else:
-                        st.session_state.usuarios = [
-                            u for u in st.session_state.usuarios
-                            if str(u.get("usuario", "")).strip().lower() != usr_clean
-                            and str(u.get("nome", "")).strip().lower() != novo_nome.strip().lower()
-                        ]
-
-                        novo_user_dict = {
+                        st.session_state.usuarios.append({
                             "nome": novo_nome.strip(),
                             "usuario": novo_usuario.strip(),
                             "senha": nova_senha,
@@ -421,14 +404,9 @@ if st.session_state.usuario_logado is None:
                             "email": novo_email.strip(),
                             "status": "Pendente",
                             "is_admin": False,
-                        }
-                        st.session_state.usuarios.append(novo_user_dict)
+                        })
                         salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-                        st.session_state.integrantes = [
-                            p for p in st.session_state.integrantes
-                            if str(p.get("Nome", "")).strip().lower() != novo_nome.strip().lower()
-                        ]
                         st.session_state.integrantes.append({
                             "Nome": novo_nome.strip(),
                             "Categoria": nova_categoria,
@@ -441,22 +419,22 @@ if st.session_state.usuario_logado is None:
                         })
                         salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
-                        st.success(f"Solicitação enviada com sucesso! Aguarde a aprovação do Administrador.")
+                        st.success("Solicitação enviada com sucesso! Aguarde a aprovação.")
 
 # --- ÁREA LOGADA ---
 else:
     usuario_atual = st.session_state.usuario_logado
     is_admin = usuario_atual.get("is_admin", False)
 
-    # --- BARRA LATERAL CONFORME A IMAGEM ---
+    # --- BARRA LATERAL (NOME ATUALIZADO PARA CENTRAL DE PESQUISA) ---
     st.sidebar.markdown(
         """
         <div style="display: flex; align-items: center; gap: 10px; padding: 5px 0 15px 0;">
-            <div style="background-color: #3B82F6; color: white; border-radius: 8px; padding: 8px; font-size: 1.2rem; font-weight: bold;">
+            <div style="background-color: #2563EB; color: white; border-radius: 8px; padding: 8px; font-size: 1.2rem; font-weight: bold;">
                 ◆
             </div>
             <div>
-                <h3 style="margin:0; font-size: 1.1rem; color: #0F172A !important;">Central LTAB</h3>
+                <h3 style="margin:0; font-size: 1.1rem; color: #0F172A !important;">Central de Pesquisa</h3>
                 <span style="font-size: 0.75rem; color: #64748B;">Central do Laboratório</span>
             </div>
         </div>
@@ -470,14 +448,11 @@ else:
         "👥 Equipe",
         "🎓 Orientados",
         "🕒 Presença no Laboratório",
-        "📋 Afastamentos",
-        "🔬 Equipamentos",
-        "🧪 Reagentes e Insumos",
     ]
 
     st.sidebar.markdown('<div class="sidebar-section">CONHECIMENTO</div>', unsafe_allow_html=True)
     opcoes_menu.extend([
-        "📖 Biblioteca Digital",
+        "📁 Repositório de Arquivos",
         "🏷️ Gerar QR Code de Amostras",
         "📝 Criador de POP",
     ])
@@ -489,7 +464,6 @@ else:
 
     menu_selecionado = st.sidebar.radio("Navegação", opcoes_menu, label_visibility="collapsed")
 
-    # Rodapé da Sidebar com usuário e logout exatamente como na imagem
     st.sidebar.markdown("---")
     st.sidebar.markdown(
         f"""
@@ -506,7 +480,7 @@ else:
         st.session_state.usuario_logado = None
         st.rerun()
 
-    # --- TELA 1: EQUIPE (CADASTRO DE INTEGRANTES - IDÊNTICO À IMAGEM) ---
+    # --- 1. EQUIPE ---
     if menu_selecionado == "👥 Equipe":
         st.title("Cadastro de Integrantes")
 
@@ -557,7 +531,6 @@ else:
                         st.success(f"Integrante {f_nome} salvo!")
                         st.rerun()
 
-        # Filtragem dos dados
         integrantes_filtrados = st.session_state.integrantes
 
         if cat_filtro != "Todos":
@@ -574,7 +547,6 @@ else:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Cabeçalho da Tabela
         col_hdr = st.columns([2.5, 1.2, 1.8, 1.8, 1.0, 0.8, 1.2])
         col_hdr[0].markdown("<div class='table-header'>INTEGRANTE</div>", unsafe_allow_html=True)
         col_hdr[1].markdown("<div class='table-header'>CATEGORIA</div>", unsafe_allow_html=True)
@@ -584,7 +556,6 @@ else:
         col_hdr[5].markdown("<div class='table-header'>SITUAÇÃO</div>", unsafe_allow_html=True)
         col_hdr[6].markdown("<div class='table-header'></div>", unsafe_allow_html=True)
 
-        # Linhas da Tabela formatadas conforme a imagem
         if integrantes_filtrados:
             for idx, p in enumerate(integrantes_filtrados):
                 c1, c2, c3, c4, c5, c6, c7 = st.columns([2.5, 1.2, 1.8, 1.8, 1.0, 0.8, 1.2])
@@ -592,12 +563,11 @@ else:
                 nome_str = p.get("Nome", "-")
                 email_str = p.get("Email", "-")
                 cat_str = p.get("Categoria", "-")
-                vinc_str = p.get("Vínculo", "-")
+                vinc_str = p.get("Vínculo", p.get("Vinculo", "-"))
                 hor_str = p.get("DiasHorarios", "Não informado")
                 lattes_str = p.get("Lattes", "-")
                 sit_str = p.get("Situação", "Ativo")
 
-                # Iniciais para Avatar
                 iniciais = "".join([n[0] for n in nome_str.split()[:2]]).upper() if nome_str != "-" else "LT"
 
                 with c1:
@@ -655,108 +625,182 @@ else:
         else:
             st.info("Nenhum integrante encontrado.")
 
-    # --- TELA 2: ORIENTADOS ---
+    # --- 2. ORIENTADOS (CORRIGIDO SEM KEYERROR) ---
     elif menu_selecionado == "🎓 Orientados":
         st.title("🎓 Orientados e Alunos")
         st.caption("Acompanhamento de alunos e projetos de orientação.")
-        orientados = [p for p in st.session_state.integrantes if p.get("Categoria") in ["Iniciação Científica", "Mestrado", "Doutorado", "Pós-Doutorado"]]
-        if orientados:
-            st.dataframe(pd.DataFrame(orientados)[["Nome", "Categoria", "Vínculo", "Email", "Situação"]], use_container_width=True)
-        else:
-            st.info("Nenhum orientado cadastrado.")
 
-    # --- TELA 3: PRESENÇA NO LABORATÓRIO ---
+        orientados = [
+            p for p in st.session_state.integrantes
+            if p.get("Categoria") in ["Iniciação Científica", "Mestrado", "Doutorado", "Pós-Doutorado"]
+        ]
+
+        if orientados:
+            df_or = pd.DataFrame(orientados)
+            cols_desejadas = ["Nome", "Categoria", "Vínculo", "Email", "Situação"]
+
+            # Tratamento para evitar KeyError
+            for col in cols_desejadas:
+                if col not in df_or.columns:
+                    if col == "Vínculo" and "Vinculo" in df_or.columns:
+                        df_or["Vínculo"] = df_or["Vinculo"]
+                    else:
+                        df_or[col] = "-"
+
+            st.dataframe(df_or[cols_desejadas], use_container_width=True)
+        else:
+            st.info("Nenhum orientado cadastrado no momento.")
+
+    # --- 3. PRESENÇA NO LABORATÓRIO ---
     elif menu_selecionado == "🕒 Presença no Laboratório":
         st.title("🕒 Presença no Laboratório")
         st.caption("Escala e horários de presença dos pesquisadores.")
-        df_presenca = pd.DataFrame(st.session_state.integrantes)[["Nome", "Categoria", "DiasHorarios"]]
-        st.dataframe(df_presenca, use_container_width=True)
 
-    # --- TELA 4: AFASTAMENTOS ---
-    elif menu_selecionado == "📋 Afastamentos":
-        st.title("📋 Registro de Afastamentos e Licenças")
-        st.info("Nenhum afastamento registrado no momento.")
+        if st.session_state.integrantes:
+            df_presenca = pd.DataFrame(st.session_state.integrantes)
+            cols_p = ["Nome", "Categoria", "DiasHorarios"]
+            for col in cols_p:
+                if col not in df_presenca.columns:
+                    df_presenca[col] = "-"
+            st.dataframe(df_presenca[cols_p], use_container_width=True)
+        else:
+            st.info("Nenhum registro de presença disponível.")
 
-    # --- TELA 5: EQUIPAMENTOS ---
-    elif menu_selecionado == "🔬 Equipamentos":
-        st.title("🔬 Equipamentos do Laboratório")
-        st.caption("Lista e status operacional dos equipamentos.")
-        st.write("• **Espectrofotômetro** - Operacional")
-        st.write("• **Autoclave** - Operacional")
-        st.write("• **Centrífuga** - Operacional")
-
-    # --- TELA 6: REAGENTES E INSUMOS ---
-    elif menu_selecionado == "🧪 Reagentes e Insumos":
-        st.title("🧪 Reagentes & Insumos")
-        st.caption("Controle de estoque de reagentes e FISPQ.")
-        st.info("Consulte a pasta FISPQ na Biblioteca Digital para fichas de segurança.")
-
-    # --- TELA 7: BIBLIOTECA DIGITAL (REPOSITÓRIO DE ARQUIVOS) ---
-    elif menu_selecionado == "📖 Biblioteca Digital":
-        st.title("📖 Biblioteca Digital & Repositório de Arquivos")
+    # --- 4. REPOSITÓRIO DE ARQUIVOS ---
+    elif menu_selecionado == "📁 Repositório de Arquivos":
+        st.title("📁 Central de Arquivos & Documentos")
 
         aba_docs, aba_upload, aba_nova_pasta = st.tabs([
             "📂 Drive de Arquivos",
             "📥 Enviar Arquivo",
-            "📁 Nova Pasta",
+            "📁 Criar / Solicitar Pasta",
         ])
 
         pastas_aprovadas = [p for p in st.session_state.pastas_db if p.get("status") == "Aprovado"]
 
         with aba_docs:
             if st.session_state.pasta_aberta_drive is None:
-                st.subheader("📂 Pastas do Laboratório")
-                cols = st.columns(3)
+                st.subheader("📂 Suas Pastas do Laboratório")
+                st.caption("Clique em uma pasta para visualizar os arquivos contidos nela.")
+
+                cols_pastas = st.columns(3)
                 for idx, pst in enumerate(pastas_aprovadas):
                     nome_p = pst["nome"]
                     desc_p = pst.get("descricao", "Sem descrição")
-                    qtd_files = sum(1 for a in st.session_state.arquivos_db if str(a.get("pasta")).strip().lower() == str(nome_p).strip().lower() and a.get("status") == "Aprovado")
-                    
-                    with cols[idx % 3]:
+
+                    qtd_files = sum(
+                        1 for a in st.session_state.arquivos_db
+                        if str(a.get("pasta", "")).strip().lower() == str(nome_p).strip().lower()
+                        and a.get("status") == "Aprovado"
+                    )
+
+                    with cols_pastas[idx % 3]:
                         st.markdown(
                             f"""
                             <div class="css-card">
-                                <h3>📁 {nome_p}</h3>
-                                <p style='color:#64748B; font-size:0.85rem;'>{desc_p}</p>
-                                <span style='background:#E2E8F0; padding:2px 8px; border-radius:10px; font-size:0.8rem;'>📄 {qtd_files} arquivo(s)</span>
+                                <h3 style="margin:0; font-size: 1.2rem; color:#0F172A;">📁 {nome_p}</h3>
+                                <p style="margin: 5px 0; color: #64748B; font-size: 0.85rem;">{desc_p}</p>
+                                <span style="background-color: #E2E8F0; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; color: #334155;">
+                                    📄 {qtd_files} arquivo(s)
+                                </span>
                             </div>
                             """,
                             unsafe_allow_html=True,
                         )
-                        if st.button(f"Abrir {nome_p}", key=f"open_f_{idx}"):
-                            st.session_state.pasta_aberta_drive = nome_p
-                            st.rerun()
+                        c_b1, c_b2 = st.columns([2, 1])
+                        with c_b1:
+                            if st.button(f"📂 Abrir", key=f"btn_open_folder_{idx}"):
+                                st.session_state.pasta_aberta_drive = nome_p
+                                st.rerun()
+                        with c_b2:
+                            if is_admin and nome_p != "Geral":
+                                if st.button("🗑️", key=f"btn_del_folder_{idx}", help="Excluir Pasta"):
+                                    st.session_state.pastas_db = [p for p in st.session_state.pastas_db if p["nome"] != nome_p]
+                                    salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+                                    st.success(f"Pasta '{nome_p}' removida.")
+                                    st.rerun()
+
             else:
                 nome_pasta_atual = st.session_state.pasta_aberta_drive
-                st.button("⬅️ Voltar para Pastas", on_click=lambda: st.session_state.update({"pasta_aberta_drive": None}))
-                st.subheader(f"📂 Pasta: {nome_pasta_atual}")
 
-                arqs = [a for a in st.session_state.arquivos_db if str(a.get("pasta")).strip().lower() == str(nome_pasta_atual).strip().lower() and a.get("status") == "Aprovado"]
-                if arqs:
-                    for doc in arqs:
-                        st.markdown(f"**📄 {doc['titulo']}** | *Enviado por {doc.get('autor','-')}*")
-                        if "conteudo_b64" in doc:
-                            bytes_f = base64.b64decode(doc["conteudo_b64"])
-                            st.download_button(f"⬇️ Baixar {doc.get('nome_original')}", bytes_f, file_name=doc.get('nome_original'), key=f"dl_{doc['id']}")
-                        st.markdown("---")
+                c_top1, c_top2 = st.columns([3, 1])
+                with c_top1:
+                    st.subheader(f"📂 Pasta: {nome_pasta_atual}")
+                with c_top2:
+                    if st.button("⬅️ Voltar para Pastas", type="secondary"):
+                        st.session_state.pasta_aberta_drive = None
+                        st.rerun()
+
+                st.markdown("---")
+
+                arqs_da_pasta = [
+                    a for a in st.session_state.arquivos_db
+                    if str(a.get("pasta", "")).strip().lower() == str(nome_pasta_atual).strip().lower()
+                    and a.get("status") == "Aprovado"
+                ]
+
+                if arqs_da_pasta:
+                    for doc in arqs_da_pasta:
+                        with st.container():
+                            st.markdown(
+                                f"""
+                                <div class="css-card">
+                                    <h4 style="margin:0; color:#2563EB;">📄 {doc['titulo']}</h4>
+                                    <p style="margin:4px 0; color:#555;"><b>Enviado por:</b> {doc.get('autor', 'Desconhecido')} em {doc.get('data', '-')}</p>
+                                    <p style="margin:4px 0; color:#666;"><i>{doc.get('descricao', '')}</i></p>
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+
+                            col_d1, col_d2 = st.columns([3, 1])
+                            with col_d1:
+                                if "conteudo_b64" in doc:
+                                    try:
+                                        bytes_f = base64.b64decode(doc["conteudo_b64"])
+                                        st.download_button(
+                                            label=f"⬇️ Baixar {doc.get('nome_original', 'arquivo.bin')}",
+                                            data=bytes_f,
+                                            file_name=doc.get('nome_original', 'arquivo.bin'),
+                                            key=f"dl_{doc['id']}",
+                                        )
+                                    except Exception as e:
+                                        st.error(f"Erro ao decodificar: {e}")
+                                else:
+                                    st.caption("Ficheiro indisponível.")
+
+                            with col_d2:
+                                if is_admin or doc.get("autor") == usuario_atual["nome"]:
+                                    if st.button("🗑️ Excluir", key=f"del_doc_{doc['id']}"):
+                                        st.session_state.arquivos_db = [a for a in st.session_state.arquivos_db if a["id"] != doc["id"]]
+                                        salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                                        st.warning(f"Arquivo '{doc['titulo']}' excluído.")
+                                        st.rerun()
+
+                            st.markdown("---")
                 else:
-                    st.info("Nenhum arquivo nesta pasta.")
+                    st.info(f"Nenhum arquivo encontrado na pasta '{nome_pasta_atual}'.")
 
         with aba_upload:
-            tit_doc = st.text_input("Título do Documento")
-            pasta_doc = st.selectbox("Pasta", [p["nome"] for p in pastas_aprovadas])
-            desc_doc = st.text_area("Descrição")
-            arq_up = st.file_uploader("Ficheiro")
+            st.subheader("Enviar Documento")
+            lista_nomes_pastas = [p["nome"] for p in pastas_aprovadas]
 
-            if st.button("Confirmar Envio", type="primary"):
-                if tit_doc and arq_up:
+            tit_doc = st.text_input("Título do Documento *")
+            pasta_doc = st.selectbox("Selecione a Pasta *", lista_nomes_pastas)
+            desc_doc = st.text_area("Descrição / Detalhes *", height=80)
+            arq_up = st.file_uploader("Selecione o Ficheiro *")
+
+            if st.button("📤 Confirmar Envio", type="primary"):
+                if not (tit_doc.strip() and desc_doc.strip() and arq_up):
+                    st.error("Preencha todos os campos obrigatórios (*).")
+                else:
                     b64_str = base64.b64encode(arq_up.getvalue()).decode("utf-8")
                     novo_id = max([a.get("id", 0) for a in st.session_state.arquivos_db], default=0) + 1
                     st.session_state.arquivos_db.append({
                         "id": novo_id,
-                        "titulo": tit_doc,
+                        "titulo": tit_doc.strip(),
                         "pasta": pasta_doc,
-                        "descricao": desc_doc,
+                        "descricao": desc_doc.strip(),
                         "nome_original": arq_up.name,
                         "conteudo_b64": b64_str,
                         "autor": usuario_atual["nome"],
@@ -764,89 +808,120 @@ else:
                         "status": "Aprovado" if is_admin else "Pendente",
                     })
                     salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
-                    st.success("Documento enviado com sucesso!")
+                    st.success("✅ Documento enviado com sucesso!")
 
         with aba_nova_pasta:
-            np_nome = st.text_input("Nome da Pasta")
-            np_desc = st.text_input("Descrição")
-            if st.button("Criar Pasta"):
-                if np_nome:
-                    st.session_state.pastas_db.append({"nome": np_nome, "descricao": np_desc, "criador": usuario_atual["nome"], "status": "Aprovado" if is_admin else "Pendente"})
+            st.subheader("Criar Nova Pasta")
+            nome_pasta = st.text_input("Nome da Nova Pasta *")
+            desc_pasta = st.text_input("Descrição / Finalidade *")
+            if st.button("Criar Pasta", type="primary"):
+                if nome_pasta and desc_pasta:
+                    st.session_state.pastas_db.append({
+                        "nome": nome_pasta.strip(),
+                        "descricao": desc_pasta.strip(),
+                        "criador": usuario_atual["nome"],
+                        "status": "Aprovado" if is_admin else "Pendente",
+                    })
                     salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
-                    st.success("Pasta solicitada!")
+                    st.success("Pasta criada!")
+                    st.rerun()
 
-    # --- TELA 8: GERAR QR CODE ---
+    # --- 5. GERAR QR CODE ---
     elif menu_selecionado == "🏷️ Gerar QR Code de Amostras":
-        st.title("🧪 Gerador de QR Code de Amostras")
-        id_amostra = st.text_input("Código / ID da Amostra", "AMS-2026-001")
-        nome_amostra = st.text_input("Nome da Amostra", "Extrato Enzimático")
-        data_obtencao = st.date_input("Data de Obtenção", datetime.now().date())
-        responsavel = st.text_input("Responsável", usuario_atual["nome"])
-        localizacao = st.text_input("Armazenamento", "Freezer -20°C")
-        dest_selecionado = st.selectbox("Destino", list(DESTINOS_ETIQUETAS.keys()))
-        tamanho_mm = DESTINOS_ETIQUETAS[dest_selecionado]
-        qtd_etiquetas = st.number_input("Quantidade", 1, 100, 6)
+        st.title("🧪 Gerador de QR Code de Amostras & Etiquetas")
 
-        if st.button("Gerar QR Code", type="primary"):
-            conteudo_qr = f"ID: {id_amostra}\nNOME: {nome_amostra}\nRESPONSÁVEL: {responsavel}\nLOCAL: {localizacao}"
-            img = qrcode.make(conteudo_qr)
-            buffer = BytesIO()
-            img.save(buffer, format="PNG")
-            img_bytes = buffer.getvalue()
+        col_f, col_q = st.columns([1.2, 1])
 
-            st.image(img_bytes, width=200)
-            st.download_button("🖼️ Baixar PNG", img_bytes, f"QR_{id_amostra}.png", "image/png")
-            pdf_bytes = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm, id_amostra=id_amostra)
-            st.download_button("📄 Baixar PDF Etiquetas", pdf_bytes, f"Etiquetas_{id_amostra}.pdf", "application/pdf")
+        with col_f:
+            id_amostra = st.text_input("Código / ID da Amostra", "AMS-2026-001")
+            nome_amostra = st.text_input("Nome da Amostra / Reagente", "Extrato Enzimático de Lipase")
+            data_obtencao = st.date_input("Data de Obtenção", datetime.now().date())
+            responsavel = st.text_input("Pesquisador Responsável", usuario_atual["nome"])
+            localizacao = st.text_input("Local de Armazenamento", "Freezer -20°C / Posição B4")
+            dest_selecionado = st.selectbox("Tamanho da Etiqueta", list(DESTINOS_ETIQUETAS.keys()))
+            tamanho_mm = DESTINOS_ETIQUETAS[dest_selecionado]
+            qtd_etiquetas = st.number_input("Quantidade de Etiquetas", min_value=1, max_value=100, value=6)
+            descricao = st.text_area("Descrição / Protocolo", value="Amostra obtida via fermentação.")
+            gerar = st.button("Gerar Etiqueta QR Code", type="primary")
 
-    # --- TELA 9: CRIADOR DE POP ---
+        with col_q:
+            if gerar or id_amostra:
+                conteudo_qr = f"ID: {id_amostra}\nNOME: {nome_amostra}\nRESPONSÁVEL: {responsavel}\nLOCAL: {localizacao}\nDESCRIÇÃO: {descricao}"
+                img = qrcode.make(conteudo_qr)
+                buffer = BytesIO()
+                img.save(buffer, format="PNG")
+                img_bytes = buffer.getvalue()
+
+                st.image(img_bytes, caption=f"Pré-visualização: {id_amostra}", width=220)
+
+                st.download_button("🖼️ Baixar QR Code (PNG)", img_bytes, f"QR_{id_amostra}.png", "image/png")
+                pdf_etiquetas = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm, id_amostra=id_amostra)
+                st.download_button(f"📄 Baixar PDF ({qtd_etiquetas}x Etiquetas)", pdf_etiquetas, f"Etiquetas_{id_amostra}.pdf", "application/pdf")
+
+    # --- 6. CRIADOR DE POP ---
     elif menu_selecionado == "📝 Criador de POP":
-        st.title("📝 Criador e Atualizador de POP")
-        cod_pop = st.text_input("Código POP", "POP-LTAB-002")
-        tit_pop = st.text_input("Título do POP")
-        obj_pop = st.text_area("Objetivo")
-        mat_pop = st.text_area("Materiais")
-        passos_pop = st.text_area("Passo a Passo")
-        sec_pop = st.text_area("Segurança")
+        st.title("📝 Criador e Atualizador de POP Padrão")
 
-        if st.button("💾 Salvar POP", type="primary"):
-            if tit_pop and obj_pop:
+        cod_pop = st.text_input("Código do POP", "POP-LTAB-002")
+        tit_pop = st.text_input("Título do POP *")
+        obj_pop = st.text_area("Objetivo *", height=80)
+        mat_pop = st.text_area("Materiais *", height=80)
+        passos_pop = st.text_area("Passo a Passo *", height=120)
+        sec_pop = st.text_area("Segurança *", height=80)
+
+        if st.button("💾 Salvar Documento POP", type="primary"):
+            if tit_pop and obj_pop and passos_pop:
                 st.session_state.pops_db.append({
-                    "codigo": cod_pop,
-                    "titulo": tit_pop,
+                    "codigo": cod_pop.strip(),
+                    "titulo": tit_pop.strip(),
                     "versao": 1,
-                    "objetivo": obj_pop,
-                    "materiais": mat_pop,
-                    "passos": passos_pop,
-                    "seguranca": sec_pop,
+                    "objetivo": obj_pop.strip(),
+                    "materiais": mat_pop.strip(),
+                    "passos": passos_pop.strip(),
+                    "seguranca": sec_pop.strip(),
                     "autor": usuario_atual["nome"],
                 })
                 salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
                 st.success(f"POP '{cod_pop}' salvo com sucesso!")
 
-    # --- TELA 10: ADMINISTRAÇÃO / CENTRAL DE APROVAÇÕES ---
+    # --- 7. ADMINISTRAÇÃO ---
     elif menu_selecionado == "🛡️ Administração" and is_admin:
-        st.title("🛡️ Painel de Administração & Aprovações")
-        st.subheader("Solicitações de Acesso Pendentes")
-        pendentes = [u for u in st.session_state.usuarios if u.get("status") == "Pendente"]
-        if pendentes:
-            for idx, u in enumerate(pendentes):
-                c1, c2 = st.columns([3, 1])
-                with c1:
-                    st.write(f"👤 **{u['nome']}** ({u['email']})")
-                with c2:
-                    if st.button("Aprovar", key=f"ap_{idx}"):
+        st.title("🛡️ Central de Aprovações (Administrador)")
+
+        pend_acessos = [u for u in st.session_state.usuarios if u.get("status") == "Pendente"]
+
+        if pend_acessos:
+            for idx, u in enumerate(pend_acessos):
+                c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                with c_inf:
+                    st.write(f"👤 **{u['nome']}** (Usuário: `{u['usuario']}`)")
+                    st.caption(f"Cat: {u.get('categoria','-')} | Email: {u.get('email','-')}")
+                with c_b1:
+                    if st.button("✅ Aprovar", key=f"ap_usr_{idx}", type="primary"):
                         u["status"] = "Aprovado"
                         salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
-                        st.success("Acesso liberado!")
+                        st.success(f"Acesso aprovado para {u['nome']}!")
+                        st.rerun()
+                with c_b2:
+                    if st.button("❌ Recusar", key=f"rec_usr_{idx}"):
+                        u["status"] = "Recusado"
+                        salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+                        st.warning(f"Solicitação recusada.")
                         st.rerun()
         else:
-            st.info("Nenhuma aprovação pendente.")
+            st.info("Nenhuma solicitação de novo acesso pendente no momento.")
 
-    # --- TELA 11: MEU PERFIL ---
+    # --- 8. MEU PERFIL ---
     elif menu_selecionado == "👤 Meu perfil":
-        st.title("👤 Meu Perfil")
-        st.write(f"**Nome:** {usuario_atual['nome']}")
-        st.write(f"**Usuário:** {usuario_atual['usuario']}")
-        st.write(f"**E-mail:** {usuario_atual['email']}")
-        st.write(f"**Vínculo:** {usuario_atual.get('vinculo','-')}")
+        st.title("👤 Meu Perfil e Configurações")
+
+        st.subheader("Meus Dados Registrados")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.write(f"**Nome:** {usuario_atual.get('nome')}")
+            st.write(f"**Usuário:** `{usuario_atual.get('usuario')}`")
+            st.write(f"**Categoria:** {usuario_atual.get('categoria', '-')}")
+        with c2:
+            st.write(f"**Vínculo:** {usuario_atual.get('vinculo', '-')}")
+            st.write(f"**Telefone:** {usuario_atual.get('telefone', '-')}")
+            st.write(f"**E-mail:** {usuario_atual.get('email', '-')}")
