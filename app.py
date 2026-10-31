@@ -821,7 +821,7 @@ else:
                         st.success("Solicitação de pasta enviada para aprovação!")
                     st.rerun()
 
-    # --- 5. GERAR QR CODE (FORMATADO PARA ABRIR EM NOTAS/TEXTO PURO) ---
+    # --- 5. GERAR QR CODE ---
     elif menu_selecionado == "🏷️ Gerar QR Code de Amostras":
         st.title("🧪 Gerador de QR Code de Amostras & Etiquetas")
 
@@ -831,7 +831,41 @@ else:
             id_amostra = st.text_input("Código / ID da Amostra", "AMS-2026-001")
             nome_amostra = st.text_input("Nome da Amostra / Reagente", "Extrato Enzimático de Lipase")
             data_obtencao = st.date_input("Data de Obtenção", datetime.now().date())
-            responsavel = st.text_input("Pesquisador Responsável", usuario_atual["nome"])
+
+            # Monta lista de pesquisadores cadastrados com telefone e e-mail
+            lista_pesquisadores = []
+            mapa_pesquisadores = {}
+            for p in st.session_state.integrantes:
+                nome_p = p.get("Nome", "").strip()
+                if nome_p:
+                    tel_p = p.get("Telefone", "-")
+                    email_p = p.get("Email", "-")
+                    label = f"{nome_p} ({email_p} | {tel_p})"
+                    lista_pesquisadores.append(label)
+                    mapa_pesquisadores[label] = {
+                        "nome": nome_p,
+                        "contato": f"{email_p} | {tel_p}" if tel_p != "-" or email_p != "-" else "-"
+                    }
+
+            opcoes_resp = lista_pesquisadores + ["✍️ Outro (Digitar manualmente)"]
+
+            # Seleciona por padrão o usuário logado se estiver na lista
+            index_padrao = 0
+            for idx_opt, opt_lbl in enumerate(lista_pesquisadores):
+                if usuario_atual.get("nome", "").lower() in opt_lbl.lower():
+                    index_padrao = idx_opt
+                    break
+
+            sel_resp = st.selectbox("Pesquisador Responsável", opcoes_resp, index=index_padrao if lista_pesquisadores else 0)
+
+            if sel_resp == "✍️ Outro (Digitar manualmente)":
+                responsavel_nome = st.text_input("Nome do Pesquisador Responsável", "")
+                responsavel_contato = st.text_input("Contato (Telefone / E-mail)", "")
+            else:
+                info_p = mapa_pesquisadores.get(sel_resp, {})
+                responsavel_nome = info_p.get("nome", sel_resp)
+                responsavel_contato = info_p.get("contato", "-")
+
             localizacao = st.text_input("Local de Armazenamento", "Freezer -20°C / Posição B4")
             dest_selecionado = st.selectbox("Tamanho da Etiqueta", list(DESTINOS_ETIQUETAS.keys()))
             tamanho_mm = DESTINOS_ETIQUETAS[dest_selecionado]
@@ -841,14 +875,14 @@ else:
 
         with col_q:
             if gerar or id_amostra:
-                # Formatação otimizada para câmeras lerem nativamente como nota de texto
+                texto_contato = f"\n• Contato: {responsavel_contato}" if responsavel_contato and responsavel_contato != "-" else ""
                 conteudo_qr = (
                     f"📋 FICHA DA AMOSTRA\n"
                     f"------------------------\n"
                     f"• ID: {id_amostra}\n"
                     f"• Nome: {nome_amostra}\n"
                     f"• Data de Obtenção: {data_obtencao.strftime('%d/%m/%Y')}\n"
-                    f"• Responsável: {responsavel}\n"
+                    f"• Responsável: {responsavel_nome}{texto_contato}\n"
                     f"• Local: {localizacao}\n"
                     f"------------------------\n"
                     f"• Descrição:\n{descricao}"
