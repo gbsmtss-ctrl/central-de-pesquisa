@@ -753,7 +753,6 @@ else:
 
                             col_d1, col_d2 = st.columns([3, 1])
                             with col_d1:
-                                # Suporte a múltiplas chaves e fallback para garantia de download
                                 b64_str = (
                                     doc.get("conteudo_b64")
                                     or doc.get("conteudo")
@@ -764,30 +763,30 @@ else:
                                 if b64_str:
                                     try:
                                         bytes_f = base64.b64decode(b64_str)
+                                        nome_orig = doc.get("nome_original") or f"{doc.get('titulo')}.pdf"
+                                        mime_orig = doc.get("mime_type") or "application/octet-stream"
+
                                         st.download_button(
-                                            label=f"⬇️ Baixar {doc.get('nome_original', 'arquivo.bin')}",
+                                            label=f"⬇️ Baixar {nome_orig}",
                                             data=bytes_f,
-                                            file_name=doc.get('nome_original', 'arquivo.bin'),
+                                            file_name=nome_orig,
+                                            mime=mime_orig,
                                             key=f"dl_{doc['id']}",
                                         )
-                                    except Exception:
-                                        # Fallback em caso de falha de decodificação
-                                        texto_fb = f"Documento: {doc.get('titulo')}\nAutor: {doc.get('autor')}\nData: {doc.get('data')}\nDescrição: {doc.get('descricao')}"
-                                        st.download_button(
-                                            label=f"⬇️ Baixar {doc.get('nome_original', 'documento.txt')}",
-                                            data=texto_fb.encode("utf-8"),
-                                            file_name=f"{doc.get('titulo', 'documento')}.txt",
-                                            key=f"dl_fb_err_{doc['id']}",
-                                        )
+                                    except Exception as e:
+                                        st.error(f"Erro ao processar o arquivo: {e}")
                                 else:
-                                    # Fallback automático garantido para itens legados sem base64 salvo
-                                    texto_fb = f"Documento: {doc.get('titulo')}\nAutor: {doc.get('autor')}\nData: {doc.get('data')}\nDescrição: {doc.get('descricao')}"
-                                    st.download_button(
-                                        label=f"⬇️ Baixar {doc.get('nome_original', 'documento.txt')}",
-                                        data=texto_fb.encode("utf-8"),
-                                        file_name=f"{doc.get('titulo', 'documento')}.txt",
-                                        key=f"dl_fb_{doc['id']}",
-                                    )
+                                    st.warning("⚠️ Conteúdo do arquivo indisponível para download.")
+                                    with st.popover("🔄 Anexar / Reenviar arquivo original"):
+                                        novo_arq = st.file_uploader("Selecione o arquivo para salvar neste registro", key=f"fix_up_{doc['id']}")
+                                        if st.button("Salvar Ficheiro", key=f"btn_fix_up_{doc['id']}"):
+                                            if novo_arq:
+                                                doc["conteudo_b64"] = base64.b64encode(novo_arq.getvalue()).decode("utf-8")
+                                                doc["nome_original"] = novo_arq.name
+                                                doc["mime_type"] = novo_arq.type
+                                                salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                                                st.success("Arquivo anexado com sucesso!")
+                                                st.rerun()
 
                             with col_d2:
                                 if is_admin or doc.get("autor") == usuario_atual["nome"]:
@@ -824,6 +823,7 @@ else:
                         "pasta": pasta_doc,
                         "descricao": desc_doc.strip(),
                         "nome_original": arq_up.name,
+                        "mime_type": arq_up.type,
                         "conteudo_b64": b64_str,
                         "autor": usuario_atual["nome"],
                         "data": datetime.now().strftime("%d/%m/%Y"),
