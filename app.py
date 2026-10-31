@@ -122,6 +122,16 @@ CATEGORIAS_PADRAO = [
     "Técnico / Pesquisador",
 ]
 
+REAGENTES_CADASTRADOS = [
+    "Extrato Enzimático de Lipase",
+    "Solução Tampão Fosfato 0.1M (pH 7.0)",
+    "Álcool Etílico 70%",
+    "Reagente de Bradford",
+    "Meio de Cultura BDA",
+    "Solução de NaOH 1M",
+    "Ácido Clorídrico 0.5M",
+]
+
 DESTINOS_ETIQUETAS = {
     "Tubo Eppendorf (0.5 mL / 1.5 mL / 2.0 mL)": 15,
     "Tubo Falcon (15 mL)": 22,
@@ -276,6 +286,8 @@ if "pops_db" not in st.session_state:
     st.session_state.pops_db = carregar_dados(ARQUIVO_POPS, POPS_INICIAIS)
 if "pasta_aberta_drive" not in st.session_state:
     st.session_state.pasta_aberta_drive = None
+if "seq_amostra" not in st.session_state:
+    st.session_state.seq_amostra = 1
 
 usr_param = st.query_params.get("usr")
 if usr_param:
@@ -828,11 +840,30 @@ else:
         col_f, col_q = st.columns([1.2, 1])
 
         with col_f:
-            id_amostra = st.text_input("Código / ID da Amostra", "AMS-2026-001")
-            nome_amostra = st.text_input("Nome da Amostra / Reagente", "Extrato Enzimático de Lipase")
+            # 1. CÓDIGO / ID DA AMOSTRA AUTOMÁTICO
+            id_gerado_auto = f"AMS-{datetime.now().strftime('%Y%m%d')}-{st.session_state.seq_amostra:03d}"
+            
+            c_id1, c_id2 = st.columns([3, 1])
+            with c_id1:
+                id_amostra = st.text_input("Código / ID da Amostra (Gerado Automaticamente)", value=id_gerado_auto)
+            with c_id2:
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                if st.button("🔄 Novo ID"):
+                    st.session_state.seq_amostra += 1
+                    st.rerun()
+
+            # 2. SELEÇÃO / ESCRITA MANUAL DO NOME DA AMOSTRA
+            opcoes_amostras = REAGENTES_CADASTRADOS + ["✍️ Outro (Digitar manualmente)"]
+            sel_amostra = st.selectbox("Nome da Amostra / Reagente", opcoes_amostras)
+
+            if sel_amostra == "✍️ Outro (Digitar manualmente)":
+                nome_amostra = st.text_input("Digite o Nome da Amostra / Reagente *", "")
+            else:
+                nome_amostra = sel_amostra
+
             data_obtencao = st.date_input("Data de Obtenção", datetime.now().date())
 
-            # Monta lista de pesquisadores cadastrados com telefone e e-mail
+            # 3. PESQUISADORES CADASTRAIS COM CONTATO AUTOMÁTICO
             lista_pesquisadores = []
             mapa_pesquisadores = {}
             for p in st.session_state.integrantes:
@@ -844,12 +875,12 @@ else:
                     lista_pesquisadores.append(label)
                     mapa_pesquisadores[label] = {
                         "nome": nome_p,
-                        "contato": f"{email_p} | {tel_p}" if tel_p != "-" or email_p != "-" else "-"
+                        "telefone": tel_p,
+                        "email": email_p,
                     }
 
             opcoes_resp = lista_pesquisadores + ["✍️ Outro (Digitar manualmente)"]
 
-            # Seleciona por padrão o usuário logado se estiver na lista
             index_padrao = 0
             for idx_opt, opt_lbl in enumerate(lista_pesquisadores):
                 if usuario_atual.get("nome", "").lower() in opt_lbl.lower():
@@ -860,11 +891,13 @@ else:
 
             if sel_resp == "✍️ Outro (Digitar manualmente)":
                 responsavel_nome = st.text_input("Nome do Pesquisador Responsável", "")
-                responsavel_contato = st.text_input("Contato (Telefone / E-mail)", "")
+                responsavel_tel = st.text_input("Telefone do Responsável", "")
+                responsavel_email = st.text_input("E-mail do Responsável", "")
             else:
                 info_p = mapa_pesquisadores.get(sel_resp, {})
                 responsavel_nome = info_p.get("nome", sel_resp)
-                responsavel_contato = info_p.get("contato", "-")
+                responsavel_tel = info_p.get("telefone", "-")
+                responsavel_email = info_p.get("email", "-")
 
             localizacao = st.text_input("Local de Armazenamento", "Freezer -20°C / Posição B4")
             dest_selecionado = st.selectbox("Tamanho da Etiqueta", list(DESTINOS_ETIQUETAS.keys()))
@@ -875,17 +908,19 @@ else:
 
         with col_q:
             if gerar or id_amostra:
-                texto_contato = f"\n• Contato: {responsavel_contato}" if responsavel_contato and responsavel_contato != "-" else ""
+                # FICHA DE TEXTO PURO PARA BLOCO DE NOTAS DO CELULAR
                 conteudo_qr = (
                     f"📋 FICHA DA AMOSTRA\n"
                     f"------------------------\n"
-                    f"• ID: {id_amostra}\n"
-                    f"• Nome: {nome_amostra}\n"
+                    f"• Código / ID: {id_amostra}\n"
+                    f"• Amostra / Reagente: {nome_amostra}\n"
                     f"• Data de Obtenção: {data_obtencao.strftime('%d/%m/%Y')}\n"
-                    f"• Responsável: {responsavel_nome}{texto_contato}\n"
-                    f"• Local: {localizacao}\n"
+                    f"• Responsável: {responsavel_nome}\n"
+                    f"• Telefone do Responsável: {responsavel_tel}\n"
+                    f"• E-mail do Responsável: {responsavel_email}\n"
+                    f"• Local de Armazenamento: {localizacao}\n"
                     f"------------------------\n"
-                    f"• Descrição:\n{descricao}"
+                    f"• Descrição / Protocolo:\n{descricao}"
                 )
 
                 img = qrcode.make(conteudo_qr)
