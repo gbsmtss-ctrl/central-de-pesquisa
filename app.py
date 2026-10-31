@@ -9,6 +9,12 @@ from PIL import Image, ImageDraw
 import qrcode
 import streamlit as st
 
+# ReportLab para geração de PDF dos POPs
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
 # Configuração da página
 st.set_page_config(
     page_title="Central de Pesquisa - Gestão do Laboratório",
@@ -90,6 +96,15 @@ st.markdown(
         box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         margin-bottom: 12px;
     }
+    .pop-preview-card {
+        background-color: #FFFFFF;
+        border: 1px solid #CBD5E1;
+        border-left: 5px solid #2563EB;
+        border-radius: 8px;
+        padding: 18px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
     .table-header {
         font-size: 0.75rem;
         font-weight: 700;
@@ -130,6 +145,14 @@ REAGENTES_CADASTRADOS = [
     "Meio de Cultura BDA",
     "Solução de NaOH 1M",
     "Ácido Clorídrico 0.5M",
+]
+
+POPS_PADRAO = [
+    "Operação e Higienização do Espectrofotômetro",
+    "Preparo de Solução Tampão Fosfato",
+    "Calibração e Uso do pHmetro",
+    "Esterilização em Autoclave",
+    "Higienização de Capela de Fluxo Laminar",
 ]
 
 DESTINOS_ETIQUETAS = {
@@ -173,12 +196,12 @@ PASTAS_INICIAIS = [
 
 POPS_INICIAIS = [
     {
-        "codigo": "POP-LTAB-001",
+        "codigo": "POP-OHE-v1",
         "titulo": "Operação e Higienização do Espectrofotômetro",
         "versao": 1,
         "objetivo": "Padronizar a operação e limpeza do equipamento para garantir medições precisas.",
         "materiais": "Cubetas de quartzo, álcool 70%, lenço de papel macio, tampões.",
-        "passos": "1. Ligar o equipamento 15 minutos antes da leitura.\n2. Ajustar o comprimento de onda.\n3. Realizar o branco com a solução controle.\n4. Ler amostras em triplicata.\n5. Higienizar as cubetas após o uso.",
+        "passos": "1. Ligar o equipamento 15 minutos antes da leitura.\n2. Ajustar o comprimento de onda desejado.\n3. Realizar o branco com a solução controle.\n4. Ler as amostras em triplicata.\n5. Higienizar as cubetas após o uso.",
         "seguranca": "Uso obrigatório de jaleco, luvas de nitrilo e óculos de proteção.",
         "autor": "Eliane Pereira Cipolatti",
         "status": "Aprovado",
@@ -197,6 +220,70 @@ def carregar_dados(arquivo, padrao):
 def salvar_dados(arquivo, dados):
     with open(arquivo, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=4)
+
+def gerar_codigo_pop(titulo, versao=1):
+    palavras = [w for w in titulo.split() if len(w) > 2 and w.lower() not in ["de", "da", "do", "dos", "das", "em", "para", "com", "e"]]
+    if palavras:
+        sigla = "".join([p[0].upper() for p in palavras])[:6]
+    else:
+        sigla = "DOC"
+    return f"POP-{sigla}-v{versao}"
+
+def gerar_pdf_pop(pop_dict):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    styles = getSampleStyleSheet()
+    story = []
+
+    header_data = [
+        [Paragraph(f"<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", styles['Normal']), Paragraph(f"<b>CÓDIGO:</b> {pop_dict['codigo']}", styles['Normal'])],
+        [Paragraph(f"<b>Título:</b> {pop_dict['titulo']}", styles['Normal']), Paragraph(f"<b>Versão:</b> {pop_dict['versao']}", styles['Normal'])],
+        [Paragraph(f"<b>Elaborado por:</b> {pop_dict.get('autor', 'N/A')}", styles['Normal']), Paragraph(f"<b>Status:</b> {pop_dict.get('status', 'Aprovado')}", styles['Normal'])]
+    ]
+    t_header = Table(header_data, colWidths=[350, 180])
+    t_header.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('PADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_header)
+    story.append(Spacer(1, 15))
+
+    sections = [
+        ("1. OBJETIVO", pop_dict.get("objetivo", "")),
+        ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
+        ("3. PROCEDIMENTO / PASSO A PASSO", pop_dict.get("passos", "")),
+        ("4. SEGURANÇA E EPIs", pop_dict.get("seguranca", "")),
+    ]
+
+    sec_title_style = ParagraphStyle(
+        'SecTitle',
+        parent=styles['Heading2'],
+        fontSize=11,
+        leading=14,
+        textColor=colors.HexColor('#2563EB'),
+        bold=True
+    )
+
+    body_style = ParagraphStyle(
+        'BodyTextCustom',
+        parent=styles['Normal'],
+        fontSize=9.5,
+        leading=13.5,
+        textColor=colors.HexColor('#334155')
+    )
+
+    for title, content in sections:
+        story.append(Paragraph(title, sec_title_style))
+        story.append(Spacer(1, 4))
+        content_p = content.replace('\n', '<br/>')
+        story.append(Paragraph(content_p, body_style))
+        story.append(Spacer(1, 10))
+
+    doc.build(story)
+    return buffer.getvalue()
 
 def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra=""):
     dpi = 150
@@ -952,36 +1039,175 @@ else:
                 pdf_etiquetas = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm, id_amostra=id_amostra)
                 st.download_button(f"📄 Baixar PDF ({qtd_etiquetas}x Etiquetas)", pdf_etiquetas, f"Etiquetas_{id_amostra}.pdf", "application/pdf")
 
-    # --- 6. CRIADOR DE POP ---
+    # --- 6. CRIADOR E GESTÃO DE POPS ---
     elif menu_selecionado == "📝 Criador de POP":
-        st.title("📝 Criador e Atualizador de POP Padrão")
+        st.title("📝 Procedimentos Operacionais Padrão (POPs)")
 
-        cod_pop = st.text_input("Código do POP", "POP-LTAB-002")
-        tit_pop = st.text_input("Título do POP *")
-        obj_pop = st.text_area("Objetivo *", height=80)
-        mat_pop = st.text_area("Materiais *", height=80)
-        passos_pop = st.text_area("Passo a Passo *", height=120)
-        sec_pop = st.text_area("Segurança *", height=80)
+        aba_pops_view, aba_pop_form = st.tabs([
+            "📚 POPs Cadastrados e Prévias",
+            "➕ Criar / Atualizar POP",
+        ])
 
-        if st.button("💾 Salvar Documento POP", type="primary"):
-            if tit_pop and obj_pop and passos_pop:
-                status_pop = "Aprovado" if is_admin else "Pendente"
-                st.session_state.pops_db.append({
-                    "codigo": cod_pop.strip(),
-                    "titulo": tit_pop.strip(),
-                    "versao": 1,
-                    "objetivo": obj_pop.strip(),
-                    "materiais": mat_pop.strip(),
-                    "passos": passos_pop.strip(),
-                    "seguranca": sec_pop.strip(),
-                    "autor": usuario_atual["nome"],
-                    "status": status_pop,
-                })
-                salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
-                if is_admin:
-                    st.success(f"POP '{cod_pop}' salvo e APROVADO com sucesso!")
+        # TAB 1: PRÉVIAS, PDF E TRANSFERÊNCIA DIRETA PARA REPOSITÓRIO
+        with aba_pops_view:
+            st.subheader("📚 Acervo de POPs do Laboratório")
+            pops_aprovados = [p for p in st.session_state.pops_db if p.get("status") == "Aprovado"]
+
+            if pops_aprovados:
+                for idx, pop in enumerate(pops_aprovados):
+                    with st.container():
+                        st.markdown(
+                            f"""
+                            <div class="pop-preview-card">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h3 style="margin: 0; color: #0F172A;">📝 {pop['titulo']}</h3>
+                                    <span style="background-color: #DBEAFE; color: #1E40AF; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.85rem;">
+                                        {pop['codigo']} | v{pop['versao']}
+                                    </span>
+                                </div>
+                                <hr style="margin: 10px 0; border: none; border-top: 1px solid #E2E8F0;" />
+                                <p style="margin: 4px 0;"><b>1. Objetivo:</b> {pop.get('objetivo', '-')}</p>
+                                <p style="margin: 4px 0;"><b>2. Materiais & Equipamentos:</b> {pop.get('materiais', '-')}</p>
+                                <p style="margin: 4px 0;"><b>3. Passo a Passo:</b> {pop.get('passos', '-').replace(chr(10), ' | ')}</p>
+                                <p style="margin: 4px 0;"><b>4. Segurança / EPIs:</b> {pop.get('seguranca', '-')}</p>
+                                <p style="margin: 6px 0 0 0; color: #64748B; font-size: 0.8rem;"><i>Elaborado por: {pop.get('autor', 'Desconhecido')}</i></p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                        c_pop1, c_pop2, c_pop3 = st.columns([1.5, 2, 1])
+
+                        with c_pop1:
+                            pdf_bytes = gerar_pdf_pop(pop)
+                            st.download_button(
+                                label="📄 Baixar PDF do POP",
+                                data=pdf_bytes,
+                                file_name=f"{pop['codigo']}.pdf",
+                                mime="application/pdf",
+                                key=f"dl_pop_{idx}",
+                            )
+
+                        with c_pop2:
+                            if st.button("📂 Transferir para Repositório de Arquivos", key=f"trans_pop_{idx}"):
+                                b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+                                novo_id = max([a.get("id", 0) for a in st.session_state.arquivos_db], default=0) + 1
+                                st.session_state.arquivos_db.append({
+                                    "id": novo_id,
+                                    "titulo": f"{pop['codigo']} - {pop['titulo']}",
+                                    "pasta": "POPs e Protocolos",
+                                    "descricao": f"Procedimento Operacional Padrão (Versão {pop['versao']}). Objetivo: {pop.get('objetivo')}",
+                                    "nome_original": f"{pop['codigo']}.pdf",
+                                    "mime_type": "application/pdf",
+                                    "conteudo_b64": b64_pdf,
+                                    "autor": pop.get("autor", usuario_atual["nome"]),
+                                    "data": datetime.now().strftime("%d/%m/%Y"),
+                                    "status": "Aprovado",
+                                })
+                                salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                                st.success("✅ POP publicado diretamente na pasta 'POPs e Protocolos' da Central de Arquivos!")
+
+                        with c_pop3:
+                            if is_admin or pop.get("autor") == usuario_atual["nome"]:
+                                if st.button("🗑️ Excluir", key=f"del_pop_{idx}"):
+                                    st.session_state.pops_db = [item for item in st.session_state.pops_db if item.get("codigo") != pop.get("codigo")]
+                                    salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+                                    st.warning(f"POP '{pop['codigo']}' excluído.")
+                                    st.rerun()
+
+                        st.markdown("<br>", unsafe_allow_html=True)
+            else:
+                st.info("Nenhum POP aprovado cadastrado até o momento.")
+
+        # TAB 2: CRIAR OU ATUALIZAR POP
+        with aba_pop_form:
+            st.subheader("➕ Formulário de Criação / Atualização de POP")
+
+            modo_criacao = st.radio("Escolha a Ação", ["Criar Novo POP", "Atualizar POP Existente"], horizontal=True)
+
+            tit_selecionado = ""
+            versao_calculada = 1
+
+            if modo_criacao == "Atualizar POP Existente":
+                pops_existentes = [p["titulo"] for p in st.session_state.pops_db]
+                if pops_existentes:
+                    pop_sel_tit = st.selectbox("Selecione o POP que deseja Atualizar", pops_existentes)
+                    pop_existente = next((p for p in st.session_state.pops_db if p["titulo"] == pop_sel_tit), None)
+                    if pop_existente:
+                        tit_selecionado = pop_existente["titulo"]
+                        versao_calculada = pop_existente.get("versao", 1) + 1
+                        st.info(f"ℹ️ Atualizando o POP existente. Esta ação criará a **Versão {versao_calculada}**.")
                 else:
-                    st.success(f"POP '{cod_pop}' enviado para aprovação do Administrador!")
+                    st.warning("Nenhum POP cadastrado para atualizar. Alterne para 'Criar Novo POP'.")
+
+            else: # Criar Novo POP
+                opcoes_titulos_pop = POPS_PADRAO + ["✍️ Outro (Digitar manualmente)"]
+                sel_pop_pre = st.selectbox("Selecione um Título Padrão ou Digite Manualmente", opcoes_titulos_pop)
+
+                if sel_pop_pre == "✍️ Outro (Digitar manualmente)":
+                    tit_selecionado = st.text_input("Digite o Título do POP *", "")
+                else:
+                    tit_selecionado = sel_pop_pre
+
+            cod_auto = gerar_codigo_pop(tit_selecionado if tit_selecionado else "POP", versao_calculada)
+
+            st.write(f"**Código / ID do POP (Gerado Automaticamente):** `{cod_auto}`")
+
+            with st.form("form_pop"):
+                obj_pop = st.text_area("1. Objetivo *", height=80, value="Padronizar o procedimento no laboratório.")
+                mat_pop = st.text_area("2. Materiais & Equipamentos *", height=80, value="Equipamentos de proteção individual, reagentes e vidrarias.")
+                passos_pop = st.text_area("3. Procedimento / Passo a Passo *", height=120, value="1. Ligar o equipamento.\n2. Calibrar conforme instrução.\n3. Executar o ensaio.")
+                sec_pop = st.text_area("4. Segurança & EPIs *", height=80, value="Jaleco, luvas de nitrilo e óculos de proteção.")
+
+                btn_salvar_pop = st.form_submit_button("💾 Salvar Documento POP", type="primary")
+
+                if btn_salvar_pop:
+                    if not (tit_selecionado and obj_pop and passos_pop):
+                        st.error("Preencha todos os campos obrigatórios (*).")
+                    else:
+                        status_pop = "Aprovado" if is_admin else "Pendente"
+
+                        st.session_state.pops_db = [
+                            p for p in st.session_state.pops_db
+                            if not (p["titulo"].strip().lower() == tit_selecionado.strip().lower() and p.get("versao") == versao_calculada)
+                        ]
+
+                        novo_pop_data = {
+                            "codigo": cod_auto,
+                            "titulo": tit_selecionado.strip(),
+                            "versao": versao_calculada,
+                            "objetivo": obj_pop.strip(),
+                            "materiais": mat_pop.strip(),
+                            "passos": passos_pop.strip(),
+                            "seguranca": sec_pop.strip(),
+                            "autor": usuario_atual["nome"],
+                            "status": status_pop,
+                        }
+
+                        st.session_state.pops_db.append(novo_pop_data)
+                        salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+
+                        if is_admin:
+                            b64_pdf = base64.b64encode(gerar_pdf_pop(novo_pop_data)).decode("utf-8")
+                            novo_id = max([a.get("id", 0) for a in st.session_state.arquivos_db], default=0) + 1
+                            st.session_state.arquivos_db.append({
+                                "id": novo_id,
+                                "titulo": f"{cod_auto} - {tit_selecionado.strip()}",
+                                "pasta": "POPs e Protocolos",
+                                "descricao": f"Procedimento Operacional Padrão (Versão {versao_calculada}). Objetivo: {obj_pop.strip()}",
+                                "nome_original": f"{cod_auto}.pdf",
+                                "mime_type": "application/pdf",
+                                "conteudo_b64": b64_pdf,
+                                "autor": usuario_atual["nome"],
+                                "data": datetime.now().strftime("%d/%m/%Y"),
+                                "status": "Aprovado",
+                            })
+                            salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                            st.success(f"✅ POP '{cod_auto}' salvo e publicado na pasta 'POPs e Protocolos'!")
+                        else:
+                            st.success(f"✅ POP '{cod_auto}' enviado para aprovação do Administrador!")
+
+                        st.rerun()
 
     # --- 7. ADMINISTRAÇÃO (CENTRAL DE APROVAÇÕES) ---
     elif menu_selecionado == "🛡️ Administração" and is_admin:
@@ -1132,7 +1358,24 @@ else:
                         if st.button("✅ Aprovar POP", key=f"ap_pop_{idx}", type="primary"):
                             p["status"] = "Aprovado"
                             salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
-                            st.success(f"POP '{p['codigo']}' aprovado!")
+
+                            b64_pdf = base64.b64encode(gerar_pdf_pop(p)).decode("utf-8")
+                            novo_id = max([a.get("id", 0) for a in st.session_state.arquivos_db], default=0) + 1
+                            st.session_state.arquivos_db.append({
+                                "id": novo_id,
+                                "titulo": f"{p['codigo']} - {p['titulo']}",
+                                "pasta": "POPs e Protocolos",
+                                "descricao": f"Procedimento Operacional Padrão (Versão {p.get('versao',1)}). Autor: {p.get('autor')}",
+                                "nome_original": f"{p['codigo']}.pdf",
+                                "mime_type": "application/pdf",
+                                "conteudo_b64": b64_pdf,
+                                "autor": p.get("autor", "N/A"),
+                                "data": datetime.now().strftime("%d/%m/%Y"),
+                                "status": "Aprovado",
+                            })
+                            salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+
+                            st.success(f"POP '{p['codigo']}' aprovado e publicado na Central de Arquivos!")
                             st.rerun()
                     with c_b2:
                         if st.button("❌ Recusar POP", key=f"rec_pop_{idx}"):
