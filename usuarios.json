@@ -19,5 +19,12 @@
         "senha": "130901gabi",
         "status": "Aprovado",
         "is_admin": false
+    },
+    {
+        "nome": "gabriela matos",
+        "usuario": "gabriela",
+        "senha": "130901",
+        "status": "Pendente",
+        "is_admin": false
     }
 ]
