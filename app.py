@@ -27,32 +27,41 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- ESTILIZAÇÃO VISUAL MODERNA E LEVE PARA A BARRA LATERAL ---
+# --- INJEÇÃO DE CSS: APARÊNCIA APP-LIKE & PALETA CIENTÍFICA COESA ---
 st.markdown(
     """
     <style>
+    /* Oculta os menus nativos de dev do Streamlit (GitHub, Fork, Top Bar, Footer) */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    [data-testid="stHeader"] {display: none;}
+    [data-testid="stToolbar"] {display: none;}
+    
+    /* Fundo Geral */
     .stApp {
         background-color: #F8FAFC;
     }
+    
+    /* Estilização da Barra Lateral */
     [data-testid="stSidebar"] {
         background-color: #FFFFFF;
         border-right: 1px solid #E2E8F0;
     }
     
-    /* Estilização Elegante dos Botões do Menu Lateral */
+    /* Botões do Menu Lateral */
     [data-testid="stSidebar"] div.stButton > button {
         text-align: left !important;
         justify-content: flex-start !important;
         padding: 8px 12px !important;
         width: 100% !important;
-        margin-bottom: 2px !important;
+        margin-bottom: 3px !important;
         border-radius: 6px !important;
         font-size: 0.88rem !important;
         font-weight: 500 !important;
         transition: all 0.2s ease-in-out !important;
     }
     
-    /* Botões Inativos */
     [data-testid="stSidebar"] div.stButton > button[kind="secondary"] {
         background-color: transparent !important;
         color: #475569 !important;
@@ -61,15 +70,14 @@ st.markdown(
     }
     [data-testid="stSidebar"] div.stButton > button[kind="secondary"]:hover {
         background-color: #F1F5F9 !important;
-        color: #1E40AF !important;
+        color: #0E7490 !important;
     }
     
-    /* Botão Ativo */
     [data-testid="stSidebar"] div.stButton > button[kind="primary"] {
-        background-color: #EFF6FF !important;
-        color: #2563EB !important;
+        background-color: #ECFEFF !important;
+        color: #0E7490 !important;
         font-weight: 700 !important;
-        border-left: 4px solid #2563EB !important;
+        border-left: 4px solid #0E7490 !important;
         border-top: none !important;
         border-right: none !important;
         border-bottom: none !important;
@@ -78,10 +86,11 @@ st.markdown(
 
     h1, h2, h3 {
         color: #0F172A !important;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Segoe UI', Roboto, sans-serif;
     }
+    
     .sidebar-section {
-        font-size: 0.72rem;
+        font-size: 0.70rem;
         font-weight: 800;
         color: #94A3B8;
         text-transform: uppercase;
@@ -89,6 +98,27 @@ st.markdown(
         margin-bottom: 0.4rem;
         letter-spacing: 0.08em;
     }
+
+    /* KPI Cards na Página Inicial */
+    .kpi-card {
+        border-radius: 10px;
+        padding: 16px 20px;
+        border: 1px solid #E2E8F0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .kpi-card-blue { background-color: #F0F9FF; border-left: 4px solid #0284C7; }
+    .kpi-card-green { background-color: #ECFDF5; border-left: 4px solid #059669; }
+    .kpi-card-amber { background-color: #FFFBEB; border-left: 4px solid #D97706; }
+    .kpi-card-purple { background-color: #F5F3FF; border-left: 4px solid #7C3AED; }
+    
+    .kpi-val { font-size: 1.8rem; font-weight: 800; color: #0F172A; line-height: 1; }
+    .kpi-label { font-size: 0.82rem; font-weight: 600; color: #475569; margin-top: 4px; }
+    .kpi-icon { font-size: 2rem; opacity: 0.85; }
+
+    /* Badges */
     .badge-ativo {
         background-color: #DCFCE7;
         color: #15803D;
@@ -111,7 +141,7 @@ st.markdown(
         width: 38px;
         height: 38px;
         border-radius: 50%;
-        background-color: #CBD5E1;
+        background-color: #E2E8F0;
         color: #334155;
         display: flex;
         align-items: center;
@@ -122,44 +152,44 @@ st.markdown(
     .css-card {
         background-color: white;
         padding: 16px;
-        border-radius: 10px;
+        border-radius: 8px;
         border: 1px solid #E2E8F0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         margin-bottom: 12px;
     }
     .aviso-card {
         background-color: #FFFFFF;
         border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 12px;
-        border-left: 5px solid #2563EB;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        border-left: 4px solid #0E7490;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
     .event-card {
         background-color: #FFFFFF;
         border-radius: 8px;
-        padding: 12px 16px;
+        padding: 12px 14px;
         margin-bottom: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        border: 1px solid #E2E8F0;
     }
     .pop-preview-card {
         background-color: #FFFFFF;
         border: 1px solid #CBD5E1;
-        border-left: 5px solid #2563EB;
+        border-left: 4px solid #0E7490;
         border-radius: 8px;
-        padding: 18px;
+        padding: 16px;
         margin-bottom: 15px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
     .tree-orientador {
         background-color: #F8FAFC;
         border: 1px solid #E2E8F0;
-        border-left: 4px solid #2563EB;
+        border-left: 4px solid #0E7490;
         padding: 12px 16px;
         border-radius: 8px;
         margin-top: 15px;
         font-weight: bold;
-        font-size: 1rem;
+        font-size: 0.95rem;
         color: #0F172A;
     }
     .tree-orientado {
@@ -167,35 +197,28 @@ st.markdown(
         border: 1px solid #E2E8F0;
         padding: 10px 14px;
         border-radius: 6px;
-        margin-left: 28px;
+        margin-left: 24px;
         margin-top: 6px;
         display: flex;
         align-items: center;
         justify-content: space-between;
     }
     .table-header {
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         font-weight: 700;
         color: #64748B;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        padding-bottom: 8px;
+        padding-bottom: 6px;
         border-bottom: 1px solid #E2E8F0;
-        margin-bottom: 12px;
-    }
-    .metric-container {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        padding: 15px;
-        text-align: center;
+        margin-bottom: 10px;
     }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# --- PERSISTÊNCIA DE DADOS CONFIÁVEL ---
+# --- PERSISTÊNCIA DE DADOS EM ARQUIVOS LOCAL/JSON ---
 ARQUIVO_INTEGRANTES = "integrantes.json"
 ARQUIVO_AGENDA = "agenda.json"
 ARQUIVO_USUARIOS = "usuarios.json"
@@ -215,8 +238,8 @@ CATEGORIAS_PADRAO = [
 ]
 
 CORES_GOOGLE_AGENDA = {
-    "🔵 Azul (Reunião / Geral)": "#2563EB",
-    "🟢 Verde (Ensaio / Experimento)": "#16A34A",
+    "🔵 Azul (Reunião / Geral)": "#0284C7",
+    "🟢 Verde (Ensaio / Experimento)": "#059669",
     "🔴 Vermelho (Urgente / Importante)": "#DC2626",
     "🟣 Roxo (Apresentação / Defesa)": "#7C3AED",
     "🟠 Laranja (Manutenção / Limpeza)": "#EA580C",
@@ -299,7 +322,7 @@ AGENDA_INICIAL = [
         "hora_inicio": "09:00",
         "hora_fim": "10:30",
         "tipo": "Reunião",
-        "cor": "#2563EB",
+        "cor": "#0284C7",
         "descricao": "Discussão dos resultados de fermentação da semana.",
         "autor": "Gabriela Mendes Farias Matos"
     }
@@ -410,7 +433,7 @@ def gerar_pdf_pop(pop_dict):
             parent=styles['Heading2'],
             fontSize=11,
             leading=14,
-            textColor=colors.HexColor('#2563EB'),
+            textColor=colors.HexColor('#0E7490'),
             bold=True
         )
 
@@ -449,7 +472,7 @@ def gerar_pdf_pop(pop_dict):
         ]
 
         for tit, txt in secoes:
-            draw.text((40, y), tit, fill="#2563EB")
+            draw.text((40, y), tit, fill="#0E7490")
             y += 20
             for line in str(txt).split("\n"):
                 draw.text((50, y), line[:80], fill="#334155")
@@ -536,7 +559,7 @@ usuario_admin_padrao = [{
     "orientador_status": "Aprovado"
 }]
 
-# --- INICIALIZAÇÃO DE SESSÃO COM GARANTIA DE DADOS ---
+# --- INICIALIZAÇÃO DA SESSÃO ---
 if "usuarios" not in st.session_state:
     st.session_state.usuarios = carregar_dados(ARQUIVO_USUARIOS, usuario_admin_padrao)
 if "integrantes" not in st.session_state:
@@ -596,8 +619,7 @@ if st.session_state.usuario_logado:
         st.query_params.clear()
         st.rerun()
 
-
-# --- TELA DE LOGIN, SOLICITAÇÃO DE ACESSO E RECUPERAÇÃO DE SENHA ---
+# --- TELA DE LOGIN E CADASTRO ---
 if st.session_state.usuario_logado is None:
     st.title("🧪 Central de Pesquisa - Controle de Acesso ⚗️")
 
@@ -746,7 +768,7 @@ else:
     usuario_atual = st.session_state.usuario_logado
     is_admin = usuario_atual.get("is_admin", False)
 
-    # --- CÁLCULO DINÂMICO DE NOTIFICAÇÕES ---
+    # Cálculo Dinâmico de Notificações
     num_pend_usr = len([u for u in st.session_state.usuarios if u.get("status") == "Pendente"])
     num_pend_perfis = len([u for u in st.session_state.usuarios if u.get("pendente_atualizacao")])
     num_pend_arqs = len([a for a in st.session_state.arquivos_db if a.get("status") == "Pendente"])
@@ -766,23 +788,22 @@ else:
     notif_agenda_hoje = len([e for e in st.session_state.agenda if e.get("data") == hoje_str])
     notif_avisos = len(st.session_state.avisos_db)
 
-    # --- CABEÇALHO DA BARRA LATERAL ---
+    # --- CABEÇALHO E MENU DA SIDEBAR ---
     st.sidebar.markdown(
         """
         <div style="display: flex; align-items: center; gap: 10px; padding: 5px 0 15px 0;">
-            <div style="background-color: #2563EB; color: white; border-radius: 8px; padding: 8px; font-size: 1.1rem; font-weight: bold;">
+            <div style="background-color: #0E7490; color: white; border-radius: 8px; padding: 8px; font-size: 1.1rem; font-weight: bold;">
                 🧪
             </div>
             <div>
                 <h3 style="margin:0; font-size: 1.05rem; color: #0F172A !important;">Central de Pesquisa</h3>
-                <span style="font-size: 0.75rem; color: #64748B;">Central do Laboratório</span>
+                <span style="font-size: 0.75rem; color: #64748B;">Laboratório de Bioquímica</span>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Helper de Menu Limpo
     def render_menu_item(chave, rotulo, notif_count=0):
         is_selected = (st.session_state.get("menu_selecionado") == chave)
         badge = f" 🔴 ({notif_count})" if notif_count > 0 else ""
@@ -797,25 +818,22 @@ else:
             st.session_state.menu_selecionado = chave
             st.rerun()
 
-    # 1. PAINEL PRINCIPAL
+    # Seções Agrupadas com Divisores Suaves
     st.sidebar.markdown('<div class="sidebar-section">PAINEL PRINCIPAL</div>', unsafe_allow_html=True)
     render_menu_item("🏠 Página Inicial & Avisos", "🏠 Página Inicial & Avisos", notif_avisos)
     render_menu_item("📅 Agenda & Calendário", "📅 Agenda & Calendário", notif_agenda_hoje)
 
-    # 2. GESTÃO DO LABORATÓRIO
     st.sidebar.markdown('<div class="sidebar-section">GESTÃO DO LABORATÓRIO</div>', unsafe_allow_html=True)
     render_menu_item("👥 Equipe", "👥 Equipe")
     render_menu_item("🎓 Orientados", "🎓 Orientados", num_pend_orient if is_admin else 0)
     render_menu_item("🔬 Grupo de Pesquisa", "🔬 Grupo de Pesquisa", (num_pend_grupos + num_pend_membros_grp) if is_admin else 0)
     render_menu_item("🕒 Presença no Laboratório", "🕒 Presença no Laboratório")
 
-    # 3. CONHECIMENTO
     st.sidebar.markdown('<div class="sidebar-section">CONHECIMENTO</div>', unsafe_allow_html=True)
     render_menu_item("📁 Repositório de Arquivos", "📁 Repositório de Arquivos")
     render_menu_item("🏷️ Gerar QR Code de Amostras", "🏷️ Gerar QR Code de Amostras")
     render_menu_item("📝 Criador de POP", "📝 Criador de POP")
 
-    # 4. CONFIGURAÇÕES
     st.sidebar.markdown('<div class="sidebar-section">CONFIGURAÇÕES</div>', unsafe_allow_html=True)
     if is_admin:
         render_menu_item("🛡️ Administração", "🛡️ Administração", total_notif_admin)
@@ -826,8 +844,8 @@ else:
     st.sidebar.markdown("---")
     st.sidebar.markdown(
         f"""
-        <div style="padding: 5px 0;">
-            <div style="font-weight: bold; color: #0F172A; font-size: 0.9rem;">{usuario_atual['nome']}</div>
+        <div style="padding: 2px 0;">
+            <div style="font-weight: bold; color: #0F172A; font-size: 0.88rem;">{usuario_atual['nome']}</div>
             <div style="font-size: 0.78rem; color: #64748B;">{'Administrador' if is_admin else 'Pesquisador'}</div>
         </div>
         """,
@@ -839,125 +857,181 @@ else:
         st.session_state.usuario_logado = None
         st.rerun()
 
-    # --- 0. PÁGINA INICIAL & AVISOS ---
+    # --- 0. PÁGINA INICIAL & AVISOS (COM GRID DE KPI CARDS E CONTAINERS COM BORDA) ---
     if menu_selecionado == "🏠 Página Inicial & Avisos":
-        st.title("🏠 Painel Principal - Central de Pesquisa")
-        st.caption(f"Bem-vindo(a), **{usuario_atual['nome']}**! Acompanhe os avisos e compromissos do laboratório.")
+        st.title("🏠 Painel Geral de Pesquisa")
+        st.caption(f"Bem-vindo(a) de volta, **{usuario_atual['nome']}**! Acompanhe abaixo o resumo das atividades.")
 
-        m1, m2, m3, m4 = st.columns(4)
-        m1.markdown(f"<div class='metric-container'><span style='font-size: 1.5rem; font-weight:bold; color:#2563EB;'>{len(st.session_state.integrantes)}</span><br/><span style='color:#64748B; font-size:0.85rem;'>Integrantes</span></div>", unsafe_allow_html=True)
-        
-        eventos_futuros = [e for e in st.session_state.agenda if e.get("data", "") >= hoje_str]
-        m2.markdown(f"<div class='metric-container'><span style='font-size: 1.5rem; font-weight:bold; color:#16A34A;'>{len(eventos_futuros)}</span><br/><span style='color:#64748B; font-size:0.85rem;'>Próximos Eventos</span></div>", unsafe_allow_html=True)
-        
-        m3.markdown(f"<div class='metric-container'><span style='font-size: 1.5rem; font-weight:bold; color:#EA580C;'>{len(st.session_state.avisos_db)}</span><br/><span style='color:#64748B; font-size:0.85rem;'>Avisos Ativos</span></div>", unsafe_allow_html=True)
-        
-        pops_aprov = len([p for p in st.session_state.pops_db if p.get("status") == "Aprovado"])
-        m4.markdown(f"<div class='metric-container'><span style='font-size: 1.5rem; font-weight:bold; color:#7C3AED;'>{pops_aprov}</span><br/><span style='color:#64748B; font-size:0.85rem;'>POPs Vigentes</span></div>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # GRID DE CARTOES DE METRICAS (KPI CARDS SIDE-BY-SIDE 4 COLUNAS OU 2x2 EM CELULARES)
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+
+        with kpi1:
+            st.markdown(
+                f"""
+                <div class="kpi-card kpi-card-blue">
+                    <div>
+                        <div class="kpi-val">{len(st.session_state.integrantes)}</div>
+                        <div class="kpi-label">Integrantes</div>
+                    </div>
+                    <div class="kpi-icon">👥</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        with kpi2:
+            eventos_futuros = [e for e in st.session_state.agenda if e.get("data", "") >= hoje_str]
+            st.markdown(
+                f"""
+                <div class="kpi-card kpi-card-green">
+                    <div>
+                        <div class="kpi-val">{len(eventos_futuros)}</div>
+                        <div class="kpi-label">Próximos Eventos</div>
+                    </div>
+                    <div class="kpi-icon">📅</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        with kpi3:
+            st.markdown(
+                f"""
+                <div class="kpi-card kpi-card-amber">
+                    <div>
+                        <div class="kpi-val">{len(st.session_state.avisos_db)}</div>
+                        <div class="kpi-label">Avisos Ativos</div>
+                    </div>
+                    <div class="kpi-icon">📢</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        with kpi4:
+            pops_aprov = len([p for p in st.session_state.pops_db if p.get("status") == "Aprovado"])
+            st.markdown(
+                f"""
+                <div class="kpi-card kpi-card-purple">
+                    <div>
+                        <div class="kpi-val">{pops_aprov}</div>
+                        <div class="kpi-label">POPs Vigentes</div>
+                    </div>
+                    <div class="kpi-icon">📝</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
         st.markdown("<br>", unsafe_allow_html=True)
 
         col_left, col_right = st.columns([1.3, 1])
 
         with col_left:
-            st.subheader("📢 Mural de Avisos do Laboratório")
+            # CONTAINER COM BORDA PARA O MURAL DE AVISOS
+            with st.container(border=True):
+                st.subheader("📢 Mural de Avisos do Laboratório")
 
-            if is_admin:
-                with st.expander("➕ Publicar Novo Aviso (Apenas Administrador)"):
-                    with st.form("form_novo_aviso"):
-                        tit_aviso = st.text_input("Título do Aviso *")
-                        cat_aviso = st.selectbox("Categoria", ["Informativo", "Manutenção", "Urgente", "Segurança", "Eventos"])
-                        cor_aviso = st.selectbox("Cor de Destaque", list(CORES_GOOGLE_AGENDA.keys()))
-                        txt_aviso = st.text_area("Conteúdo do Aviso *", height=100)
-                        btn_postar = st.form_submit_button("📌 Publicar Aviso", type="primary")
+                if is_admin:
+                    with st.expander("➕ Publicar Novo Aviso (Apenas Administrador)"):
+                        with st.form("form_novo_aviso"):
+                            tit_aviso = st.text_input("Título do Aviso *")
+                            cat_aviso = st.selectbox("Categoria", ["Informativo", "Manutenção", "Urgente", "Segurança", "Eventos"])
+                            cor_aviso = st.selectbox("Cor de Destaque", list(CORES_GOOGLE_AGENDA.keys()))
+                            txt_aviso = st.text_area("Conteúdo do Aviso *", height=100)
+                            btn_postar = st.form_submit_button("📌 Publicar Aviso", type="primary")
 
-                        if btn_postar:
-                            if tit_aviso.strip() and txt_aviso.strip():
-                                novo_id = max([a.get("id", 0) for a in st.session_state.avisos_db], default=0) + 1
-                                st.session_state.avisos_db.insert(0, {
-                                    "id": novo_id,
-                                    "titulo": tit_aviso.strip(),
-                                    "conteudo": txt_aviso.strip(),
-                                    "categoria": cat_aviso,
-                                    "cor": CORES_GOOGLE_AGENDA[cor_aviso],
-                                    "autor": usuario_atual["nome"],
-                                    "data": datetime.now().strftime("%d/%m/%Y"),
-                                })
-                                salvar_dados(ARQUIVO_AVISOS, st.session_state.avisos_db)
-                                st.success("Aviso publicado com sucesso!")
-                                st.rerun()
-                            else:
-                                st.error("Preencha o título e o conteúdo do aviso.")
+                            if btn_postar:
+                                if tit_aviso.strip() and txt_aviso.strip():
+                                    novo_id = max([a.get("id", 0) for a in st.session_state.avisos_db], default=0) + 1
+                                    st.session_state.avisos_db.insert(0, {
+                                        "id": novo_id,
+                                        "titulo": tit_aviso.strip(),
+                                        "conteudo": txt_aviso.strip(),
+                                        "categoria": cat_aviso,
+                                        "cor": CORES_GOOGLE_AGENDA[cor_aviso],
+                                        "autor": usuario_atual["nome"],
+                                        "data": datetime.now().strftime("%d/%m/%Y"),
+                                    })
+                                    salvar_dados(ARQUIVO_AVISOS, st.session_state.avisos_db)
+                                    st.success("Aviso publicado com sucesso!")
+                                    st.rerun()
+                                else:
+                                    st.error("Preencha o título e o conteúdo do aviso.")
 
-            if st.session_state.avisos_db:
-                for idx, av in enumerate(st.session_state.avisos_db):
-                    c_hex = av.get("cor", "#2563EB")
-                    st.markdown(
-                        f"""
-                        <div class="aviso-card" style="border-left-color: {c_hex};">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h4 style="margin: 0; color: #0F172A;">{av['titulo']}</h4>
-                                <span style="font-size: 0.75rem; background-color: #F1F5F9; padding: 2px 8px; border-radius: 10px; color: #475569; font-weight: 600;">
-                                    {av.get('categoria', 'Geral')}
-                                </span>
+                if st.session_state.avisos_db:
+                    for idx, av in enumerate(st.session_state.avisos_db):
+                        c_hex = av.get("cor", "#0E7490")
+                        st.markdown(
+                            f"""
+                            <div class="aviso-card" style="border-left-color: {c_hex};">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h4 style="margin: 0; color: #0F172A; font-size: 0.95rem;">{av['titulo']}</h4>
+                                    <span style="font-size: 0.72rem; background-color: #F1F5F9; padding: 2px 8px; border-radius: 10px; color: #475569; font-weight: 600;">
+                                        {av.get('categoria', 'Geral')}
+                                    </span>
+                                </div>
+                                <p style="margin: 6px 0; color: #334155; font-size: 0.88rem;">{av['conteudo']}</p>
+                                <div style="font-size: 0.75rem; color: #94A3B8; text-align: right;">
+                                    Postado por <b>{av.get('autor','Admin')}</b> em {av.get('data','-')}
+                                </div>
                             </div>
-                            <p style="margin: 8px 0; color: #334155; font-size: 0.9rem;">{av['conteudo']}</p>
-                            <div style="font-size: 0.75rem; color: #94A3B8; text-align: right;">
-                                Postado por <b>{av.get('autor','Admin')}</b> em {av.get('data','-')}
-                            </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                    if is_admin:
-                        c_d1, c_d2 = st.columns([5, 1])
-                        with c_d2:
-                            if st.button("🗑️ Excluir", key=f"del_aviso_{av.get('id', idx)}"):
-                                st.session_state.avisos_db = [item for item in st.session_state.avisos_db if item.get("id") != av.get("id")]
-                                salvar_dados(ARQUIVO_AVISOS, st.session_state.avisos_db)
-                                st.warning("Aviso excluído.")
-                                st.rerun()
-            else:
-                st.info("Nenhum aviso publicado no mural.")
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        if is_admin:
+                            c_d1, c_d2 = st.columns([5, 1])
+                            with c_d2:
+                                if st.button("🗑️ Excluir", key=f"del_aviso_{av.get('id', idx)}"):
+                                    st.session_state.avisos_db = [item for item in st.session_state.avisos_db if item.get("id") != av.get("id")]
+                                    salvar_dados(ARQUIVO_AVISOS, st.session_state.avisos_db)
+                                    st.warning("Aviso excluído.")
+                                    st.rerun()
+                else:
+                    st.info("Nenhum aviso publicado no mural.")
 
         with col_right:
-            st.subheader("📅 Próximas Reuniões & Compromissos")
-            st.caption("Atividades agendadas no Calendário")
+            # CONTAINER COM BORDA PARA COMPROMISSOS E REUNIÕES
+            with st.container(border=True):
+                st.subheader("📅 Próximas Reuniões & Compromissos")
+                st.caption("Atividades agendadas no Calendário Oficial")
 
-            eventos_ordenados = sorted(
-                st.session_state.agenda,
-                key=lambda x: (x.get("data", ""), x.get("hora_inicio", ""))
-            )
-            eventos_validos = [e for e in eventos_ordenados if e.get("data", "") >= hoje_str]
+                eventos_ordenados = sorted(
+                    st.session_state.agenda,
+                    key=lambda x: (x.get("data", ""), x.get("hora_inicio", ""))
+                )
+                eventos_validos = [e for e in eventos_ordenados if e.get("data", "") >= hoje_str]
 
-            if eventos_validos:
-                for ev in eventos_validos[:5]:
-                    cor_ev = ev.get("cor", "#2563EB")
-                    try:
-                        dt_obj = datetime.strptime(ev["data"], "%Y-%m-%d")
-                        dt_formatada = dt_obj.strftime("%d/%m/%Y (%a)")
-                    except Exception:
-                        dt_formatada = ev.get("data", "-")
+                if eventos_validos:
+                    for ev in eventos_validos[:5]:
+                        cor_ev = ev.get("cor", "#0284C7")
+                        try:
+                            dt_obj = datetime.strptime(ev["data"], "%Y-%m-%d")
+                            dt_formatada = dt_obj.strftime("%d/%m/%Y (%a)")
+                        except Exception:
+                            dt_formatada = ev.get("data", "-")
 
-                    st.markdown(
-                        f"""
-                        <div class="event-card" style="border-left: 5px solid {cor_ev}; background-color: white;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <strong style="color: #0F172A; font-size: 0.95rem;">{ev['titulo']}</strong>
-                                <span style="font-size: 0.75rem; font-weight: bold; color: {cor_ev};">{ev.get('tipo', 'Reunião')}</span>
+                        st.markdown(
+                            f"""
+                            <div class="event-card" style="border-left: 4px solid {cor_ev};">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong style="color: #0F172A; font-size: 0.9rem;">{ev['titulo']}</strong>
+                                    <span style="font-size: 0.72rem; font-weight: bold; color: {cor_ev};">{ev.get('tipo', 'Reunião')}</span>
+                                </div>
+                                <div style="font-size: 0.8rem; color: #475569; margin-top: 4px;">
+                                    🕒 <b>{dt_formatada}</b> das {ev.get('hora_inicio','--')} às {ev.get('hora_fim','--')}
+                                </div>
+                                <div style="font-size: 0.78rem; color: #64748B; margin-top: 4px;">
+                                    {ev.get('descricao', '')}
+                                </div>
                             </div>
-                            <div style="font-size: 0.82rem; color: #475569; margin-top: 4px;">
-                                🕒 <b>{dt_formatada}</b> das {ev.get('hora_inicio','--')} às {ev.get('hora_fim','--')}
-                            </div>
-                            <div style="font-size: 0.8rem; color: #64748B; margin-top: 4px;">
-                                {ev.get('descricao', '')}
-                            </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.info("Não há reuniões ou compromissos futuros agendados.")
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.info("Não há compromissos futuros agendados.")
 
     # --- 0.1 AGENDA & CALENDÁRIO ---
     elif menu_selecionado == "📅 Agenda & Calendário":
@@ -1007,9 +1081,9 @@ else:
                         cols_dias[i].markdown("<div style='height:60px; background:#F1F5F9; border-radius:6px; margin:2px;'></div>", unsafe_allow_html=True)
                     else:
                         evs_dia = eventos_mes.get(dia, [])
-                        bolinhas = "".join([f"<span style='color:{e.get('cor','#2563EB')}; font-size:1.2rem; line-height:1;'>●</span>" for e in evs_dia])
+                        bolinhas = "".join([f"<span style='color:{e.get('cor','#0284C7')}; font-size:1.2rem; line-height:1;'>●</span>" for e in evs_dia])
                         
-                        bg_style = "background:#EFF6FF; border:1px solid #93C5FD;" if dia == datetime.now().day and mes_sel == mes_atual and ano_sel == ano_atual else "background:white; border:1px solid #E2E8F0;"
+                        bg_style = "background:#ECFEFF; border:1px solid #67E8F9;" if dia == datetime.now().day and mes_sel == mes_atual and ano_sel == ano_atual else "background:white; border:1px solid #E2E8F0;"
                         
                         cols_dias[i].markdown(
                             f"""
@@ -1037,14 +1111,14 @@ else:
 
             if eventos_do_mes_lista:
                 for idx, ev in enumerate(eventos_do_mes_lista):
-                    cor_ev = ev.get("cor", "#2563EB")
+                    cor_ev = ev.get("cor", "#0284C7")
                     dt_f = datetime.strptime(ev["data"], "%Y-%m-%d").strftime("%d/%m/%Y")
                     
                     c_ev1, c_ev2 = st.columns([4, 1])
                     with c_ev1:
                         st.markdown(
                             f"""
-                            <div class="event-card" style="border-left: 6px solid {cor_ev};">
+                            <div class="event-card" style="border-left: 5px solid {cor_ev};">
                                 <h4 style="margin: 0; color: #0F172A;">{ev['titulo']}</h4>
                                 <div style="color: #475569; font-size: 0.85rem; margin-top: 4px;">
                                     📅 <b>{dt_f}</b> | 🕒 <b>{ev.get('hora_inicio')} às {ev.get('hora_fim')}</b> | 🏷️ <b>{ev.get('tipo')}</b>
@@ -1218,7 +1292,7 @@ else:
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div class="avatar-circle">{iniciais}</div>
                             <div>
-                                <div style="font-weight: 700; color: #0F172A; font-size: 0.9rem;">{nome_str}</div>
+                                <div style="font-weight: 700; color: #0F172A; font-size: 0.88rem;">{nome_str}</div>
                                 <div style="color: #64748B; font-size: 0.78rem; text-decoration: underline;">{email_str}</div>
                             </div>
                         </div>
@@ -1237,7 +1311,7 @@ else:
 
                 with c5:
                     if str(lattes_str).startswith("http"):
-                        st.markdown(f"<a href='{lattes_str}' target='_blank' style='color:#2563EB; font-weight:600; text-decoration:none;'>Abrir Lattes ↗</a>", unsafe_allow_html=True)
+                        st.markdown(f"<a href='{lattes_str}' target='_blank' style='color:#0E7490; font-weight:600; text-decoration:none;'>Abrir Lattes ↗</a>", unsafe_allow_html=True)
                     else:
                         st.write("-")
 
@@ -1279,7 +1353,7 @@ else:
                                 st.warning(f"Integrante '{nome_str}' excluído com sucesso!")
                                 st.rerun()
 
-                st.markdown("<hr style='margin: 8px 0; border: none; border-top: 1px solid #F1F5F9;'/>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin: 6px 0; border: none; border-top: 1px solid #F1F5F9;'/>", unsafe_allow_html=True)
         else:
             st.info("Nenhum integrante encontrado.")
 
@@ -1318,7 +1392,7 @@ else:
                         f"""
                         <div class="tree-orientado">
                             <div>
-                                <span style="color:#2563EB; font-weight:bold;">└─ 🎓 {al['Nome']}</span> 
+                                <span style="color:#0E7490; font-weight:bold;">└─ 🎓 {al['Nome']}</span> 
                                 <span style="font-size:0.82rem; color:#475569;">({al.get('Categoria')})</span>
                                 <div style="font-size:0.78rem; color:#64748B; margin-left: 20px;">
                                     E-mail: {al.get('Email')} | Vínculo: {al.get('Vínculo')}{coorient_txt}
@@ -1332,7 +1406,7 @@ else:
                         unsafe_allow_html=True
                     )
             else:
-                st.markdown("<div style='margin-left:28px; font-size:0.85rem; color:#94A3B8; padding: 6px 0;'><i>Nenhum orientado vinculado a este orientador até o momento.</i></div>", unsafe_allow_html=True)
+                st.markdown("<div style='margin-left:24px; font-size:0.85rem; color:#94A3B8; padding: 6px 0;'><i>Nenhum orientado vinculado a este orientador até o momento.</i></div>", unsafe_allow_html=True)
 
         st.markdown("<br>### ❓ Alunos Sem Orientador Confirmado", unsafe_allow_html=True)
         sem_orientador = [
@@ -1360,7 +1434,7 @@ else:
         else:
             st.info("Todos os alunos cadastrados estão oficialmente vinculados aos seus orientadores!")
 
-    # --- 2.1 GRUPOS DE PESQUISA (PROTEGIDO POR SENHA INDIVIDUAL) ---
+    # --- 2.1 GRUPOS DE PESQUISA (COM SENHA DE ACESSO INDIVIDUAL) ---
     elif menu_selecionado == "🔬 Grupo de Pesquisa":
         st.title("🔬 Área de Grupos de Pesquisa")
         st.caption("Acesso restrito por senha individual por grupo. Cada pesquisador só acessa e edita as informações do seu grupo.")
@@ -1381,33 +1455,33 @@ else:
                 grp_sel_nome = st.selectbox("Selecione o Grupo de Pesquisa", nomes_meus_grupos)
                 grupo_ativo = next((g for g in meus_grupos if g["nome"] == grp_sel_nome), meus_grupos[0])
 
-                # VERIFICAÇÃO DE SENHA DO GRUPO (Com bypass para Administrador)
                 grp_id = grupo_ativo["id"]
                 autenticado = (grp_id in st.session_state.grupos_autenticados) or is_admin
 
                 if not autenticado:
-                    st.warning(f"🔒 O Grupo **{grupo_ativo['nome']}** é protegido por senha. Insira a senha do grupo para ter acesso.")
-                    with st.form(f"form_auth_grp_{grp_id}"):
-                        senha_grp_input = st.text_input("Senha do Grupo", type="password")
-                        btn_entrar_grp = st.form_submit_button("🔓 Acessar Área do Grupo", type="primary")
+                    with st.container(border=True):
+                        st.warning(f"🔒 O Grupo **{grupo_ativo['nome']}** é protegido por senha. Insira a senha do grupo para ter acesso.")
+                        with st.form(f"form_auth_grp_{grp_id}"):
+                            senha_grp_input = st.text_input("Senha do Grupo", type="password")
+                            btn_entrar_grp = st.form_submit_button("🔓 Acessar Área do Grupo", type="primary")
 
-                        if btn_entrar_grp:
-                            if senha_grp_input == grupo_ativo.get("senha", ""):
-                                st.session_state.grupos_autenticados.append(grp_id)
-                                st.success("Senha correta! Acesso liberado.")
-                                st.rerun()
-                            else:
-                                st.error("Senha incorreta.")
+                            if btn_entrar_grp:
+                                if senha_grp_input == grupo_ativo.get("senha", ""):
+                                    st.session_state.grupos_autenticados.append(grp_id)
+                                    st.success("Senha correta! Acesso liberado.")
+                                    st.rerun()
+                                else:
+                                    st.error("Senha incorreta.")
                 else:
                     st.markdown(
                         f"""
-                        <div class="css-card" style="border-left: 5px solid #2563EB;">
+                        <div class="css-card" style="border-left: 4px solid #0E7490;">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <h2 style="margin:0; color:#0F172A;">🔬 {grupo_ativo['nome']}</h2>
+                                <h2 style="margin:0; color:#0F172A; font-size: 1.3rem;">🔬 {grupo_ativo['nome']}</h2>
                                 <span class="badge-ativo">🔓 Área Autenticada</span>
                             </div>
-                            <p style="color:#475569; margin: 6px 0;">{grupo_ativo.get('descricao', '')}</p>
-                            <div style="font-size:0.85rem; color:#64748B;">
+                            <p style="color:#475569; margin: 6px 0; font-size:0.88rem;">{grupo_ativo.get('descricao', '')}</p>
+                            <div style="font-size:0.82rem; color:#64748B;">
                                 👨‍🔬 <b>Líder do Grupo:</b> {grupo_ativo.get('lider', 'N/A')} | 👥 <b>Membros:</b> {len(grupo_ativo.get('membros', []))}
                             </div>
                         </div>
@@ -1415,7 +1489,6 @@ else:
                         unsafe_allow_html=True
                     )
 
-                    # ÁREA DE EDIÇÃO DO ADMIN / LÍDER DENTRO DO GRUPO
                     if is_admin or usuario_atual["nome"] == grupo_ativo.get("lider"):
                         with st.expander("⚙️ Painel de Edição das Informações do Grupo (Admin / Líder)"):
                             with st.form(f"form_edit_grp_{grp_id}"):
@@ -1441,7 +1514,6 @@ else:
                         "👥 Membros do Grupo"
                     ])
 
-                    # Sub-aba 1: Calendário Individual
                     with sub_tab1:
                         st.subheader("📅 Calendário Individual de Atividades do Grupo")
                         st.caption("Agendamentos e compromissos visíveis somente aos participantes deste grupo.")
@@ -1455,7 +1527,7 @@ else:
                                 for idx_a, ev in enumerate(agenda_grp):
                                     st.markdown(
                                         f"""
-                                        <div class="event-card" style="border-left: 4px solid #16A34A;">
+                                        <div class="event-card" style="border-left: 4px solid #059669;">
                                             <div style="font-weight:bold; color:#0F172A;">{ev['titulo']}</div>
                                             <div style="font-size:0.82rem; color:#475569;">
                                                 📅 <b>{ev['data']}</b> das 🕒 <b>{ev.get('hora_inicio')} às {ev.get('hora_fim')}</b>
@@ -1504,7 +1576,6 @@ else:
                                     st.success("Evento adicionado ao calendário do grupo!")
                                     st.rerun()
 
-                    # Sub-aba 2: Mural
                     with sub_tab2:
                         st.subheader("📝 Mural & Projetos Internos do Grupo")
                         st.caption("Anotações gerais, atas de reuniões e avisos internos.")
@@ -1520,7 +1591,6 @@ else:
                                 st.success("Mural do grupo atualizado!")
                                 st.rerun()
 
-                    # Sub-aba 3: Membros
                     with sub_tab3:
                         st.subheader("👥 Integrantes do Grupo")
                         for mbr in grupo_ativo.get("membros", []):
@@ -1534,59 +1604,61 @@ else:
             c_sol1, c_sol2 = st.columns(2)
 
             with c_sol1:
-                st.subheader("➕ Solicitar Criação de Novo Grupo de Pesquisa")
-                with st.form("form_novo_grupo_pesq"):
-                    nome_novo_grp = st.text_input("Nome do Grupo de Pesquisa *")
-                    desc_novo_grp = st.text_area("Descrição / Objetivos do Grupo *", height=100)
-                    senha_novo_grp = st.text_input("Definir Senha de Acesso ao Grupo *", type="password", value="123")
-                    btn_sol_grp = st.form_submit_button("🚀 Enviar Solicitação para o Admin", type="primary")
+                with st.container(border=True):
+                    st.subheader("➕ Solicitar Criação de Novo Grupo")
+                    with st.form("form_novo_grupo_pesq"):
+                        nome_novo_grp = st.text_input("Nome do Grupo de Pesquisa *")
+                        desc_novo_grp = st.text_area("Descrição / Objetivos do Grupo *", height=100)
+                        senha_novo_grp = st.text_input("Definir Senha de Acesso ao Grupo *", type="password", value="123")
+                        btn_sol_grp = st.form_submit_button("🚀 Enviar Solicitação para o Admin", type="primary")
 
-                    if btn_sol_grp:
-                        if nome_novo_grp.strip() and desc_novo_grp.strip() and senha_novo_grp.strip():
-                            novo_id_g = max([g.get("id", 0) for g in st.session_state.grupos_db], default=0) + 1
-                            st.session_state.grupos_db.append({
-                                "id": novo_id_g,
-                                "nome": nome_novo_grp.strip(),
-                                "descricao": desc_novo_grp.strip(),
-                                "lider": usuario_atual["nome"],
-                                "senha": senha_novo_grp.strip(),
-                                "membros": [usuario_atual["nome"]],
-                                "status": "Pendente",
-                                "solicitante": usuario_atual["nome"],
-                                "membros_pendentes": [],
-                                "agenda": [],
-                                "mural": "Mural inicial do grupo."
-                            })
-                            salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
-                            st.success("✅ Solicitação de novo grupo enviada para aprovação do Administrador!")
-                            st.rerun()
-                        else:
-                            st.error("Preencha o nome, a descrição e a senha do grupo.")
+                        if btn_sol_grp:
+                            if nome_novo_grp.strip() and desc_novo_grp.strip() and senha_novo_grp.strip():
+                                novo_id_g = max([g.get("id", 0) for g in st.session_state.grupos_db], default=0) + 1
+                                st.session_state.grupos_db.append({
+                                    "id": novo_id_g,
+                                    "nome": nome_novo_grp.strip(),
+                                    "descricao": desc_novo_grp.strip(),
+                                    "lider": usuario_atual["nome"],
+                                    "senha": senha_novo_grp.strip(),
+                                    "membros": [usuario_atual["nome"]],
+                                    "status": "Pendente",
+                                    "solicitante": usuario_atual["nome"],
+                                    "membros_pendentes": [],
+                                    "agenda": [],
+                                    "mural": "Mural inicial do grupo."
+                                })
+                                salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                st.success("✅ Solicitação de novo grupo enviada para aprovação do Administrador!")
+                                st.rerun()
+                            else:
+                                st.error("Preencha o nome, a descrição e a senha do grupo.")
 
             with c_sol2:
-                st.subheader("🙋‍♂️ Solicitar Entrada em Grupo Existente")
-                grupos_aprovados_outros = [
-                    g for g in st.session_state.grupos_db
-                    if g.get("status") == "Aprovado" and usuario_atual["nome"] not in g.get("membros", [])
-                ]
+                with st.container(border=True):
+                    st.subheader("🙋‍♂️ Solicitar Entrada em Grupo Existente")
+                    grupos_aprovados_outros = [
+                        g for g in st.session_state.grupos_db
+                        if g.get("status") == "Aprovado" and usuario_atual["nome"] not in g.get("membros", [])
+                    ]
 
-                if grupos_aprovados_outros:
-                    dict_g_outros = {g["nome"]: g for g in grupos_aprovados_outros}
-                    grp_entrar_nome = st.selectbox("Selecione o Grupo para Ingressar", list(dict_g_outros.keys()))
+                    if grupos_aprovados_outros:
+                        dict_g_outros = {g["nome"]: g for g in grupos_aprovados_outros}
+                        grp_entrar_nome = st.selectbox("Selecione o Grupo para Ingressar", list(dict_g_outros.keys()))
 
-                    if st.button("📩 Solicitar Vínculo ao Grupo"):
-                        grp_alvo = dict_g_outros[grp_entrar_nome]
-                        if "membros_pendentes" not in grp_alvo:
-                            grp_alvo["membros_pendentes"] = []
+                        if st.button("📩 Solicitar Vínculo ao Grupo"):
+                            grp_alvo = dict_g_outros[grp_entrar_nome]
+                            if "membros_pendentes" not in grp_alvo:
+                                grp_alvo["membros_pendentes"] = []
 
-                        if usuario_atual["nome"] not in grp_alvo["membros_pendentes"]:
-                            grp_alvo["membros_pendentes"].append(usuario_atual["nome"])
-                            salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
-                            st.success(f"Solicitação de entrada no grupo '{grp_entrar_nome}' enviada ao Admin!")
-                        else:
-                            st.info("Você já possui uma solicitação de entrada pendente para este grupo.")
-                else:
-                    st.info("Não há outros grupos de pesquisa disponíveis para solicitação no momento.")
+                            if usuario_atual["nome"] not in grp_alvo["membros_pendentes"]:
+                                grp_alvo["membros_pendentes"].append(usuario_atual["nome"])
+                                salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                st.success(f"Solicitação de entrada no grupo '{grp_entrar_nome}' enviada ao Admin!")
+                            else:
+                                st.info("Você já possui uma solicitação de entrada pendente para este grupo.")
+                    else:
+                        st.info("Não há outros grupos de pesquisa disponíveis para solicitação no momento.")
 
     # --- 3. PRESENÇA NO LABORATÓRIO ---
     elif menu_selecionado == "🕒 Presença no Laboratório":
@@ -1635,9 +1707,9 @@ else:
                         st.markdown(
                             f"""
                             <div class="css-card">
-                                <h3 style="margin:0; font-size: 1.2rem; color:#0F172A;">📁 {nome_p}</h3>
+                                <h3 style="margin:0; font-size: 1.1rem; color:#0F172A;">📁 {nome_p}</h3>
                                 <p style="margin: 5px 0; color: #64748B; font-size: 0.85rem;">{desc_p}</p>
-                                <span style="background-color: #E2E8F0; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; color: #334155;">
+                                <span style="background-color: #E2E8F0; padding: 2px 8px; border-radius: 12px; font-size: 0.78rem; font-weight: bold; color: #334155;">
                                     📄 {qtd_files} arquivo(s)
                                 </span>
                             </div>
@@ -1682,9 +1754,9 @@ else:
                             st.markdown(
                                 f"""
                                 <div class="css-card">
-                                    <h4 style="margin:0; color:#2563EB;">📄 {doc['titulo']}</h4>
-                                    <p style="margin:4px 0; color:#555;"><b>Enviado por:</b> {doc.get('autor', 'Desconhecido')} em {doc.get('data', '-')}</p>
-                                    <p style="margin:4px 0; color:#666;"><i>{doc.get('descricao', '')}</i></p>
+                                    <h4 style="margin:0; color:#0E7490;">📄 {doc['titulo']}</h4>
+                                    <p style="margin:4px 0; color:#555; font-size:0.85rem;"><b>Enviado por:</b> {doc.get('autor', 'Desconhecido')} em {doc.get('data', '-')}</p>
+                                    <p style="margin:4px 0; color:#666; font-size:0.85rem;"><i>{doc.get('descricao', '')}</i></p>
                                 </div>
                                 """,
                                 unsafe_allow_html=True,
@@ -1896,17 +1968,17 @@ else:
                             f"""
                             <div class="pop-preview-card">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <h3 style="margin: 0; color: #0F172A;">📝 {pop['titulo']}</h3>
-                                    <span style="background-color: #DBEAFE; color: #1E40AF; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.85rem;">
+                                    <h3 style="margin: 0; color: #0F172A; font-size: 1.1rem;">📝 {pop['titulo']}</h3>
+                                    <span style="background-color: #ECFEFF; color: #0E7490; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.82rem;">
                                         {pop['codigo']} | v{pop['versao']}
                                     </span>
                                 </div>
                                 <hr style="margin: 10px 0; border: none; border-top: 1px solid #E2E8F0;" />
-                                <p style="margin: 4px 0;"><b>1. Objetivo:</b> {pop.get('objetivo', '-')}</p>
-                                <p style="margin: 4px 0;"><b>2. Materiais & Equipamentos:</b> {pop.get('materiais', '-')}</p>
-                                <p style="margin: 4px 0;"><b>3. Passo a Passo:</b> {str(pop.get('passos', '-')).replace(chr(10), ' | ')}</p>
-                                <p style="margin: 4px 0;"><b>4. Segurança / EPIs:</b> {pop.get('seguranca', '-')}</p>
-                                <p style="margin: 4px 0;"><b>5. Referências Usadas:</b> {pop.get('referencias', '-')}</p>
+                                <p style="margin: 4px 0; font-size: 0.88rem;"><b>1. Objetivo:</b> {pop.get('objetivo', '-')}</p>
+                                <p style="margin: 4px 0; font-size: 0.88rem;"><b>2. Materiais & Equipamentos:</b> {pop.get('materiais', '-')}</p>
+                                <p style="margin: 4px 0; font-size: 0.88rem;"><b>3. Passo a Passo:</b> {str(pop.get('passos', '-')).replace(chr(10), ' | ')}</p>
+                                <p style="margin: 4px 0; font-size: 0.88rem;"><b>4. Segurança / EPIs:</b> {pop.get('seguranca', '-')}</p>
+                                <p style="margin: 4px 0; font-size: 0.88rem;"><b>5. Referências Usadas:</b> {pop.get('referencias', '-')}</p>
                                 <p style="margin: 6px 0 0 0; color: #64748B; font-size: 0.8rem;"><i>Elaborado por: {pop.get('autor', 'Desconhecido')}</i></p>
                             </div>
                             """,
@@ -2018,24 +2090,24 @@ else:
                         st.success(f"✅ POP '{cod_auto}' salvo com sucesso!")
                         st.rerun()
 
-            # PAINEL DE PRÉ-VISUALIZAÇÃO EM TEMPO REAL
+            # PAINEL DE PRÉ-VISUALIZAÇÃO EM TEMPO REAL (LIVE PREVIEW)
             with col_prev:
                 st.markdown("### 👁️ Pré-visualização em Tempo Real")
                 st.markdown(
                     f"""
-                    <div class="pop-preview-card" style="border-left: 6px solid #2563EB; background: #FFFFFF;">
+                    <div class="pop-preview-card" style="border-left: 5px solid #0E7490; background: #FFFFFF;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h3 style="margin: 0; color: #0F172A; font-size: 1.1rem;">📝 {tit_selecionado if tit_selecionado else 'Título do POP'}</h3>
-                            <span style="background-color: #DBEAFE; color: #1E40AF; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem;">
+                            <h3 style="margin: 0; color: #0F172A; font-size: 1.05rem;">📝 {tit_selecionado if tit_selecionado else 'Título do POP'}</h3>
+                            <span style="background-color: #ECFEFF; color: #0E7490; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem;">
                                 {cod_auto} | v{versao_calculada}
                             </span>
                         </div>
                         <hr style="margin: 10px 0; border: none; border-top: 1px solid #E2E8F0;" />
-                        <p style="margin: 6px 0; font-size:0.88rem;"><b>1. Objetivo:</b><br/>{p_objetivo}</p>
-                        <p style="margin: 6px 0; font-size:0.88rem;"><b>2. Materiais & Equipamentos:</b><br/>{p_materiais}</p>
-                        <p style="margin: 6px 0; font-size:0.88rem;"><b>3. Passo a Passo:</b><br/>{p_passos.replace(chr(10), '<br/>')}</p>
-                        <p style="margin: 6px 0; font-size:0.88rem;"><b>4. Segurança & EPIs:</b><br/>{p_seguranca}</p>
-                        <p style="margin: 6px 0; font-size:0.88rem;"><b>5. Referências Usadas:</b><br/>{p_referencias}</p>
+                        <p style="margin: 6px 0; font-size:0.85rem;"><b>1. Objetivo:</b><br/>{p_objetivo}</p>
+                        <p style="margin: 6px 0; font-size:0.85rem;"><b>2. Materiais & Equipamentos:</b><br/>{p_materiais}</p>
+                        <p style="margin: 6px 0; font-size:0.85rem;"><b>3. Passo a Passo:</b><br/>{p_passos.replace(chr(10), '<br/>')}</p>
+                        <p style="margin: 6px 0; font-size:0.85rem;"><b>4. Segurança & EPIs:</b><br/>{p_seguranca}</p>
+                        <p style="margin: 6px 0; font-size:0.85rem;"><b>5. Referências Usadas:</b><br/>{p_referencias}</p>
                         <div style="margin-top: 12px; font-size: 0.75rem; color: #94A3B8; text-align: right;">
                             Elaborado por: <b>{usuario_atual['nome']}</b>
                         </div>
@@ -2044,7 +2116,7 @@ else:
                     unsafe_allow_html=True
                 )
 
-    # --- 7. ADMINISTRAÇÃO (CENTRAL DE APROVAÇÕES COMPLETA) ---
+    # --- 7. ADMINISTRAÇÃO ---
     elif menu_selecionado == "🛡️ Administração" and is_admin:
         st.title("🛡️ Central de Aprovações e Atribuições do Administrador")
 
