@@ -2405,7 +2405,7 @@ else:
                     img.save(buffer, format="PNG")
                     img_bytes = buffer.getvalue()
                     st.image(img_bytes, caption=f"Pré-visualização: {id_amostra}", width=220)
-                   st.download_button("🖼️ Baixar QR Code (PNG)", img_bytes, f"QR_{id_amostra}.png", "image/png")
+                    st.download_button("🖼️ Baixar QR Code (PNG)", img_bytes, f"QR_{id_amostra}.png", "image/png")
                     dados_amostra_dict = {
                         "nome_amostra": nome_amostra,
                         "data_obtencao": data_obtencao.strftime('%d/%m/%Y'),
@@ -2419,7 +2419,7 @@ else:
                     st.download_button(f"📄 Baixar PDF ({qtd_etiquetas}x Etiquetas)", pdf_etiquetas, f"Etiquetas_{id_amostra}.pdf", "application/pdf")
                 else:
                     st.warning("Biblioteca 'qrcode' não instalada para renderizar o código QR.")
-
+                    
     # --- 6. CRIADOR DE POP ---
     elif menu_selecionado == "📝 Criador de POP":
         st.title("📝 Procedimentos Operacionais Padrão (POPs)")
