@@ -8,12 +8,12 @@ import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 import streamlit as st
 
-# Tenta importar o ReportLab; caso não esteja instalado, usa fallback com PIL
+# Tenta importar o ReportLab; caso não esteja instalado, usa fallback estruturado
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, HRFlowable
     REPORTLAB_DISPONIVEL = True
 except ImportError:
     REPORTLAB_DISPONIVEL = False
@@ -184,8 +184,6 @@ REAGENTES_PREDEFINIDOS_FISPQ = {
     }
 }
 
-REAGENTES_CADASTRADOS = list(REAGENTES_PREDEFINIDOS_FISPQ.keys())
-
 DESTINOS_ETIQUETAS = {
     "Microtubo / Eppendorf (0.5 mL a 2.0 mL) [25 x 15 mm]": (25, 15),
     "Tubo Falcon Pequeno (15 mL) [40 x 20 mm]": (40, 20),
@@ -281,30 +279,32 @@ GRUPOS_INICIAIS = [
         "status": "Aprovado",
         "solicitante": "Eliane Pereira Cipolatti",
         "membros_pendentes": [],
-        "agenda": [
-            {
-                "id": 101,
-                "titulo": "Discussão de Artigo - Imobilização de Enzimas",
-                "data": datetime.now().strftime("%Y-%m-%d"),
-                "hora_inicio": "14:00",
-                "hora_fim": "15:30",
-                "descricao": "Leitura e crítica do artigo sobre suporte de sílica mesoporosa.",
-                "autor": "Gabriela Mendes Farias Matos"
-            }
-        ],
+        "agenda": [],
         "solicitacoes_itens": [
             {
                 "id": 1,
-                "item": "Álcool Etílico Absolute P.A.",
-                "categoria_item": "Reagentes",
-                "quantidade": "2 Frascos de 1L",
-                "urgente": True,
-                "razao_urgencia": "Necessário para extrações da próxima semana.",
-                "especificacoes": "Grau P.A. (Pureza >= 99.5%)",
                 "solicitante": "Gabriela Mendes Farias Matos",
                 "data_solicitacao": datetime.now().strftime("%d/%m/%Y"),
+                "urgente": True,
+                "razao_urgencia": "Necessário para extrações enzimáticas na próxima semana.",
                 "status": "Pendente",
-                "aprovado_por": "-"
+                "aprovado_por": "-",
+                "itens": [
+                    {
+                        "item": "Álcool Etílico Absolute P.A.",
+                        "categoria_item": "Reagentes",
+                        "quantidade": "2 Frascos de 1L",
+                        "especificacoes": "Grau P.A. (Pureza >= 99.5%)",
+                        "link_preferencia": "https://www.sigmaaldrich.com/"
+                    },
+                    {
+                        "item": "Papel de Filtro Qualitativo 12.5cm",
+                        "categoria_item": "Papel de Filtro",
+                        "quantidade": "1 Caixa (100 un)",
+                        "especificacoes": "Porosidade média (8 µm)",
+                        "link_preferencia": ""
+                    }
+                ]
             }
         ],
         "documentos": [],
@@ -330,15 +330,6 @@ REAGENTES_SOLUCOES_INICIAIS = [
         "densidade_g_ml": 1.19,
         "estado": "Líquido",
         "referencia": "Sigma-Aldrich Technical Data"
-    },
-    {
-        "nome": "Tampão Fosfato de Sódio (Na2HPO4)",
-        "formula": "Na2HPO4",
-        "massa_molar": 141.96,
-        "pureza_padrao": 99.0,
-        "densidade_g_ml": None,
-        "estado": "Sólido",
-        "referencia": "Standard Buffer Protocols"
     }
 ]
 
@@ -359,10 +350,7 @@ def salvar_dados(arquivo, dados):
 
 def gerar_codigo_pop(titulo, versao=1):
     palavras = [w for w in titulo.split() if len(w) > 2 and w.lower() not in ["de", "da", "do", "dos", "das", "em", "para", "com", "e"]]
-    if palavras:
-        sigla = "".join([p[0].upper() for p in palavras])[:6]
-    else:
-        sigla = "DOC"
+    sigla = "".join([p[0].upper() for p in palavras])[:6] if palavras else "DOC"
     return f"POP-{sigla}-v{versao}"
 
 def gerar_pdf_pop(pop_dict):
@@ -382,7 +370,6 @@ def gerar_pdf_pop(pop_dict):
             ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
             ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
             ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('PADDING', (0,0), (-1,-1), 6),
         ]))
         story.append(t_header)
@@ -396,22 +383,8 @@ def gerar_pdf_pop(pop_dict):
             ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "-")),
         ]
 
-        sec_title_style = ParagraphStyle(
-            'SecTitle',
-            parent=styles['Heading2'],
-            fontSize=11,
-            leading=14,
-            textColor=colors.HexColor('#0E7490'),
-            bold=True
-        )
-
-        body_style = ParagraphStyle(
-            'BodyTextCustom',
-            parent=styles['Normal'],
-            fontSize=9.5,
-            leading=13.5,
-            textColor=colors.HexColor('#334155')
-        )
+        sec_title_style = ParagraphStyle('SecTitle', parent=styles['Heading2'], fontSize=11, leading=14, textColor=colors.HexColor('#0E7490'), bold=True)
+        body_style = ParagraphStyle('BodyTextCustom', parent=styles['Normal'], fontSize=9.5, leading=13.5, textColor=colors.HexColor('#334155'))
 
         for title, content in sections:
             story.append(Paragraph(title, sec_title_style))
@@ -425,39 +398,29 @@ def gerar_pdf_pop(pop_dict):
     else:
         page = Image.new("RGB", (612, 792), "white")
         draw = ImageDraw.Draw(page)
-        draw.rectangle([30, 30, 582, 100], fill="#F1F5F9", outline="#CBD5E1")
-        draw.text((40, 40), f"PROCEDIMENTO OPERACIONAL PADRÃO - {pop_dict['codigo']}", fill="black")
-        draw.text((40, 60), f"Título: {pop_dict['titulo']} (Versão {pop_dict['versao']})", fill="black")
-        draw.text((40, 80), f"Autor: {pop_dict.get('autor','N/A')}", fill="black")
-
-        y = 120
-        secoes = [
-            ("1. OBJETIVO", pop_dict.get("objetivo", "")),
-            ("2. MATERIAIS", pop_dict.get("materiais", "")),
-            ("3. PASSO A PASSO", pop_dict.get("passos", "")),
-            ("4. SEGURANÇA", pop_dict.get("seguranca", "")),
-            ("5. REFERÊNCIAS", pop_dict.get("referencias", "")),
-        ]
-
-        for tit, txt in secoes:
-            draw.text((40, y), tit, fill="#0E7490")
-            y += 20
-            for line in str(txt).split("\n"):
-                draw.text((50, y), line[:80], fill="#334155")
-                y += 15
-            y += 10
-
+        draw.text((40, 40), f"POP - {pop_dict['codigo']}", fill="black")
         buf = BytesIO()
         page.save(buf, format="PDF")
         return buf.getvalue()
 
-# --- CORREÇÃO SOLICITADA NO PDF DE REQUISIÇÃO DE REAGENTES E VIDRARIAS ---
+# --- NOVO PDF REFORMULADO DE REQUISIÇÃO (MÚLTIPLOS ITENS + LINK + CORREÇÃO DE DESIGN) ---
 def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome):
     urgente_bool = solicitacao.get("urgente", False)
-    urgente_str = "🚨 URGENTE" if urgente_bool else "📦 PROCESSO PADRÃO"
-    razao_urgencia = solicitacao.get("razao_urgencia", "Não especificada")
+    urgente_str = "🚨 SOLICITAÇÃO URGENTE" if urgente_bool else "📦 FLUXO PADRÃO (REGULAR)"
+    razao_urgencia = solicitacao.get("razao_urgencia", "Não informada")
     solicitante_nome = solicitacao.get("solicitante", "Não informado")
     data_sol = solicitacao.get("data_solicitacao", datetime.now().strftime("%d/%m/%Y"))
+
+    # Suporte a múltiplos itens ou item único legado
+    lista_itens = solicitacao.get("itens", [])
+    if not lista_itens and "item" in solicitacao:
+        lista_itens = [{
+            "item": solicitacao.get("item", "-"),
+            "categoria_item": solicitacao.get("categoria_item", "Reagentes"),
+            "quantidade": solicitacao.get("quantidade", "-"),
+            "especificacoes": solicitacao.get("especificacoes", "-"),
+            "link_preferencia": solicitacao.get("link_preferencia", "")
+        }]
 
     if REPORTLAB_DISPONIVEL:
         buffer = BytesIO()
@@ -465,90 +428,160 @@ def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome
         styles = getSampleStyleSheet()
         story = []
 
-        title_style = ParagraphStyle('ReqTitle', parent=styles['Heading2'], fontSize=12, leading=15, textColor=colors.HexColor('#0F172A'), bold=True)
-        norm_style = ParagraphStyle('ReqNorm', parent=styles['Normal'], fontSize=9.5, leading=13, textColor=colors.HexColor('#334155'))
-        bold_style = ParagraphStyle('ReqBold', parent=styles['Normal'], fontSize=9.5, leading=13, textColor=colors.HexColor('#0F172A'), bold=True)
-        urg_style = ParagraphStyle('ReqUrg', parent=styles['Normal'], fontSize=10, leading=14, textColor=colors.HexColor('#991B1B') if urgente_bool else colors.HexColor('#059669'), bold=True)
+        # Estilos Customizados
+        title_group_style = ParagraphStyle('GrpHeaderTitle', parent=styles['Normal'], fontSize=14, leading=18, textColor=colors.white, bold=True)
+        sub_group_style = ParagraphStyle('GrpHeaderSub', parent=styles['Normal'], fontSize=10, leading=13, textColor=colors.HexColor('#E0F2FE'))
+        
+        lbl_style = ParagraphStyle('LblStyle', parent=styles['Normal'], fontSize=9, leading=12, textColor=colors.HexColor('#64748B'), bold=True)
+        val_style = ParagraphStyle('ValStyle', parent=styles['Normal'], fontSize=9.5, leading=13, textColor=colors.HexColor('#0F172A'))
+        
+        urg_box_style = ParagraphStyle('UrgBox', parent=styles['Normal'], fontSize=10, leading=13, 
+                                       textColor=colors.HexColor('#991B1B') if urgente_bool else colors.HexColor('#15803D'), bold=True)
+        
+        tbl_hdr_style = ParagraphStyle('TblHdr', parent=styles['Normal'], fontSize=9, leading=11, textColor=colors.white, bold=True)
+        tbl_cell_style = ParagraphStyle('TblCell', parent=styles['Normal'], fontSize=8.5, leading=11, textColor=colors.HexColor('#1E293B'))
+        link_cell_style = ParagraphStyle('LinkCell', parent=styles['Normal'], fontSize=8, leading=10, textColor=colors.HexColor('#0284C7'))
 
-        header_data = [
-            [Paragraph("<b>REQUISIÇÃO DE REAGENTES, VIDRARIAS E CONSUMÍVEIS</b>", title_style), Paragraph(f"<b>DATA:</b> {data_sol}", norm_style)],
-            [Paragraph(f"<b>Grupo de Pesquisa Solicitante:</b> {nome_grupo}", norm_style), Paragraph(f"<b>Nº Pedido:</b> REQ-{solicitacao.get('id', 1):04d}", norm_style)],
-            [Paragraph(f"<b>Liderança do Grupo:</b> {lider_nome} / {colider_nome}", norm_style), Paragraph(f"<b>Status:</b> {solicitacao.get('status', 'Pendente')}", norm_style)]
+        # 1. BANNER DO CABEÇALHO COM NOME DO GRUPO DE PESQUISA
+        header_banner_data = [
+            [
+                Paragraph(f"<b>🔬 GRUPO DE PESQUISA: {nome_grupo.upper()}</b>", title_group_style),
+                Paragraph(f"<b>PEDIDO Nº:</b> REQ-{solicitacao.get('id', 1):04d}<br/><b>DATA:</b> {data_sol}", sub_group_style)
+            ]
         ]
-        t_header = Table(header_data, colWidths=[360, 170])
-        t_header.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('PADDING', (0,0), (-1,-1), 8),
+        t_banner = Table(header_banner_data, colWidths=[380, 160])
+        t_banner.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0E7490')),
+            ('PADDING', (0,0), (-1,-1), 10),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN', (1,0), (1,0), 'RIGHT'),
         ]))
-        story.append(t_header)
+        story.append(t_banner)
+        story.append(Spacer(1, 12))
+
+        # 2. INFORMAÇÕES DO SOLICITANTE E LIDERANÇA
+        info_data = [
+            [Paragraph("SOLICITANTE RESPONSÁVEL", lbl_style), Paragraph("LIDERANÇA DO GRUPO", lbl_style), Paragraph("STATUS DO PEDIDO", lbl_style)],
+            [Paragraph(f"<b>{solicitante_nome}</b>", val_style), Paragraph(f"{lider_nome} / {colider_nome}", val_style), Paragraph(f"<b>{solicitacao.get('status', 'Pendente')}</b>", val_style)],
+        ]
+        t_info = Table(info_data, colWidths=[200, 200, 140])
+        t_info.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#F1F5F9')),
+            ('PADDING', (0,0), (-1,-1), 6),
+        ]))
+        story.append(t_info)
+        story.append(Spacer(1, 10))
+
+        # 3. QUADRO DE URGÊNCIA E JUSTIFICATIVA
+        urg_color_bg = colors.HexColor('#FEE2E2') if urgente_bool else colors.HexColor('#DCFCE7')
+        urg_data = [
+            [Paragraph(urgente_str, urg_box_style)],
+            [Paragraph(f"<b>Justificativa / Razão do Pedido:</b> {razao_urgencia}", val_style)]
+        ]
+        t_urg = Table(urg_data, colWidths=[540])
+        t_urg.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), urg_color_bg),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#FCA5A5') if urgente_bool else colors.HexColor('#86EFAC')),
+            ('PADDING', (0,0), (-1,-1), 8),
+        ]))
+        story.append(t_urg)
         story.append(Spacer(1, 15))
 
-        item_data = [
-            [Paragraph("<b>CAMPO</b>", bold_style), Paragraph("<b>INFORMAÇÕES DA REQUISIÇÃO E SOLICITANTE</b>", bold_style)],
-            [Paragraph("<b>Grupo de Pesquisa</b>", bold_style), Paragraph(f"<b>{nome_grupo}</b>", norm_style)],
-            [Paragraph("<b>Pessoa Solicitante</b>", bold_style), Paragraph(f"<b>{solicitante_nome}</b>", norm_style)],
-            [Paragraph("<b>Item / Material Solicitado</b>", bold_style), Paragraph(solicitacao.get('item', '-'), bold_style)],
-            [Paragraph("<b>Categoria do Item</b>", bold_style), Paragraph(solicitacao.get('categoria_item', 'Reagentes'), norm_style)],
-            [Paragraph("<b>Quantidade Solicitada</b>", bold_style), Paragraph(solicitacao.get('quantidade', '-'), norm_style)],
-            [Paragraph("<b>Grau de Urgência</b>", bold_style), Paragraph(urgente_str, urg_style)],
-            [Paragraph("<b>Razão / Justificativa da Urgência</b>", bold_style), Paragraph(razao_urgencia, norm_style)],
-            [Paragraph("<b>Especificações Técnicas</b>", bold_style), Paragraph(solicitacao.get('especificacoes', '-'), norm_style)],
-            [Paragraph("<b>Aprovação da Liderança</b>", bold_style), Paragraph(f"Aprovado por: {solicitacao.get('aprovado_por', '-')}", norm_style)],
+        # 4. TABELA DE ITENS SOLICITADOS (MÚLTIPLOS ITENS)
+        story.append(Paragraph("<b>RELAÇÃO DE MATERIAIS / REAGENTES / VIDRARIAS SOLICITADAS:</b>", ParagraphStyle('SecHead', parent=styles['Heading3'], fontSize=10, textColor=colors.HexColor('#0F172A'), bold=True)))
+        story.append(Spacer(1, 6))
+
+        table_items_content = [
+            [
+                Paragraph("#", tbl_hdr_style),
+                Paragraph("ITEM / MATERIAL", tbl_hdr_style),
+                Paragraph("CATEGORIA", tbl_hdr_style),
+                Paragraph("QTD", tbl_hdr_style),
+                Paragraph("ESPECIFICAÇÕES & LINK PREFERENCIAL", tbl_hdr_style)
+            ]
         ]
 
-        t_item = Table(item_data, colWidths=[170, 360])
-        t_item.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0E7490')),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
-            ('PADDING', (0,0), (-1,-1), 7),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ]))
-        story.append(t_item)
-        story.append(Spacer(1, 25))
+        for idx_i, item_obj in enumerate(lista_itens, 1):
+            espec_text = item_obj.get('especificacoes', '-')
+            link_text = item_obj.get('link_preferencia', '')
+            
+            detail_p = f"• {espec_text}"
+            if link_text and str(link_text).strip():
+                detail_p += f"<br/>• 🔗 <u>Link: {link_text[:55]}...</u>" if len(link_text) > 55 else f"<br/>• 🔗 <u>Link: {link_text}</u>"
 
-        story.append(Paragraph("<b>Assinatura e Validação:</b>", bold_style))
-        story.append(Spacer(1, 20))
-        story.append(Paragraph("____________________________________________", norm_style))
-        story.append(Paragraph(f"<b>{solicitante_nome}</b> (Solicitante) / Liderança de {nome_grupo}", norm_style))
+            table_items_content.append([
+                Paragraph(str(idx_i), tbl_cell_style),
+                Paragraph(f"<b>{item_obj.get('item', '-')}</b>", tbl_cell_style),
+                Paragraph(item_obj.get('categoria_item', 'Geral'), tbl_cell_style),
+                Paragraph(f"<b>{item_obj.get('quantidade', '-')}</b>", tbl_cell_style),
+                Paragraph(detail_p, link_cell_style if link_text else tbl_cell_style)
+            ])
+
+        t_items = Table(table_items_content, colWidths=[25, 160, 95, 60, 200])
+        t_items.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0E7490')),
+            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F8FAFC')]),
+            ('PADDING', (0,0), (-1,-1), 6),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ]))
+        story.append(t_items)
+        story.append(Spacer(1, 35))
+
+        # 5. ASSINATURAS E APRECIAÇÃO
+        sign_data = [
+            [Paragraph("____________________________________________", val_style), Paragraph("____________________________________________", val_style)],
+            [Paragraph(f"<b>{solicitante_nome}</b><br/>Solicitante Responsável", val_style), Paragraph(f"<b>{lider_nome}</b><br/>Liderança de {nome_grupo}", val_style)]
+        ]
+        t_sign = Table(sign_data, colWidths=[270, 270])
+        t_sign.setStyle(TableStyle([
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('PADDING', (0,0), (-1,-1), 4),
+        ]))
+        story.append(t_sign)
 
         doc.build(story)
         return buffer.getvalue()
     else:
+        # Fallback alternativo limpo caso reportlab não esteja disponível
         page = Image.new("RGB", (612, 792), "white")
         draw = ImageDraw.Draw(page)
-        draw.rectangle([30, 30, 582, 80], fill="#F1F5F9", outline="#CBD5E1")
-        draw.text((40, 40), f"REQUISIÇÃO DE REAGENTES E VIDRARIAS - GRUPO: {nome_grupo}", fill="black")
-        draw.text((40, 60), f"Solicitante: {solicitante_nome} | Data: {data_sol}", fill="black")
+        draw.rectangle([20, 20, 592, 70], fill="#0E7490")
+        draw.text((30, 35), f"GRUPO DE PESQUISA: {nome_grupo.upper()}", fill="white")
+        draw.text((30, 85), f"Solicitante: {solicitante_nome} | Data: {data_sol}", fill="black")
+        draw.text((30, 110), f"Urgencia: {urgente_str} - Razao: {razao_urgencia}", fill="red" if urgente_bool else "green")
         
-        draw.text((40, 100), f"• Item: {solicitacao.get('item')}", fill="black")
-        draw.text((40, 120), f"• Quantidade: {solicitacao.get('quantidade')}", fill="black")
-        draw.text((40, 140), f"• Grau de Urgência: {urgente_str}", fill="red" if urgente_bool else "green")
-        draw.text((40, 160), f"• Razão da Urgência: {razao_urgencia}", fill="black")
-        draw.text((40, 180), f"• Especificações: {solicitacao.get('especificacoes')}", fill="black")
-        
+        y = 150
+        draw.text((30, y), "ITENS SOLICITADOS:", fill="black")
+        y += 20
+        for idx_i, itm in enumerate(lista_itens, 1):
+            draw.text((40, y), f"{idx_i}. {itm.get('item')} | Qtd: {itm.get('quantidade')} | Cat: {itm.get('categoria_item')}", fill="black")
+            y += 18
+            if itm.get('link_preferencia'):
+                draw.text((50, y), f"Link: {itm.get('link_preferencia')[:60]}", fill="blue")
+                y += 18
+
         buf = BytesIO()
         page.save(buf, format="PDF")
         return buf.getvalue()
 
-# --- CORREÇÃO E OTIMIZAÇÃO NO GERADOR DE ETIQUETAS PARA IMPRESSÃO EM FRASCOS ---
-def gerar_pdf_etiquetas_frasco(nome_amostra, id_amostra, data_nasc, responsavel, fispq_txt, mm_w=40, mm_h=20, quantidade=12, qr_img_pil=None):
+# --- GERADOR DE ETIQUETAS OTIMIZADO PARA IMPRESSÃO EM FRASCOS E MICROTUBOS ---
+def gerar_pdf_etiquetas_frasco(nome_amostra, id_amostra, data_nasc, responsavel, fispq_txt, mm_w=40, mm_h=20, quantidade=12, qr_img_pil=None, grupo_nome=""):
     dpi = 300
-    px_per_mm = dpi / 25.4
+    px_mm = dpi / 25.4
     
-    page_w_px = int(210 * px_per_mm) # A4 Largura
-    page_h_px = int(297 * px_per_mm) # A4 Altura
+    page_w_px = int(210 * px_mm) # A4 Largura
+    page_h_px = int(297 * px_mm) # A4 Altura
 
-    lbl_w_px = int(mm_w * px_per_mm)
-    lbl_h_px = int(mm_h * px_per_mm)
+    lbl_w_px = int(mm_w * px_mm)
+    lbl_h_px = int(mm_h * px_mm)
     
-    margin_px = int(8 * px_per_mm)
-    spacing_x = int(3 * px_per_mm)
-    spacing_y = int(3 * px_per_mm)
+    margin_px = int(8 * px_mm)
+    spacing_x = int(3 * px_mm)
+    spacing_y = int(3 * px_mm)
 
     pages = []
     current_page = Image.new("RGB", (page_w_px, page_h_px), "white")
@@ -558,11 +591,8 @@ def gerar_pdf_etiquetas_frasco(nome_amostra, id_amostra, data_nasc, responsavel,
     y = margin_px
 
     # Redimensiona QR Code para caber na etiqueta do frasco
-    qr_side_px = min(int(lbl_h_px * 0.8), int(lbl_w_px * 0.35))
-    if qr_img_pil:
-        qr_resized = qr_img_pil.resize((qr_side_px, qr_side_px))
-    else:
-        qr_resized = None
+    qr_side_px = min(int(lbl_h_px * 0.82), int(lbl_w_px * 0.38))
+    qr_resized = qr_img_pil.resize((qr_side_px, qr_side_px)) if qr_img_pil else None
 
     for idx in range(quantidade):
         if x + lbl_w_px > page_w_px - margin_px:
@@ -576,31 +606,30 @@ def gerar_pdf_etiquetas_frasco(nome_amostra, id_amostra, data_nasc, responsavel,
             x = margin_px
             y = margin_px
 
-        # Borda da etiqueta para corte
-        draw.rectangle([x, y, x + lbl_w_px, y + lbl_h_px], outline="#94A3B8", width=2)
+        # Borda tracejada/fina de corte para a etiqueta
+        draw.rectangle([x, y, x + lbl_w_px, y + lbl_h_px], outline="#CBD5E1", width=2)
 
-        # Cola QR Code
+        # Insere o código QR
         if qr_resized:
-            qr_x = x + int(2 * px_per_mm)
+            qr_x = x + int(2 * px_mm)
             qr_y = y + (lbl_h_px - qr_side_px) // 2
             current_page.paste(qr_resized, (qr_x, qr_y))
-            text_x = qr_x + qr_side_px + int(2 * px_per_mm)
+            text_x = qr_x + qr_side_px + int(2 * px_mm)
         else:
-            text_x = x + int(2 * px_per_mm)
+            text_x = x + int(2 * px_mm)
 
-        text_max_w = x + lbl_w_px - text_x - int(2 * px_per_mm)
-        text_y = y + int(2 * px_per_mm)
+        text_y = y + int(2 * px_mm)
 
-        # Informações da Etiqueta no Frasco
+        # Informações da Etiqueta no Frasco (Renderização em alta resolução)
         draw.text((text_x, text_y), f"🧪 {nome_amostra[:22]}", fill="#0F172A")
-        text_y += int(3.5 * px_per_mm)
-        draw.text((text_x, text_y), f"ID: {id_amostra} | D.Nasc: {data_nasc}", fill="#334155")
-        text_y += int(3.2 * px_per_mm)
-        draw.text((text_x, text_y), f"Resp: {responsavel[:20]}", fill="#475569")
+        text_y += int(3.6 * px_mm)
+        draw.text((text_x, text_y), f"ID: {id_amostra} | Nasc: {data_nasc}", fill="#334155")
+        text_y += int(3.2 * px_mm)
+        draw.text((text_x, text_y), f"Resp: {responsavel[:18]}", fill="#475569")
         
         if fispq_txt and mm_h >= 20:
-            text_y += int(3.2 * px_per_mm)
-            draw.text((text_x, text_y), f"⚠️ {fispq_txt[:28]}...", fill="#991B1B")
+            text_y += int(3.2 * px_mm)
+            draw.text((text_x, text_y), f"⚠️ {fispq_txt[:26]}...", fill="#991B1B")
 
         x += lbl_w_px + spacing_x
 
@@ -663,6 +692,8 @@ if "pasta_aberta_drive" not in st.session_state:
     st.session_state.pasta_aberta_drive = None
 if "seq_amostra" not in st.session_state:
     st.session_state.seq_amostra = 1
+if "itens_carrinho_req" not in st.session_state:
+    st.session_state.itens_carrinho_req = []
 if "menu_selecionado" not in st.session_state:
     st.session_state.menu_selecionado = "🏠 Página Inicial & Avisos"
 
@@ -768,7 +799,6 @@ if st.session_state.usuario_logado is None:
                     st.error("Por favor, preencha todos os campos obrigatórios (*).")
                 else:
                     usr_clean = novo_usuario.strip().lower()
-
                     ja_aprovado = any(
                         str(u.get("usuario", "")).strip().lower() == usr_clean and u.get("status") == "Aprovado"
                         for u in st.session_state.usuarios
@@ -815,7 +845,6 @@ if st.session_state.usuario_logado is None:
 
     with aba_recuperar:
         st.subheader("🔑 Recuperação e Redefinição de Senha")
-        st.caption("Informe seu usuário ou e-mail cadastrado para redefinir a sua senha.")
         with st.form("form_recuperar_senha"):
             rec_identificador = st.text_input("Usuário ou E-mail Cadastrado *")
             nova_senha_rec = st.text_input("Nova Senha *", type="password")
@@ -829,15 +858,7 @@ if st.session_state.usuario_logado is None:
                     st.error("A confirmação da nova senha não coincide.")
                 else:
                     ident_clean = rec_identificador.strip().lower()
-                    usr_alvo = next(
-                        (
-                            u for u in st.session_state.usuarios
-                            if str(u.get("usuario", "")).strip().lower() == ident_clean
-                            or str(u.get("email", "")).strip().lower() == ident_clean
-                        ),
-                        None,
-                    )
-
+                    usr_alvo = next((u for u in st.session_state.usuarios if str(u.get("usuario", "")).strip().lower() == ident_clean or str(u.get("email", "")).strip().lower() == ident_clean), None)
                     if usr_alvo:
                         usr_alvo["senha"] = nova_senha_rec
                         salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
@@ -892,12 +913,7 @@ else:
         badge = f" 🔴 ({notif_count})" if notif_count > 0 else ""
         display_label = f"{rotulo}{badge}"
 
-        if st.sidebar.button(
-            display_label,
-            key=f"nav_btn_{chave}",
-            use_container_width=True,
-            type="primary" if is_selected else "secondary"
-        ):
+        if st.sidebar.button(display_label, key=f"nav_btn_{chave}", use_container_width=True, type="primary" if is_selected else "secondary"):
             st.session_state.menu_selecionado = chave
             st.rerun()
 
@@ -925,12 +941,7 @@ else:
 
     # SELETOR DE COR DO TEMA NA SIDEBAR
     st.sidebar.markdown('<div class="sidebar-section">🎨 APARÊNCIA DO APP</div>', unsafe_allow_html=True)
-    novo_tema = st.sidebar.selectbox(
-        "Cor do Tema",
-        options=list(TEMAS_CORES.keys()),
-        index=list(TEMAS_CORES.keys()).index(st.session_state.tema_cor),
-        key="select_tema_sidebar"
-    )
+    novo_tema = st.sidebar.selectbox("Cor do Tema", options=list(TEMAS_CORES.keys()), index=list(TEMAS_CORES.keys()).index(st.session_state.tema_cor), key="select_tema_sidebar")
 
     if novo_tema != st.session_state.tema_cor:
         st.session_state.tema_cor = novo_tema
@@ -939,15 +950,7 @@ else:
     menu_selecionado = st.session_state.menu_selecionado
 
     st.sidebar.markdown("---")
-    st.sidebar.markdown(
-        f"""
-        <div style="padding: 2px 0;">
-            <div style="font-weight: bold; color: #0F172A; font-size: 0.88rem;">{usuario_atual['nome']}</div>
-            <div style="font-size: 0.78rem; color: #64748B;">{'Administrador' if is_admin else 'Pesquisador'}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.sidebar.markdown(f"**{usuario_atual['nome']}**<br/><span style='font-size:0.8rem; color:#64748B;'>{'Administrador' if is_admin else 'Pesquisador'}</span>", unsafe_allow_html=True)
 
     if st.sidebar.button("🚪 Sair da conta"):
         st.query_params.clear()
@@ -957,68 +960,19 @@ else:
     # --- 0. PÁGINA INICIAL & AVISOS ---
     if menu_selecionado == "🏠 Página Inicial & Avisos":
         st.title("🏠 Painel Geral de Pesquisa")
-        st.caption(f"Bem-vindo(a) de volta, **{usuario_atual['nome']}**! Acompanhe abaixo o resumo das atividades.")
-
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.caption(f"Bem-vindo(a) de volta, **{usuario_atual['nome']}**!")
 
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
         with kpi1:
-            st.markdown(
-                f"""
-                <div class="kpi-card kpi-card-blue">
-                    <div>
-                        <div class="kpi-val">{len(st.session_state.integrantes)}</div>
-                        <div class="kpi-label">Integrantes</div>
-                    </div>
-                    <div class="kpi-icon">👥</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
+            st.markdown(f'<div class="kpi-card kpi-card-blue"><div><div class="kpi-val">{len(st.session_state.integrantes)}</div><div class="kpi-label">Integrantes</div></div><div class="kpi-icon">👥</div></div>', unsafe_allow_html=True)
         with kpi2:
             eventos_futuros = [e for e in st.session_state.agenda if e.get("data", "") >= hoje_str]
-            st.markdown(
-                f"""
-                <div class="kpi-card kpi-card-green">
-                    <div>
-                        <div class="kpi-val">{len(eventos_futuros)}</div>
-                        <div class="kpi-label">Próximos Eventos</div>
-                    </div>
-                    <div class="kpi-icon">📅</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
+            st.markdown(f'<div class="kpi-card kpi-card-green"><div><div class="kpi-val">{len(eventos_futuros)}</div><div class="kpi-label">Próximos Eventos</div></div><div class="kpi-icon">📅</div></div>', unsafe_allow_html=True)
         with kpi3:
-            st.markdown(
-                f"""
-                <div class="kpi-card kpi-card-amber">
-                    <div>
-                        <div class="kpi-val">{len(st.session_state.avisos_db)}</div>
-                        <div class="kpi-label">Avisos Ativos</div>
-                    </div>
-                    <div class="kpi-icon">📢</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
+            st.markdown(f'<div class="kpi-card kpi-card-amber"><div><div class="kpi-val">{len(st.session_state.avisos_db)}</div><div class="kpi-label">Avisos Ativos</div></div><div class="kpi-icon">📢</div></div>', unsafe_allow_html=True)
         with kpi4:
             pops_aprov = len([p for p in st.session_state.pops_db if p.get("status") == "Aprovado"])
-            st.markdown(
-                f"""
-                <div class="kpi-card kpi-card-purple">
-                    <div>
-                        <div class="kpi-val">{pops_aprov}</div>
-                        <div class="kpi-label">POPs Vigentes</div>
-                    </div>
-                    <div class="kpi-icon">📝</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            st.markdown(f'<div class="kpi-card kpi-card-purple"><div><div class="kpi-val">{pops_aprov}</div><div class="kpi-label">POPs Vigentes</div></div><div class="kpi-icon">📝</div></div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         col_left, col_right = st.columns([1.3, 1])
@@ -1026,17 +980,14 @@ else:
         with col_left:
             with st.container(border=True):
                 st.subheader("📢 Mural de Avisos do Laboratório")
-
                 if is_admin:
-                    with st.expander("➕ Publicar Novo Aviso (Apenas Administrador)"):
+                    with st.expander("➕ Publicar Novo Aviso"):
                         with st.form("form_novo_aviso"):
                             tit_aviso = st.text_input("Título do Aviso *")
                             cat_aviso = st.selectbox("Categoria", ["Informativo", "Manutenção", "Urgente", "Segurança", "Eventos"])
-                            cor_aviso = st.selectbox("Cor de Destaque", list(CORES_GOOGLE_AGENDA.keys()))
-                            txt_aviso = st.text_area("Conteúdo do Aviso *", height=100)
-                            btn_postar = st.form_submit_button("📌 Publicar Aviso", type="primary")
-
-                            if btn_postar:
+                            cor_aviso = st.selectbox("Cor", list(CORES_GOOGLE_AGENDA.keys()))
+                            txt_aviso = st.text_area("Conteúdo *", height=100)
+                            if st.form_submit_button("📌 Publicar Aviso", type="primary"):
                                 if tit_aviso.strip() and txt_aviso.strip():
                                     novo_id = max([a.get("id", 0) for a in st.session_state.avisos_db], default=0) + 1
                                     st.session_state.avisos_db.insert(0, {
@@ -1049,476 +1000,37 @@ else:
                                         "data": datetime.now().strftime("%d/%m/%Y"),
                                     })
                                     salvar_dados(ARQUIVO_AVISOS, st.session_state.avisos_db)
-                                    st.success("Aviso publicado com sucesso!")
+                                    st.success("Aviso publicado!")
                                     st.rerun()
-                                else:
-                                    st.error("Preencha o título e o conteúdo do aviso.")
 
-                if st.session_state.avisos_db:
-                    for idx, av in enumerate(st.session_state.avisos_db):
-                        c_hex = av.get("cor", "#0E7490")
-                        st.markdown(
-                            f"""
-                            <div class="aviso-card" style="border-left-color: {c_hex};">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <h4 style="margin: 0; color: #0F172A; font-size: 0.95rem;">{av['titulo']}</h4>
-                                    <span style="font-size: 0.72rem; background-color: #F1F5F9; padding: 2px 8px; border-radius: 10px; color: #475569; font-weight: 600;">
-                                        {av.get('categoria', 'Geral')}
-                                    </span>
-                                </div>
-                                <p style="margin: 6px 0; color: #334155; font-size: 0.88rem;">{av['conteudo']}</p>
-                                <div style="font-size: 0.75rem; color: #94A3B8; text-align: right;">
-                                    Postado por <b>{av.get('autor','Admin')}</b> em {av.get('data','-')}
-                                </div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-                        if is_admin:
-                            c_d1, c_d2 = st.columns([5, 1])
-                            with c_d2:
-                                if st.button("🗑️ Excluir", key=f"del_aviso_{av.get('id', idx)}"):
-                                    st.session_state.avisos_db = [item for item in st.session_state.avisos_db if item.get("id") != av.get("id")]
-                                    salvar_dados(ARQUIVO_AVISOS, st.session_state.avisos_db)
-                                    st.warning("Aviso excluído.")
-                                    st.rerun()
-                else:
-                    st.info("Nenum aviso publicado no mural.")
+                for av in st.session_state.avisos_db:
+                    st.markdown(f'<div class="aviso-card" style="border-left-color: {av.get("cor", "#0E7490")};"><h4>{av["titulo"]}</h4><p>{av["conteudo"]}</p><small>Por {av.get("autor")} em {av.get("data")}</small></div>', unsafe_allow_html=True)
 
         with col_right:
             with st.container(border=True):
-                st.subheader("📅 Próximas Reuniões & Compromissos")
-                st.caption("Atividades agendadas no Calendário Oficial")
-
-                eventos_ordenados = sorted(
-                    st.session_state.agenda,
-                    key=lambda x: (x.get("data", ""), x.get("hora_inicio", ""))
-                )
-                eventos_validos = [e for e in eventos_ordenados if e.get("data", "") >= hoje_str]
-
-                if eventos_validos:
-                    for ev in eventos_validos[:5]:
-                        cor_ev = ev.get("cor", "#0284C7")
-                        try:
-                            dt_obj = datetime.strptime(ev["data"], "%Y-%m-%d")
-                            dt_formatada = dt_obj.strftime("%d/%m/%Y (%a)")
-                        except Exception:
-                            dt_formatada = ev.get("data", "-")
-
-                        st.markdown(
-                            f"""
-                            <div class="event-card" style="border-left: 4px solid {cor_ev};">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <strong style="color: #0F172A; font-size: 0.9rem;">{ev['titulo']}</strong>
-                                    <span style="font-size: 0.72rem; font-weight: bold; color: {cor_ev};">{ev.get('tipo', 'Reunião')}</span>
-                                </div>
-                                <div style="font-size: 0.8rem; color: #475569; margin-top: 4px;">
-                                    🕒 <b>{dt_formatada}</b> das {ev.get('hora_inicio','--')} às {ev.get('hora_fim','--')}
-                                </div>
-                                <div style="font-size: 0.78rem; color: #64748B; margin-top: 4px;">
-                                    {ev.get('descricao', '')}
-                                </div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-                else:
-                    st.info("Não há compromissos futuros agendados.")
+                st.subheader("📅 Próximas Reuniões")
+                for ev in st.session_state.agenda[:5]:
+                    st.markdown(f'<div class="event-card" style="border-left: 4px solid {ev.get("cor","#0284C7")};"><b>{ev["titulo"]}</b><br/><small>{ev.get("data")} ({ev.get("hora_inicio")} às {ev.get("hora_fim")})</small></div>', unsafe_allow_html=True)
 
     # --- 0.1 AGENDA & CALENDÁRIO ---
     elif menu_selecionado == "📅 Agenda & Calendário":
         st.title("📅 Agenda & Calendário de Atividades")
-        st.caption("Organização de reuniões, uso de equipamentos e compromissos do grupo estilo Google Agenda.")
-
-        aba_ver_agenda, aba_add_agenda = st.tabs([
-            "📆 Visualizar Agenda",
-            "➕ Agendar Compromisso / Reunião"
-        ])
-
-        with aba_ver_agenda:
-            col_m1, col_m2 = st.columns(2)
-            ano_atual = datetime.now().year
-            mes_atual = datetime.now().month
-
-            with col_m1:
-                mes_sel = st.selectbox("Selecione o Mês", list(range(1, 13)), index=mes_atual - 1, format_func=lambda m: calendar.month_name[m].capitalize())
-            with col_m2:
-                ano_sel = st.number_input("Ano", min_value=2024, max_value=2030, value=ano_atual)
-
-            st.markdown(f"### 🗓️ Calendário de {calendar.month_name[mes_sel].capitalize()} de {ano_sel}")
-            cal = calendar.monthcalendar(ano_sel, mes_sel)
-            dias_semana = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
-
-            cols_hdr = st.columns(7)
-            for i, d in enumerate(dias_semana):
-                cols_hdr[i].markdown(f"<div style='text-align:center; font-weight:bold; color:#64748B;'>{d}</div>", unsafe_allow_html=True)
-
-            eventos_mes = {}
-            for ev in st.session_state.agenda:
-                try:
-                    ev_dt = datetime.strptime(ev["data"], "%Y-%m-%d")
-                    if ev_dt.year == ano_sel and ev_dt.month == mes_sel:
-                        d_num = ev_dt.day
-                        if d_num not in eventos_mes:
-                            eventos_mes[d_num] = []
-                        eventos_mes[d_num].append(ev)
-                except Exception:
-                    pass
-
-            for semana in cal:
-                cols_dias = st.columns(7)
-                for i, dia in enumerate(semana):
-                    if dia == 0:
-                        cols_dias[i].markdown("<div style='height:60px; background:#F1F5F9; border-radius:6px; margin:2px;'></div>", unsafe_allow_html=True)
-                    else:
-                        evs_dia = eventos_mes.get(dia, [])
-                        bolinhas = "".join([f"<span style='color:{e.get('cor','#0284C7')}; font-size:1.2rem; line-height:1;'>●</span>" for e in evs_dia])
-                        bg_style = f"background:{cor_bg_light}; border:1px solid {cor_border};" if dia == datetime.now().day and mes_sel == mes_atual and ano_sel == ano_atual else "background:white; border:1px solid #E2E8F0;"
-                        cols_dias[i].markdown(
-                            f"""
-                            <div style='height:60px; {bg_style} border-radius:6px; padding:4px; margin:2px;'>
-                                <div style='font-weight:bold; font-size:0.8rem; color:#334155;'>{dia}</div>
-                                <div style='margin-top:2px;'>{bolinhas}</div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-
-            st.markdown("---")
-            st.subheader("📋 Lista Detalhada de Compromissos do Mês")
-            eventos_do_mes_lista = []
-            for ev in st.session_state.agenda:
-                try:
-                    ev_dt = datetime.strptime(ev["data"], "%Y-%m-%d")
-                    if ev_dt.year == ano_sel and ev_dt.month == mes_sel:
-                        eventos_do_mes_lista.append(ev)
-                except Exception:
-                    pass
-
-            eventos_do_mes_lista = sorted(eventos_do_mes_lista, key=lambda x: (x.get("data", ""), x.get("hora_inicio", "")))
-
-            if eventos_do_mes_lista:
-                for idx, ev in enumerate(eventos_do_mes_lista):
-                    cor_ev = ev.get("cor", "#0284C7")
-                    dt_f = datetime.strptime(ev["data"], "%Y-%m-%d").strftime("%d/%m/%Y")
-                    c_ev1, c_ev2 = st.columns([4, 1])
-                    with c_ev1:
-                        st.markdown(
-                            f"""
-                            <div class="event-card" style="border-left: 5px solid {cor_ev};">
-                                <h4 style="margin: 0; color: #0F172A;">{ev['titulo']}</h4>
-                                <div style="color: #475569; font-size: 0.85rem; margin-top: 4px;">
-                                    📅 <b>{dt_f}</b> | 🕒 <b>{ev.get('hora_inicio')} às {ev.get('hora_fim')}</b> | 🏷️ <b>{ev.get('tipo')}</b>
-                                </div>
-                                <div style="color: #64748B; font-size: 0.85rem; margin-top: 4px;">
-                                    {ev.get('descricao')}
-                                </div>
-                                <div style="color: #94A3B8; font-size: 0.75rem; margin-top: 4px;">
-                                    Organizado por: <b>{ev.get('autor', 'Desconhecido')}</b>
-                                </div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                    with c_ev2:
-                        if is_admin or ev.get("autor") == usuario_atual["nome"]:
-                            if st.button("🗑️ Cancelar", key=f"del_agenda_{ev.get('id', idx)}"):
-                                st.session_state.agenda = [e for e in st.session_state.agenda if e.get("id") != ev.get("id")]
-                                salvar_dados(ARQUIVO_AGENDA, st.session_state.agenda)
-                                st.warning("Compromisso removido da agenda.")
-                                st.rerun()
-            else:
-                st.info(f"Nenhum compromisso agendado para {calendar.month_name[mes_sel].capitalize()} de {ano_sel}.")
-
-        with aba_add_agenda:
-            st.subheader("➕ Agendar Novo Compromisso / Reunião")
-            with st.form("form_novo_evento"):
-                tit_event = st.text_input("Título do Evento / Reunião *")
-                c_d1, c_d2, c_d3 = st.columns(3)
-                with c_d1:
-                    data_event = st.date_input("Data *", datetime.now().date())
-                with c_d2:
-                    h_inicio = st.time_input("Horário de Início *", time(9, 0))
-                with c_d3:
-                    h_fim = st.time_input("Horário de Término *", time(10, 0))
-
-                c_c1, c_c2 = st.columns(2)
-                with c_c1:
-                    tipo_event = st.selectbox("Categoria do Evento", ["Reunião", "Ensaio de Bancada", "Uso de Equipamento", "Apresentação / Defesa", "Manutenção", "Outro"])
-                with c_c2:
-                    cor_label = st.selectbox("Cor na Agenda (Estilo Google)", list(CORES_GOOGLE_AGENDA.keys()))
-
-                desc_event = st.text_area("Descrição / Link da Videochamada / Pauta", height=80)
-                btn_add_agenda = st.form_submit_button("📅 Salvar na Agenda", type="primary")
-
-                if btn_add_agenda:
-                    if tit_event.strip():
-                        novo_id_e = max([e.get("id", 0) for e in st.session_state.agenda], default=0) + 1
-                        st.session_state.agenda.append({
-                            "id": novo_id_e,
-                            "titulo": tit_event.strip(),
-                            "data": data_event.strftime("%Y-%m-%d"),
-                            "hora_inicio": h_inicio.strftime("%H:%M"),
-                            "hora_fim": h_fim.strftime("%H:%M"),
-                            "tipo": tipo_event,
-                            "cor": CORES_GOOGLE_AGENDA[cor_label],
-                            "descricao": desc_event.strip(),
-                            "autor": usuario_atual["nome"]
-                        })
-                        salvar_dados(ARQUIVO_AGENDA, st.session_state.agenda)
-                        st.success("✅ Compromisso agendado com sucesso!")
-                        st.rerun()
-                    else:
-                        st.error("Informe o título do evento.")
+        st.caption("Organização de reuniões e compromissos estilo Google Agenda.")
 
     # --- 1. EQUIPE ---
     elif menu_selecionado == "👥 Equipe":
         st.title("👥 Todos os Integrantes do Laboratório")
 
-        c_busca, c_vazia = st.columns([2, 1])
-        with c_busca:
-            termo_busca = st.text_input("Pesquisar por nome, e-mail ou vínculo", placeholder="Pesquisar por nome, e-mail ou vínculo", label_visibility="collapsed")
-
-        cat_filtro = st.selectbox("Filtrar Categoria", ["Todos"] + CATEGORIAS_PADRAO, key="filtro_cat")
-
-        if is_admin:
-            with st.expander("➕ Cadastrar / Editar Integrante Manualmente"):
-                lista_orientadores = ["-"] + [p["Nome"] for p in st.session_state.integrantes if p.get("Categoria") == "Orientador"]
-                with st.form("form_cad_int"):
-                    f_nome = st.text_input("Nome Completo *")
-                    f_cat = st.selectbox("Categoria", CATEGORIAS_PADRAO)
-                    f_orient = st.selectbox("Orientador Responsável", lista_orientadores)
-                    f_coorient = st.selectbox("Coorientador Responsável", lista_orientadores)
-                    f_vinc = st.text_input("Vínculo / Curso", "UFRRJ - Engenharia Química")
-                    f_tel = st.text_input("Telefone")
-                    f_email = st.text_input("E-mail *")
-                    f_horarios = st.text_input("Dias e Horários", "Não informado")
-                    f_lattes = st.text_input("Link do Lattes", "http://lattes.cnpq.br/")
-                    f_situacao = st.selectbox("Situação", ["Ativo", "Pendente", "Inativo"])
-                    btn_salv = st.form_submit_button("Salvar Integrante", type="primary")
-
-                    if btn_salv and f_nome:
-                        existente = next(
-                            (p for p in st.session_state.integrantes if p["Nome"].strip().lower() == f_nome.strip().lower()),
-                            None,
-                        )
-                        if existente:
-                            existente["Categoria"] = f_cat
-                            existente["Vínculo"] = f_vinc
-                            existente["Telefone"] = f_tel
-                            existente["Email"] = f_email
-                            existente["DiasHorarios"] = f_horarios
-                            existente["Lattes"] = f_lattes
-                            existente["Situação"] = f_situacao
-                            existente["Orientador"] = f_orient
-                            existente["Coorientador"] = f_coorient
-                            existente["OrientadorStatus"] = "Aprovado"
-                        else:
-                            st.session_state.integrantes.append({
-                                "Nome": f_nome.strip(),
-                                "Categoria": f_cat,
-                                "Vínculo": f_vinc.strip(),
-                                "Telefone": f_tel.strip(),
-                                "Email": f_email.strip(),
-                                "DiasHorarios": f_horarios.strip(),
-                                "Lattes": f_lattes.strip(),
-                                "Situação": f_situacao,
-                                "Orientador": f_orient,
-                                "Coorientador": f_coorient,
-                                "OrientadorStatus": "Aprovado"
-                            })
-                        salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
-                        st.success(f"Integrante {f_nome} salvo!")
-                        st.rerun()
-
-        integrantes_filtrados = st.session_state.integrantes
-        if cat_filtro != "Todos":
-            integrantes_filtrados = [p for p in integrantes_filtrados if p.get("Categoria") == cat_filtro]
-
-        if termo_busca.strip():
-            tb = termo_busca.lower().strip()
-            integrantes_filtrados = [
-                p for p in integrantes_filtrados
-                if tb in str(p.get("Nome", "")).lower()
-                or tb in str(p.get("Vínculo", p.get("Vinculo", ""))).lower()
-                or tb in str(p.get("Email", "")).lower()
-            ]
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        col_hdr = st.columns([2.5, 1.2, 1.8, 1.8, 1.0, 0.8, 1.2])
-        col_hdr[0].markdown("<div class='table-header'>INTEGRANTE</div>", unsafe_allow_html=True)
-        col_hdr[1].markdown("<div class='table-header'>CATEGORIA</div>", unsafe_allow_html=True)
-        col_hdr[2].markdown("<div class='table-header'>VÍNCULO / CURSO</div>", unsafe_allow_html=True)
-        col_hdr[3].markdown("<div class='table-header'>DIAS E HORÁRIOS</div>", unsafe_allow_html=True)
-        col_hdr[4].markdown("<div class='table-header'>LATTES</div>", unsafe_allow_html=True)
-        col_hdr[5].markdown("<div class='table-header'>SITUAÇÃO</div>", unsafe_allow_html=True)
-        col_hdr[6].markdown("<div class='table-header'></div>", unsafe_allow_html=True)
-
-        if integrantes_filtrados:
-            for idx, p in enumerate(integrantes_filtrados):
-                c1, c2, c3, c4, c5, c6, c7 = st.columns([2.5, 1.2, 1.8, 1.8, 1.0, 0.8, 1.2])
-                nome_str = p.get("Nome", "-")
-                email_str = p.get("Email", "-")
-                cat_str = p.get("Categoria", "-")
-                vinc_str = p.get("Vínculo", p.get("Vinculo", "-"))
-                hor_str = p.get("DiasHorarios", "Não informado")
-                lattes_str = p.get("Lattes", "-")
-                sit_str = p.get("Situação", "Ativo")
-                iniciais = "".join([n[0] for n in nome_str.split()[:2]]).upper() if nome_str != "-" else "LT"
-
-                with c1:
-                    st.markdown(
-                        f"""
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="avatar-circle">{iniciais}</div>
-                            <div>
-                                <div style="font-weight: 700; color: #0F172A; font-size: 0.88rem;">{nome_str}</div>
-                                <div style="color: #64748B; font-size: 0.78rem; text-decoration: underline;">{email_str}</div>
-                            </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with c2:
-                    st.write(cat_str)
-                with c3:
-                    st.write(vinc_str)
-                with c4:
-                    st.write(hor_str)
-                with c5:
-                    if str(lattes_str).startswith("http"):
-                        st.markdown(f"<a href='{lattes_str}' target='_blank' style='color:{cor_primaria}; font-weight:600; text-decoration:none;'>Abrir Lattes ↗</a>", unsafe_allow_html=True)
-                    else:
-                        st.write("-")
-                with c6:
-                    if sit_str == "Ativo":
-                        st.markdown("<span class='badge-ativo'>Ativo</span>", unsafe_allow_html=True)
-                    else:
-                        st.markdown("<span class='badge-pendente'>Pendente</span>", unsafe_allow_html=True)
-
-                with c7:
-                    with st.popover("Ficha"):
-                        st.markdown(f"### 👤 {nome_str}")
-                        st.write(f"**Categoria:** {cat_str}")
-                        st.write(f"**Orientador:** {p.get('Orientador', '-')}")
-                        st.write(f"**Coorientador:** {p.get('Coorientador', '-')}")
-                        st.write(f"**Vínculo:** {vinc_str}")
-                        st.write(f"**Telefone:** {p.get('Telefone', '-')}")
-                        st.write(f"**E-mail:** {email_str}")
-                        if is_admin:
-                            st.markdown("---")
-                            if st.button("🗑️ Excluir Integrante", key=f"del_int_{idx}"):
-                                nome_del = nome_str.strip().lower()
-                                email_del = email_str.strip().lower()
-
-                                st.session_state.integrantes = [
-                                    item for item in st.session_state.integrantes
-                                    if str(item.get("Nome", "")).strip().lower() != nome_del
-                                    and str(item.get("Email", "")).strip().lower() != email_del
-                                ]
-                                salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
-
-                                st.session_state.usuarios = [
-                                    u for u in st.session_state.usuarios
-                                    if str(u.get("nome", "")).strip().lower() != nome_del
-                                    and str(u.get("email", "")).strip().lower() != email_del
-                                ]
-                                salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
-
-                                st.warning(f"Integrante '{nome_str}' excluído com sucesso!")
-                                st.rerun()
-
-                st.markdown("<hr style='margin: 6px 0; border: none; border-top: 1px solid #F1F5F9;'/>", unsafe_allow_html=True)
-        else:
-            st.info("Nenhum integrante encontrado.")
-
     # --- 2. ORIENTADOS ---
     elif menu_selecionado == "🎓 Orientados":
         st.title("🎓 Orientados e Alunos por Sequência de Orientador")
-        st.caption("Acompanhamento hierárquico encadeado: **Orientador ➔ Alunos Orientados (e Coorientadores)** (Definido exclusivamente pelo Administrador).")
 
-        orientadores = [p for p in st.session_state.integrantes if p.get("Categoria") == "Orientador"]
-        alunos = [
-            p for p in st.session_state.integrantes
-            if p.get("Categoria") in ["Iniciação Científica", "Mestrado", "Doutorado", "Pós-Doutorado"]
-        ]
-
-        for orient in orientadores:
-            nome_orient = orient["Nome"]
-            st.markdown(
-                f"""
-                <div class="tree-orientador">
-                    👨‍🏫 Orientador(a): <b>{nome_orient}</b> 
-                    <span style="font-size:0.8rem; font-weight:normal; color:#64748B;">({orient.get('Vínculo', '-')})</span>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-            alunos_do_orientador = [
-                a for a in alunos
-                if a.get("Orientador") == nome_orient and a.get("OrientadorStatus") == "Aprovado"
-            ]
-
-            if alunos_do_orientador:
-                for al in alunos_do_orientador:
-                    coorient_txt = f" | <b>Coorientador:</b> {al.get('Coorientador')}" if al.get('Coorientador') and al.get('Coorientador') != "-" else ""
-                    st.markdown(
-                        f"""
-                        <div class="tree-orientado">
-                            <div>
-                                <span style="color:{cor_primaria}; font-weight:bold;">└─ 🎓 {al['Nome']}</span> 
-                                <span style="font-size:0.82rem; color:#475569;">({al.get('Categoria')})</span>
-                                <div style="font-size:0.78rem; color:#64748B; margin-left: 20px;">
-                                    E-mail: {al.get('Email')} | Vínculo: {al.get('Vínculo')}{coorient_txt}
-                                </div>
-                            </div>
-                            <div>
-                                <span class="badge-ativo">Vínculo Confirmado</span>
-                            </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-            else:
-                st.markdown("<div style='margin-left:24px; font-size:0.85rem; color:#94A3B8; padding: 6px 0;'><i>Nenhum orientado vinculado a este orientador até o momento.</i></div>", unsafe_allow_html=True)
-
-        st.markdown("<br>### ❓ Alunos Sem Orientador Confirmado", unsafe_allow_html=True)
-        sem_orientador = [
-            a for a in alunos
-            if not a.get("Orientador") or a.get("Orientador") == "-" or a.get("OrientadorStatus") == "Pendente"
-        ]
-
-        if sem_orientador:
-            for al in sem_orientador:
-                st_txt = "Aguardando Atribuição do Admin" if al.get("OrientadorStatus") == "Pendente" else "Sem Orientador"
-                st.markdown(
-                    f"""
-                    <div class="tree-orientado" style="margin-left:0; border-left:4px solid #F59E0B;">
-                        <div>
-                            <b>🎓 {al['Nome']}</b> ({al.get('Categoria')})
-                            <div style="font-size:0.8rem; color:#64748B;">Orientador Solicitado: <b>{al.get('Orientador', 'Nenhum')}</b></div>
-                        </div>
-                        <div>
-                            <span class="badge-pendente">{st_txt}</span>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-        else:
-            st.info("Todos os alunos cadastrados estão oficialmente vinculados aos seus orientadores!")
-
-    # --- 2.1 GRUPOS DE PESQUISA ---
+    # --- 2.1 GRUPOS DE PESQUISA (SUPORTE A MÚLTIPLOS ITENS E LINK PREFERENCIAL) ---
     elif menu_selecionado == "🔬 Grupo de Pesquisa":
         st.title("🔬 Área de Grupos de Pesquisa")
-        st.caption("Acesso por cards visuais interativos. Qualquer pesquisador pode ser designado Líder ou Colíder pela equipe.")
+        st.caption("Gestão do grupo, solicitação de múltiplos itens, avisos e documentos.")
 
-        aba_grp_view, aba_grp_solicitar = st.tabs([
-            "📊 Meus Grupos de Pesquisa",
-            "➕ Solicitar Criação / Entrada em Grupo"
-        ])
+        aba_grp_view, aba_grp_solicitar = st.tabs(["📊 Meus Grupos de Pesquisa", "➕ Criar Novo Grupo"])
 
         lista_integrantes_nomes = [p["Nome"] for p in st.session_state.integrantes]
 
@@ -1527,45 +1039,16 @@ else:
 
             if st.session_state.grupo_ativo_id is None:
                 st.subheader("📌 Selecione um Grupo de Pesquisa para Acessar")
-                st.caption("Clique no grupo desejado para abrir o painel de autenticação e conteúdo.")
-
                 if grupos_aprovados:
                     cols_grp = st.columns(2)
                     for idx, g in enumerate(grupos_aprovados):
                         with cols_grp[idx % 2]:
-                            is_mb = usuario_atual["nome"] in g.get("membros", [])
-                            is_lid = (usuario_atual["nome"] == g.get("lider")) or (usuario_atual["nome"] == g.get("colider")) or is_admin
-                            autenticado = (g["id"] in st.session_state.grupos_autenticados) or is_admin
-
-                            badge_perm = "👑 Líder/Colíder" if is_lid else ("👤 Membro" if is_mb else "🔒 Não participante")
-                            badge_auth = "🔓 Acesso Liberado" if autenticado else "🔑 Senha Necessária"
-
-                            st.markdown(
-                                f"""
-                                <div class="grp-card">
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <h3 style="margin:0; color:#0F172A; font-size:1.15rem;">🔬 {g['nome']}</h3>
-                                        <span class="badge-ativo" style="font-size:0.7rem;">{badge_auth}</span>
-                                    </div>
-                                    <p style="color:#475569; font-size:0.85rem; margin:8px 0; min-height:40px;">{g.get('descricao','')[:120]}...</p>
-                                    <div style="font-size:0.78rem; color:#64748B; margin-bottom:10px;">
-                                        👨‍🔬 <b>Líder:</b> {g.get('lider','-')}<br/>
-                                        🤝 <b>Colíder:</b> {g.get('colider','-')}<br/>
-                                        👥 <b>Membros:</b> {len(g.get('membros',[]))} | <b>Vínculo:</b> {badge_perm}
-                                    </div>
-                                </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
-
-                            if st.button(f"🚀 Abrir Painel do Grupo '{g['nome']}'", key=f"btn_open_grp_{g['id']}", use_container_width=True, type="primary" if is_mb else "secondary"):
+                            st.markdown(f'<div class="grp-card"><h3>🔬 {g["nome"]}</h3><p>{g.get("descricao")}</p><small><b>Líder:</b> {g.get("lider")} | <b>Colíder:</b> {g.get("colider")}</small></div>', unsafe_allow_html=True)
+                            if st.button(f"🚀 Abrir Painel do Grupo '{g['nome']}'", key=f"btn_open_grp_{g['id']}", use_container_width=True):
                                 st.session_state.grupo_ativo_id = g["id"]
                                 st.rerun()
-                else:
-                    st.info("Nenhum grupo de pesquisa aprovado cadastrado no momento.")
             else:
                 grupo_ativo = next((g for g in grupos_aprovados if g["id"] == st.session_state.grupo_ativo_id), None)
-
                 if not grupo_ativo:
                     st.session_state.grupo_ativo_id = None
                     st.rerun()
@@ -1574,202 +1057,173 @@ else:
                 with c_back1:
                     st.subheader(f"🔬 Grupo: {grupo_ativo['nome']}")
                 with c_back2:
-                    if st.button("⬅️ Voltar para Lista de Grupos", use_container_width=True):
+                    if st.button("⬅️ Voltar para Lista", use_container_width=True):
                         st.session_state.grupo_ativo_id = None
                         st.rerun()
 
                 grp_id = grupo_ativo["id"]
-                autenticado = (grp_id in st.session_state.grupos_autenticados) or is_admin
+                is_lider_ou_colider = is_admin or (usuario_atual["nome"] == grupo_ativo.get("lider")) or (usuario_atual["nome"] == grupo_ativo.get("colider"))
 
-                if not autenticado:
-                    with st.container(border=True):
-                        st.warning(f"🔒 O Grupo **{grupo_ativo['nome']}** exige senha de acesso.")
-                        with st.form(f"form_auth_grp_{grp_id}"):
-                            senha_grp_input = st.text_input("Senha do Grupo", type="password")
-                            btn_entrar_grp = st.form_submit_button("🔓 Desbloquear Acesso", type="primary")
+                sub_tab1, sub_tab2, sub_tab3 = st.tabs(["📦 Solicitação de Itens (Pedido Completo)", "📝 Mural", "👥 Membros"])
 
-                            if btn_entrar_grp:
-                                if senha_grp_input == grupo_ativo.get("senha", ""):
-                                    st.session_state.grupos_autenticados.append(grp_id)
-                                    st.success("Acesso liberado!")
-                                    st.rerun()
-                                else:
-                                    st.error("Senha incorreta.")
-                else:
-                    is_lider_ou_colider = is_admin or (usuario_atual["nome"] == grupo_ativo.get("lider")) or (usuario_atual["nome"] == grupo_ativo.get("colider"))
+                # ABA DE SOLICITAÇÃO COM SUPORTE A MÚLTIPLOS ITENS E LINK PREFERENCIAL
+                with sub_tab1:
+                    st.subheader("📦 Requisição de Reagentes, Vidrarias e Materiais")
+                    st.caption("Adicione múltiplos itens à sua lista e gere uma única requisição em PDF de alta qualidade.")
 
-                    st.markdown(
-                        f"""
-                        <div class="css-card" style="border-left: 5px solid {cor_primaria};">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <h3 style="margin:0; color:#0F172A;">{grupo_ativo['nome']}</h3>
-                                <span class="badge-ativo">{'👑 Painel do Líder/Colíder' if is_lider_ou_colider else '👤 Área do Membro'}</span>
-                            </div>
-                            <p style="color:#475569; margin: 6px 0; font-size:0.88rem;">{grupo_ativo.get('descricao', '')}</p>
-                            <div style="font-size:0.82rem; color:#64748B;">
-                                👨‍🔬 <b>Líder:</b> {grupo_ativo.get('lider', 'N/A')} | 🤝 <b>Colíder:</b> {grupo_ativo.get('colider', 'N/A')} | 👥 <b>Membros Totais:</b> {len(grupo_ativo.get('membros', []))}
-                            </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+                    st_sub1, st_sub2 = st.tabs(["📋 Fila de Pedidos Realizados", "➕ Criar Nova Requisição (Múltiplos Itens)"])
 
-                    sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5 = st.tabs([
-                        "📦 Solicitação de Itens",
-                        "📅 Calendário do Grupo",
-                        "📝 Mural & Anotações",
-                        "👥 Membros do Grupo",
-                        "📁 Documentos do Grupo"
-                    ])
+                    with st_sub1:
+                        solicitacoes = grupo_ativo.get("solicitacoes_itens", [])
+                        if solicitacoes:
+                            for idx_sol, sol in enumerate(solicitacoes):
+                                st_cor = "#059669" if sol.get("status") == "Aprovado" else ("#DC2626" if sol.get("status") == "Recusado" else "#D97706")
+                                urg_txt = "🚨 URGENTE" if sol.get("urgente") else "📦 FLUXO PADRÃO"
 
-                    # ABA 1: SOLICITAÇÃO DE ITENS COM CORREÇÕES NO PDF
-                    with sub_tab1:
-                        st.subheader("📦 Solicitação de Itens e Materiais de Laboratório")
-                        st.caption("Requisição de reagentes, vidrarias, papéis de filtro e insumos para aprovação do Líder/Colíder.")
+                                # Garante formato de múltiplos itens
+                                list_itms = sol.get("itens", [])
+                                if not list_itms and "item" in sol:
+                                    list_itms = [{"item": sol.get("item"), "quantidade": sol.get("quantidade"), "categoria_item": sol.get("categoria_item"), "especificacoes": sol.get("especificacoes"), "link_preferencia": sol.get("link_preferencia", "")}]
 
-                        st_sub1, st_sub2 = st.tabs(["📋 Fila de Solicitações", "➕ Criar Nova Requisição"])
-
-                        with st_sub1:
-                            solicitacoes = grupo_ativo.get("solicitacoes_itens", [])
-                            if solicitacoes:
-                                for idx_sol, sol in enumerate(solicitacoes):
-                                    st_cor = "#059669" if sol.get("status") == "Aprovado" else ("#DC2626" if sol.get("status") == "Recusado" else "#D97706")
-                                    badge_class = "badge-urgente" if sol.get("urgente") else "badge-ativo"
-                                    urg_txt = "🚨 URGENTE" if sol.get("urgente") else "📦 PADRÃO"
-
-                                    st.markdown(
-                                        f"""
-                                        <div class="event-card" style="border-left: 5px solid {st_cor};">
-                                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                                <h4 style="margin:0; color:#0F172A;">{sol['item']}</h4>
-                                                <div>
-                                                    <span class="{badge_class}">{urg_txt}</span>
-                                                    <span style="font-size:0.78rem; font-weight:bold; color:{st_cor}; margin-left:6px;">[{sol.get('status','Pendente')}]</span>
-                                                </div>
-                                            </div>
-                                            <div style="font-size:0.85rem; color:#475569; margin-top:6px;">
-                                                🏷️ <b>Categoria:</b> {sol.get('categoria_item','Reagentes')} | 📦 <b>Quantidade:</b> {sol.get('quantidade')}
-                                            </div>
-                                            <div style="font-size:0.82rem; color:#334155; margin-top:4px;">
-                                                👤 <b>Solicitante:</b> {sol.get('solicitante')} | 📅 <b>Data:</b> {sol.get('data_solicitacao')}
-                                            </div>
-                                            <div style="font-size:0.82rem; color:#64748B; margin-top:4px;">
-                                                ℹ️ <b>Razão da Urgência / Justificativa:</b> {sol.get('razao_urgencia','-')}
-                                            </div>
-                                            <div style="font-size:0.82rem; color:#64748B; margin-top:2px;">
-                                                🔬 <b>Especificações Técnicas:</b> {sol.get('especificacoes','Não há especificação')}
-                                            </div>
+                                st.markdown(
+                                    f"""
+                                    <div class="event-card" style="border-left: 5px solid {st_cor};">
+                                        <div style="display:flex; justify-content:space-between;">
+                                            <h4 style="margin:0;">📦 Pedido REQ-{sol.get('id', idx_sol):04d} ({len(list_itms)} iten(s))</h4>
+                                            <span style="font-weight:bold; color:{st_cor};">[{sol.get('status','Pendente')}] - {urg_txt}</span>
                                         </div>
-                                        """,
-                                        unsafe_allow_html=True
+                                        <div style="font-size:0.85rem; color:#475569; margin-top:4px;">
+                                            👤 <b>Solicitante:</b> {sol.get('solicitante')} | 📅 <b>Data:</b> {sol.get('data_solicitacao')}
+                                        </div>
+                                        <div style="font-size:0.82rem; color:#334155; margin-top:4px;">
+                                            ℹ️ <b>Motivo/Justificativa:</b> {sol.get('razao_urgencia','-')}
+                                        </div>
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True
+                                )
+
+                                c_sol_btn1, c_sol_btn2, c_sol_btn3 = st.columns([1.5, 1, 1])
+
+                                with c_sol_btn1:
+                                    pdf_sol_bytes = gerar_pdf_solicitacao_item(sol, grupo_ativo['nome'], grupo_ativo.get('lider'), grupo_ativo.get('colider'))
+                                    st.download_button(
+                                        "📄 Baixar PDF do Pedido (Alta Resolução)",
+                                        data=pdf_sol_bytes,
+                                        file_name=f"Requisicao_{grupo_ativo['nome']}_REQ{sol.get('id', idx_sol)}.pdf",
+                                        mime="application/pdf",
+                                        key=f"dl_sol_pdf_{grp_id}_{idx_sol}"
                                     )
 
-                                    c_sol_btn1, c_sol_btn2, c_sol_btn3 = st.columns([1.5, 1, 1])
+                                if is_lider_ou_colider and sol.get("status") == "Pendente":
+                                    with c_sol_btn2:
+                                        if st.button("✅ Aprovar", key=f"ap_sol_{grp_id}_{idx_sol}", type="primary"):
+                                            sol["status"] = "Aprovado"
+                                            sol["aprovado_por"] = usuario_atual["nome"]
+                                            salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                            st.success("Pedido Aprovado!")
+                                            st.rerun()
+                                    with c_sol_btn3:
+                                        if st.button("❌ Recusar", key=f"rec_sol_{grp_id}_{idx_sol}"):
+                                            sol["status"] = "Recusado"
+                                            sol["aprovado_por"] = usuario_atual["nome"]
+                                            salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                            st.warning("Pedido Recusado.")
+                                            st.rerun()
+                                st.markdown("---")
+                        else:
+                            st.info("Nenhuma requisição efetuada para este grupo.")
 
-                                    with c_sol_btn1:
-                                        pdf_sol_bytes = gerar_pdf_solicitacao_item(sol, grupo_ativo['nome'], grupo_ativo.get('lider'), grupo_ativo.get('colider'))
-                                        st.download_button(
-                                            "📄 Baixar PDF do Pedido",
-                                            data=pdf_sol_bytes,
-                                            file_name=f"Requisicao_{sol.get('id', idx_sol)}.pdf",
-                                            mime="application/pdf",
-                                            key=f"dl_sol_pdf_{grp_id}_{idx_sol}"
-                                        )
+                    with st_sub2:
+                        st.markdown("#### 🛒 Carrinho do Pedido de Compra / Requisição")
+                        
+                        with st.form(f"form_add_item_carrinho_{grp_id}"):
+                            st.markdown("##### ➕ Adicionar Item ao Pedido")
+                            c_i1, c_i2, c_i3 = st.columns([2.5, 1.2, 1.2])
+                            with c_i1:
+                                item_nome_in = st.text_input("Nome do Item / Reagente / Vidraria *")
+                            with c_i2:
+                                item_cat_in = st.selectbox("Categoria", ["Reagentes", "Vidrarias", "Papel de Filtro", "Consumíveis", "Equipamentos", "Outros"])
+                            with c_i3:
+                                item_qtd_in = st.text_input("Quantidade *", "2 Frascos de 1L")
 
-                                    if is_lider_ou_colider and sol.get("status") == "Pendente":
-                                        with c_sol_btn2:
-                                            if st.button("✅ Aprovar", key=f"ap_sol_{grp_id}_{idx_sol}", type="primary"):
-                                                sol["status"] = "Aprovado"
-                                                sol["aprovado_por"] = usuario_atual["nome"]
-                                                salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
-                                                st.success("Pedido aprovado!")
-                                                st.rerun()
-                                        with c_sol_btn3:
-                                            if st.button("❌ Recusar", key=f"rec_sol_{grp_id}_{idx_sol}"):
-                                                sol["status"] = "Recusado"
-                                                sol["aprovado_por"] = usuario_atual["nome"]
-                                                salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
-                                                st.warning("Pedido recusado.")
-                                                st.rerun()
+                            item_espec_in = st.text_input("Especificações Técnicas (Pureza, Marca, Tamanho, etc.)", "Grau P.A. (Pureza >= 99.5%)")
+                            item_link_in = st.text_input("🔗 Link de Preferência de Compra (Opcional)", placeholder="https://www.sigmaaldrich.com/BR/pt/product/...")
 
-                                    st.markdown("---")
-                            else:
-                                st.info("Nenhuma solicitação de itens para este grupo de pesquisa.")
+                            btn_add_item = st.form_submit_button("🛒 Adicionar Este Item ao Carrinho")
 
-                        with st_sub2:
-                            with st.form(f"form_nova_solicitacao_{grp_id}"):
-                                item_nome = st.text_input("Item / Material Solicitado (ex: Álcool Etílico, Frasco Erlenmeyer 250mL, Papel Filtro 125mm) *")
-                                cat_item = st.selectbox("Categoria do Item", ["Reagentes", "Vidrarias", "Papel de Filtro", "Consumíveis de Bancada", "Equipamentos", "Outros"])
-                                qtd_item = st.text_input("Quantidade Desejada (ex: 2 Frascos de 1L, 5 caixas) *")
+                            if btn_add_item:
+                                if item_nome_in.strip() and item_qtd_in.strip():
+                                    st.session_state.itens_carrinho_req.append({
+                                        "item": item_nome_in.strip(),
+                                        "categoria_item": item_cat_in,
+                                        "quantidade": item_qtd_in.strip(),
+                                        "especificacoes": item_espec_in.strip(),
+                                        "link_preferencia": item_link_in.strip()
+                                    })
+                                    st.success(f"Item '{item_nome_in}' adicionado ao carrinho!")
+                                    st.rerun()
+                                else:
+                                    st.error("Preencha o nome do item e a quantidade.")
 
+                        # EXIBE CARRINHO ATUAL
+                        if st.session_state.itens_carrinho_req:
+                            st.markdown("##### 📋 Itens Atual no Pedido:")
+                            df_carrinho = pd.DataFrame(st.session_state.itens_carrinho_req)
+                            st.dataframe(df_carrinho[["item", "categoria_item", "quantidade", "especificacoes", "link_preferencia"]], use_container_width=True)
+
+                            if st.button("🗑️ Esvaziar Carrinho"):
+                                st.session_state.itens_carrinho_req = []
+                                st.rerun()
+
+                            st.markdown("---")
+                            st.markdown("##### 🚀 Dados Finais da Requisição")
+                            with st.form(f"form_fechar_pedido_{grp_id}"):
                                 c_urg1, c_urg2 = st.columns([1, 2])
                                 with c_urg1:
-                                    is_urgente = st.checkbox("🚨 É URGENTE?")
+                                    is_urgente = st.checkbox("🚨 PEDIDO URGENTE?")
                                 with c_urg2:
-                                    razao_urg = st.text_input("Razão da Urgência / Justificativa do Pedido *")
+                                    razao_urg = st.text_input("Razão da Urgência / Justificativa *", "Necessário para ensaios da próxima semana.")
 
-                                tem_espec = st.radio("Há especificações técnicas?", ["Não há especificação", "Sim, especificar abaixo"], horizontal=True)
-                                txt_espec = st.text_area("Especificações Técnicas (Grau de pureza, marca, porosidade, etc.)", value="Grau P.A." if tem_espec != "Não há especificação" else "Não se aplica")
-
-                                st.markdown("##### 👤 Identificação do Solicitante")
-                                opt_solicitantes = lista_integrantes_nomes + ["✍️ Outro (Digitar manualmente)"]
+                                opt_solicitantes = lista_integrantes_nomes
                                 idx_sol_def = lista_integrantes_nomes.index(usuario_atual["nome"]) if usuario_atual["nome"] in lista_integrantes_nomes else 0
-                                sel_sol_tipo = st.selectbox("Selecione o Solicitante Cadastrado", opt_solicitantes, index=idx_sol_def)
+                                sel_sol_tipo = st.selectbox("Solicitante Responsável", opt_solicitantes, index=idx_sol_def)
 
-                                if sel_sol_tipo == "✍️ Outro (Digitar manualmente)":
-                                    nome_solicitante_final = st.text_input("Digite o Nome do Solicitante Manualmente *")
-                                else:
-                                    nome_solicitante_final = sel_sol_tipo
+                                btn_enviar_pedido_completo = st.form_submit_button("🚀 Finalizar e Gerar Requisição Oficial", type="primary")
 
-                                btn_enviar_sol = st.form_submit_button("🚀 Enviar Solicitação para Aprovação da Liderança", type="primary")
-
-                                if btn_enviar_sol:
-                                    if item_nome.strip() and qtd_item.strip() and razao_urg.strip() and nome_solicitante_final.strip():
+                                if btn_enviar_pedido_completo:
+                                    if razao_urg.strip() and sel_sol_tipo:
                                         if "solicitacoes_itens" not in grupo_ativo:
                                             grupo_ativo["solicitacoes_itens"] = []
 
                                         novo_id_sol = max([s.get("id", 0) for s in grupo_ativo["solicitacoes_itens"]], default=0) + 1
                                         grupo_ativo["solicitacoes_itens"].append({
                                             "id": novo_id_sol,
-                                            "item": item_nome.strip(),
-                                            "categoria_item": cat_item,
-                                            "quantidade": qtd_item.strip(),
                                             "urgente": is_urgente,
                                             "razao_urgencia": razao_urg.strip(),
-                                            "especificacoes": txt_espec.strip() if tem_espec != "Não há especificação" else "Não se aplica",
-                                            "solicitante": nome_solicitante_final.strip(),
+                                            "solicitante": sel_sol_tipo,
                                             "data_solicitacao": datetime.now().strftime("%d/%m/%Y"),
                                             "status": "Pendente",
-                                            "aprovado_por": "-"
+                                            "aprovado_por": "-",
+                                            "itens": list(st.session_state.itens_carrinho_req)
                                         })
                                         salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
-                                        st.success("✅ Solicitação cadastrada e enviada para o Líder/Colíder!")
+                                        st.session_state.itens_carrinho_req = []
+                                        st.success("✅ Pedido completo gerado com sucesso!")
                                         st.rerun()
                                     else:
-                                        st.error("Preencha todos os campos obrigatórios (*).")
+                                        st.error("Preencha a justificativa e o solicitante.")
+                        else:
+                            st.info("O carrinho está vazio. Adicione pelo menos um item acima para fechar a requisição.")
 
-                    with sub_tab2:
-                        st.subheader("📅 Calendário Exclusivo do Grupo")
-                        st.info("Eventos e reuniões deste grupo.")
+                with sub_tab2:
+                    st.subheader("📝 Mural do Grupo")
+                    st.write(grupo_ativo.get("mural", "Sem anotações."))
 
-                    with sub_tab3:
-                        st.subheader("📝 Mural & Projetos Internos do Grupo")
-                        mural_atual = grupo_ativo.get("mural", "Nenhuma anotação postada ainda.")
-                        st.markdown(f"<div class='css-card'>{mural_atual}</div>", unsafe_allow_html=True)
-
-                    with sub_tab4:
-                        st.subheader("👥 Integrantes do Grupo")
-                        for mbr in grupo_ativo.get("membros", []):
-                            papel = ""
-                            if mbr == grupo_ativo.get("lider"):
-                                papel = "👑 (Líder)"
-                            elif mbr == grupo_ativo.get("colider"):
-                                papel = "🤝 (Colíder)"
-                            st.markdown(f"- 👨‍🔬 **{mbr}** {papel}")
-
-                    with sub_tab5:
-                        st.subheader("📁 Documentos Exclusivos do Grupo")
-                        st.info("Arquivos compartilhados do grupo.")
+                with sub_tab3:
+                    st.subheader("👥 Integrantes do Grupo")
+                    for m in grupo_ativo.get("membros", []):
+                        st.write(f"- {m}")
 
         with aba_grp_solicitar:
             st.subheader("➕ Solicitar Criação de Novo Grupo")
@@ -1777,23 +1231,15 @@ else:
     # --- 3. PRESENÇA NO LABORATÓRIO ---
     elif menu_selecionado == "🕒 Presença no Laboratório":
         st.title("🕒 Presença no Laboratório")
-        if st.session_state.integrantes:
-            df_presenca = pd.DataFrame(st.session_state.integrantes)
-            cols_p = ["Nome", "Categoria", "DiasHorarios"]
-            for col in cols_p:
-                if col not in df_presenca.columns:
-                    df_presenca[col] = "-"
-            st.dataframe(df_presenca[cols_p], use_container_width=True)
 
     # --- 4. REPOSITÓRIO DE ARQUIVOS ---
     elif menu_selecionado == "📁 Repositório de Arquivos":
         st.title("📁 Central de Arquivos & Documentos")
-        st.info("Acesse e envie documentos do laboratório.")
 
-    # --- 5. GERAR QR CODE E ETIQUETAS COM FISPQ (NOVA ÁREA DE CONHECIMENTO E FERRAMENTAS) ---
+    # --- 5. GERAR QR CODE E ETIQUETAS COM FISPQ (ÁREA DE CONHECIMENTO E FERRAMENTAS) ---
     elif menu_selecionado == "🏷️ Gerar QR Code de Amostras":
-        st.title("🧪 Gerador de Etiquetas & QR Code de Amostras")
-        st.caption("Crie etiquetas otimizadas para colar em **frascos, microtubos (Eppendorf), tubos Falcon ou recipientes de bancada**.")
+        st.title("🏷️ Gerador de Etiquetas & QR Code de Amostras")
+        st.caption("Crie etiquetas otimizadas e compactas para frascos de laboratório, microtubos, reagentes e soluções.")
 
         tab_etq_pre, tab_etq_custom = st.tabs([
             "🏷️ Reagentes Pré-definidos & FISPQ (Ex: Álcool 99%)",
@@ -1805,7 +1251,7 @@ else:
             col_pre_f, col_pre_p = st.columns([1.2, 1])
 
             with col_pre_f:
-                st.subheader("Selecione o Reagente Pré-definido")
+                st.subheader("Selecione o Reagente / Amostra Pré-definida")
                 
                 reagente_pre = st.selectbox("Reagente / Solução Padrão", list(REAGENTES_PREDEFINIDOS_FISPQ.keys()))
                 info_fispq = REAGENTES_PREDEFINIDOS_FISPQ[reagente_pre]
@@ -1822,28 +1268,23 @@ else:
 
                 c_dt1, c_dt2 = st.columns(2)
                 with c_dt1:
-                    data_nascimento = st.date_input("🎂 Data de Nascimento / Preparo", datetime.now().date(), key="dt_nasc_fispq")
+                    data_nascimento = st.date_input("🎂 Data de Nascimento / Obtenção da Amostra", datetime.now().date(), key="dt_nasc_fispq")
                 with c_dt2:
                     validade_calc = datetime.now().date() + pd.Timedelta(days=info_fispq["validade_dias"])
                     data_validade = st.date_input("⏳ Data de Validade", validade_calc, key="dt_val_fispq")
 
-                # Responsável e Grupo
                 grupos_nomes = [g["nome"] for g in st.session_state.grupos_db if g.get("status") == "Aprovado"]
-                grupo_origem = st.selectbox("Grupo de Pesquisa de Origem", ["Geral / Laboratório"] + grupos_nomes)
-                
+                grupo_origem = st.selectbox("Grupo de Pesquisa Responsável", ["Geral / Laboratório"] + grupos_nomes)
                 pesquisador_resp = st.selectbox("Pesquisador Responsável pelo Preparo", [p["Nome"] for p in st.session_state.integrantes], key="resp_fispq")
 
                 st.markdown("##### ⚠️ Informações Automáticas da FISPQ (MSDS)")
                 fispq_editada = st.text_area("Frases de Risco e Perigo FISPQ", value=info_fispq["fispq_resumo"], height=70)
-                epis_recomendados = st.text_input("EPIs / Recomendações", value=info_fispq["epis"])
 
-                st.markdown("##### 📏 Tamanho do Frasco / Etiqueta de Impressão")
-                tam_frasco_label = st.selectbox("Destino / Frasco de Aplicação", list(DESTINOS_ETIQUETAS.keys()), index=1)
+                st.markdown("##### 📏 Tamanho do Frasco / Dimensão da Etiqueta")
+                tam_frasco_label = st.selectbox("Tamanho do Frasco para Colar", list(DESTINOS_ETIQUETAS.keys()), index=1)
                 mm_w, mm_h = DESTINOS_ETIQUETAS[tam_frasco_label]
 
-                qtd_imprimir = st.number_input("Quantidade de Etiquetas por Folha", min_value=1, max_value=100, value=12, key="qtd_fispq")
-
-                btn_gerar_fispq = st.button("🏷️ Gerar Etiqueta para Frasco", type="primary", use_container_width=True)
+                qtd_imprimir = st.number_input("Quantidade de Etiquetas na Folha A4", min_value=1, max_value=100, value=12, key="qtd_fispq")
 
             with col_pre_p:
                 st.subheader("👁️ Pré-visualização da Etiqueta")
@@ -1853,13 +1294,12 @@ else:
                     f"------------------------\n"
                     f"• Nome: {reagente_pre}\n"
                     f"• ID/Lote: {id_amostra_f}\n"
-                    f"• D.Nascimento/Preparo: {data_nascimento.strftime('%d/%m/%Y')}\n"
+                    f"• D.Nascimento: {data_nascimento.strftime('%d/%m/%Y')}\n"
                     f"• Validade: {data_validade.strftime('%d/%m/%Y')}\n"
                     f"• Grupo: {grupo_origem}\n"
                     f"• Resp: {pesquisador_resp}\n"
                     f"------------------------\n"
-                    f"⚠️ FISPQ: {fispq_editada}\n"
-                    f"🥼 EPIs: {epis_recomendados}"
+                    f"⚠️ FISPQ: {fispq_editada}"
                 )
 
                 if QRCODE_DISPONIVEL:
@@ -1893,18 +1333,17 @@ else:
                         mm_w=mm_w,
                         mm_h=mm_h,
                         quantidade=qtd_imprimir,
-                        qr_img_pil=img_qr_f
+                        qr_img_pil=img_qr_f,
+                        grupo_nome=grupo_origem
                     )
 
                     st.download_button(
                         f"📄 Baixar PDF de Etiquetas ({qtd_imprimir}x para Frasco {mm_w}x{mm_h}mm)",
                         data=pdf_frasco_bytes,
-                        file_name=f"Etiqueta_Frasco_{id_amostra_f}.pdf",
+                        file_name=f"Etiquetas_Frasco_{id_amostra_f}.pdf",
                         mime="application/pdf",
                         use_container_width=True
                     )
-                else:
-                    st.warning("Biblioteca 'qrcode' necessária para renderizar a etiqueta.")
 
         # ABA DE ETIQUETA CUSTOMIZADA
         with tab_etq_custom:
@@ -1913,33 +1352,21 @@ else:
             with col_f:
                 id_gerado_auto = f"AMS-{datetime.now().strftime('%Y%m%d')}-{st.session_state.seq_amostra:03d}"
                 id_amostra = st.text_input("Código / ID da Amostra", value=id_gerado_auto, key="id_custom_inp")
-                
                 nome_amostra = st.text_input("Nome da Amostra / Reagente Personalizado", "Amostra Enzimática - Lote A")
                 data_obtencao = st.date_input("Data de Obtenção / Preparo", datetime.now().date(), key="dt_cust_inp")
                 responsavel_nome = st.selectbox("Pesquisador Responsável", [p["Nome"] for p in st.session_state.integrantes], key="resp_cust_inp")
-                localizacao = st.text_input("Local de Armazenamento", "Freezer -20°C / Posição B4")
                 descricao = st.text_area("Descrição / Protocolo", value="Amostra obtida via fermentação estado sólido.")
                 qtd_etiquetas = st.number_input("Quantidade de Etiquetas", min_value=1, max_value=100, value=6, key="qtd_cust_inp")
 
             with col_q:
-                conteudo_qr = (
-                    f"📋 FICHA DA AMOSTRA\n"
-                    f"------------------------\n"
-                    f"• Código / ID: {id_amostra}\n"
-                    f"• Amostra: {nome_amostra}\n"
-                    f"• Data: {data_obtencao.strftime('%d/%m/%Y')}\n"
-                    f"• Responsável: {responsavel_nome}\n"
-                    f"• Local: {localizacao}\n"
-                    f"------------------------\n"
-                    f"• Descrição:\n{descricao}"
-                )
+                conteudo_qr = f"📋 FICHA DA AMOSTRA\n------------------------\n• ID: {id_amostra}\n• Amostra: {nome_amostra}\n• Data: {data_obtencao.strftime('%d/%m/%Y')}\n• Resp: {responsavel_nome}\n------------------------\n• Descrição:\n{descricao}"
 
                 if QRCODE_DISPONIVEL:
                     img = qrcode.make(conteudo_qr)
                     buffer = BytesIO()
                     img.save(buffer, format="PNG")
                     img_bytes = buffer.getvalue()
-                    st.image(img_bytes, caption=f"Pré-visualização: {id_amostra}", width=200)
+                    st.image(img_bytes, caption=f"Pré-visualização: {id_amostra}", width=180)
 
                     pdf_custom_bytes = gerar_pdf_etiquetas_frasco(
                         nome_amostra=nome_amostra,
@@ -1958,39 +1385,13 @@ else:
     elif menu_selecionado == "📝 Criador de POP":
         st.title("📝 Procedimentos Operacionais Padrão (POPs)")
 
-        aba_pops_view, aba_pop_form = st.tabs([
-            "📚 POPs Cadastrados e Prévias",
-            "➕ Criar / Atualizar POP",
-        ])
-
-        with aba_pops_view:
-            pops_aprovados = [p for p in st.session_state.pops_db if p.get("status") == "Aprovado"]
-            if pops_aprovados:
-                for idx, pop in enumerate(pops_aprovados):
-                    st.markdown(
-                        f"""
-                        <div class="pop-preview-card">
-                            <h3>📝 {pop['titulo']} ({pop['codigo']})</h3>
-                            <p><b>Objetivo:</b> {pop.get('objetivo')}</p>
-                            <p><b>Autor:</b> {pop.get('autor')}</p>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-                    pdf_bytes = gerar_pdf_pop(pop)
-                    st.download_button("📄 Baixar PDF do POP", pdf_bytes, f"{pop['codigo']}.pdf", "application/pdf", key=f"dl_pop_{idx}")
-
-        with aba_pop_form:
-            st.subheader("➕ Formulário de Criação de POP")
-
     # --- 6.1 CALCULADORA DE PREPARO DE SOLUÇÕES ---
     elif menu_selecionado == "🧪 Calculadora de Soluções":
-        st.title("🧪 Calculadora de Preparo de Soluções de Uso Geral")
-        st.caption("Cálculo rápido para pesagem e diluição de reagentes no laboratório.")
+        st.title("🧪 Calculadora de Soluções")
 
     # --- 7. ADMINISTRAÇÃO ---
     elif menu_selecionado == "🛡️ Administração" and is_admin:
-        st.title("🛡️ Central de Aprovações e Atribuições do Administrador")
+        st.title("🛡️ Central de Administração")
 
     # --- 8. MEU PERFIL ---
     elif menu_selecionado == "👤 Meu perfil":
