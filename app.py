@@ -2417,6 +2417,7 @@ dados_amostra_dict = {
                     }
                     pdf_etiquetas = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm, id_amostra=id_amostra, dados_amostra=dados_amostra_dict)
                     st.download_button(f"📄 Baixar PDF ({qtd_etiquetas}x Etiquetas)", pdf_etiquetas, f"Etiquetas_{id_amostra}.pdf", "application/pdf")
+                  
                 else:
                     st.warning("Biblioteca 'qrcode' não instalada para renderizar o código QR.")
 
