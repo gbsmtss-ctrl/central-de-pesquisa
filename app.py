@@ -2406,16 +2406,16 @@ else:
                     img_bytes = buffer.getvalue()
                     st.image(img_bytes, caption=f"Pré-visualização: {id_amostra}", width=220)
                     st.download_button("🖼️ Baixar QR Code (PNG)", img_bytes, f"QR_{id_amostra}.png", "image/png")
-                    dados_amostra_dict = {
-    "nome_amostra": nome_amostra,
-    "data_obtencao": data_obtencao.strftime('%d/%m/%Y'),
-    "responsavel": responsavel_nome,
-    "telefone": responsavel_tel,
-    "email": responsavel_email,
-    "localizacao": localizacao,
-    "descricao": descricao,
-}
-pdf_etiquetas = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm, id_amostra=id_amostra, dados_amostra=dados_amostra_dict)
+dados_amostra_dict = {
+                        "nome_amostra": nome_amostra,
+                        "data_obtencao": data_obtencao.strftime('%d/%m/%Y'),
+                        "responsavel": responsavel_nome,
+                        "telefone": responsavel_tel,
+                        "email": responsavel_email,
+                        "localizacao": localizacao,
+                        "descricao": descricao,
+                    }
+                    pdf_etiquetas = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm, id_amostra=id_amostra, dados_amostra=dados_amostra_dict)
                     st.download_button(f"📄 Baixar PDF ({qtd_etiquetas}x Etiquetas)", pdf_etiquetas, f"Etiquetas_{id_amostra}.pdf", "application/pdf")
                 else:
                     st.warning("Biblioteca 'qrcode' não instalada para renderizar o código QR.")
