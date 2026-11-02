@@ -354,11 +354,11 @@ def gerar_codigo_pop(titulo, versao=1):
         sigla = "DOC"
     return f"POP-{sigla}-v{versao}"
 
-# --- FUNÇÕES DE GERAÇÃO DE PDF OTIMIZADAS (300 DPI / ALTA RESOLUÇÃO) ---
+# --- FUNÇÕES DE GERAÇÃO DE PDF VETORIAL PADRONIZADAS ---
 
 def gerar_pdf_pop(pop_dict):
+    buffer = BytesIO()
     if REPORTLAB_DISPONIVEL:
-        buffer = BytesIO()
         doc = SimpleDocTemplate(
             buffer,
             pagesize=letter,
@@ -370,148 +370,116 @@ def gerar_pdf_pop(pop_dict):
         styles = getSampleStyleSheet()
         story = []
 
-        title_header_style = ParagraphStyle(
-            'HeaderTitle',
+        title_style = ParagraphStyle(
+            'PopTitle',
             parent=styles['Normal'],
             fontName='Helvetica-Bold',
-            fontSize=11,
-            leading=14,
-            textColor=colors.HexColor('#FFFFFF'),
-            alignment=1
-        )
-        
-        meta_label_style = ParagraphStyle(
-            'MetaLabel',
-            parent=styles['Normal'],
-            fontName='Helvetica-Bold',
-            fontSize=9,
-            leading=12,
+            fontSize=10,
+            leading=13,
             textColor=colors.HexColor('#0F172A')
         )
         
-        meta_val_style = ParagraphStyle(
-            'MetaVal',
-            parent=styles['Normal'],
-            fontName='Helvetica',
-            fontSize=9,
-            leading=12,
-            textColor=colors.HexColor('#334155')
-        )
-
         sec_title_style = ParagraphStyle(
-            'SecTitle',
+            'PopSecTitle',
             parent=styles['Heading2'],
             fontName='Helvetica-Bold',
             fontSize=10,
             leading=14,
-            textColor=colors.HexColor('#0E7490'),
-            spaceBefore=8,
+            textColor=colors.HexColor('#0F172A'),
+            spaceBefore=10,
             spaceAfter=4
         )
 
         body_style = ParagraphStyle(
-            'BodyTextCustom',
+            'PopBodyText',
             parent=styles['Normal'],
             fontName='Helvetica',
-            fontSize=9,
-            leading=13,
+            fontSize=9.5,
+            leading=14,
             textColor=colors.HexColor('#1E293B')
         )
 
-        safety_style = ParagraphStyle(
-            'SafetyTextCustom',
-            parent=styles['Normal'],
-            fontName='Helvetica-Bold',
-            fontSize=9,
-            leading=13,
-            textColor=colors.HexColor('#991B1B')
-        )
+        codigo = pop_dict.get('codigo', 'POP-DOC-v1')
+        titulo = pop_dict.get('titulo', 'Documento sem título')
+        versao = pop_dict.get('versao', 1)
+        autor = pop_dict.get('autor', 'N/A')
+        status = pop_dict.get('status', 'Aprovado')
 
         header_data = [
-            [Paragraph("<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", title_header_style), Paragraph(f"<b>CÓDIGO:</b> {pop_dict['codigo']}", title_header_style)],
-            [Paragraph("Título do Documento:", meta_label_style), Paragraph(f"<b>{pop_dict['titulo']}</b>", meta_val_style)],
-            [Paragraph("Elaborado por:", meta_label_style), Paragraph(f"{pop_dict.get('autor', 'N/A')} (Versão {pop_dict.get('versao', 1)})", meta_val_style)],
-            [Paragraph("Status de Aprovação:", meta_label_style), Paragraph(f"{pop_dict.get('status', 'Aprovado')}", meta_val_style)]
+            [
+                Paragraph("<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", title_style),
+                Paragraph(f"<b>CÓDIGO:</b> {codigo}", title_style)
+            ],
+            [
+                Paragraph(f"<b>Título:</b> {titulo}", title_style),
+                Paragraph(f"<b>Versão:</b> {versao}", title_style)
+            ],
+            [
+                Paragraph(f"<b>Elaborado por:</b> {autor}", title_style),
+                Paragraph(f"<b>Status:</b> {status}", title_style)
+            ]
         ]
-        
-        t_header = Table(header_data, colWidths=[130, 410])
+
+        t_header = Table(header_data, colWidths=[350, 190])
         t_header.setStyle(TableStyle([
-            ('SPAN', (0,0), (0,0)),
-            ('SPAN', (1,0), (1,0)),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0E7490')),
-            ('BACKGROUND', (0,1), (0,-1), colors.HexColor('#F1F5F9')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#94A3B8')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
             ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING', (0,0), (-1,-1), 5),
+            ('PADDING', (0,0), (-1,-1), 6),
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
         ]))
         story.append(t_header)
-        story.append(Spacer(1, 10))
+        story.append(Spacer(1, 14))
 
         sections = [
-            ("1. OBJETIVO", pop_dict.get("objetivo", ""), False),
-            ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", ""), False),
-            ("3. PROCEDIMENTO / PASSO A PASSO", pop_dict.get("passos", ""), False),
-            ("4. SEGURANÇA E EPIs", pop_dict.get("seguranca", ""), True),
-            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "-"), False),
+            ("1. OBJETIVO", pop_dict.get("objetivo", "")),
+            ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
+            ("3. PROCEDIMENTO/PASSO A PASSO", pop_dict.get("passos", "")),
+            ("4. SEGURANÇA E EPIS", pop_dict.get("seguranca", "")),
+            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "-")),
         ]
 
-        for title, content, is_safety in sections:
-            story.append(Paragraph(title, sec_title_style))
-            content_p = str(content).replace('\n', '<br/>')
-            
-            if is_safety:
-                t_safe = Table([[Paragraph(content_p, safety_style)]], colWidths=[540])
-                t_safe.setStyle(TableStyle([
-                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FEE2E2')),
-                    ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#FCA5A5')),
-                    ('LINELEFT', (0,0), (0,-1), 4, colors.HexColor('#DC2626')),
-                    ('PADDING', (0,0), (-1,-1), 8),
-                ]))
-                story.append(t_safe)
-            else:
+        for title, content in sections:
+            if content:
+                story.append(Paragraph(title, sec_title_style))
+                content_p = str(content).replace('\n', '<br/>')
                 story.append(Paragraph(content_p, body_style))
-            
-            story.append(Spacer(1, 6))
+                story.append(Spacer(1, 4))
 
         doc.build(story)
         return buffer.getvalue()
     else:
-        dpi = 300
-        px_w, px_h = int(8.5 * dpi), int(11 * dpi)
-        page = Image.new("RGB", (px_w, px_h), "white")
+        page = Image.new("RGB", (612, 792), "white")
         draw = ImageDraw.Draw(page)
-        
-        draw.rectangle([100, 100, px_w - 100, 280], fill="#F1F5F9", outline="#0E7490", width=4)
-        draw.text((120, 125), f"PROCEDIMENTO OPERACIONAL PADRÃO - {pop_dict['codigo']}", fill="#0F172A")
-        draw.text((120, 175), f"Título: {pop_dict['titulo']} (v{pop_dict['versao']})", fill="#0F172A")
-        draw.text((120, 225), f"Autor: {pop_dict.get('autor','N/A')}", fill="#334155")
+        draw.rectangle([30, 30, 582, 110], fill="#F8FAFC", outline="#475569", width=1)
+        draw.text((40, 40), f"PROCEDIMENTO OPERACIONAL PADRÃO (POP) | CÓDIGO: {pop_dict.get('codigo', 'POP-v1')}", fill="black")
+        draw.text((40, 60), f"Título: {pop_dict.get('titulo', 'POP')} | Versão: {pop_dict.get('versao', 1)}", fill="black")
+        draw.text((40, 80), f"Elaborado por: {pop_dict.get('autor','N/A')} | Status: {pop_dict.get('status','Aprovado')}", fill="black")
 
-        y = 330
+        y = 130
         secoes = [
             ("1. OBJETIVO", pop_dict.get("objetivo", "")),
-            ("2. MATERIAIS", pop_dict.get("materiais", "")),
-            ("3. PASSO A PASSO", pop_dict.get("passos", "")),
-            ("4. SEGURANÇA", pop_dict.get("seguranca", "")),
-            ("5. REFERÊNCIAS", pop_dict.get("referencias", "")),
+            ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
+            ("3. PROCEDIMENTO/PASSO A PASSO", pop_dict.get("passos", "")),
+            ("4. SEGURANÇA E EPIS", pop_dict.get("seguranca", "")),
+            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "")),
         ]
 
         for tit, txt in secoes:
-            draw.text((100, y), tit, fill="#0E7490")
-            y += 45
+            draw.text((40, y), tit, fill="black")
+            y += 20
             for line in str(txt).split("\n"):
-                draw.text((140, y), line, fill="#334155")
-                y += 35
-            y += 25
+                draw.text((50, y), line[:85], fill="#334155")
+                y += 15
+            y += 10
 
-        buf = BytesIO()
-        page.save(buf, format="PDF", dpi=(dpi, dpi))
-        return buf.getvalue()
+        page.save(buffer, format="PDF", resolution=72.0)
+        return buffer.getvalue()
 
 
 def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome):
+    buffer = BytesIO()
     if REPORTLAB_DISPONIVEL:
-        buffer = BytesIO()
         doc = SimpleDocTemplate(
             buffer,
             pagesize=letter,
@@ -527,18 +495,17 @@ def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome
             'HeaderTitle',
             parent=styles['Normal'],
             fontName='Helvetica-Bold',
-            fontSize=11,
-            leading=14,
-            textColor=colors.HexColor('#FFFFFF'),
-            alignment=1
+            fontSize=10,
+            leading=13,
+            textColor=colors.HexColor('#0F172A')
         )
         
         meta_val_style = ParagraphStyle(
             'MetaVal',
             parent=styles['Normal'],
             fontName='Helvetica',
-            fontSize=9,
-            leading=12,
+            fontSize=9.5,
+            leading=13,
             textColor=colors.HexColor('#334155')
         )
         
@@ -546,55 +513,64 @@ def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome
             'MetaValBold',
             parent=styles['Normal'],
             fontName='Helvetica-Bold',
-            fontSize=9,
-            leading=12,
+            fontSize=9.5,
+            leading=13,
             textColor=colors.HexColor('#0F172A')
         )
 
+        req_id = solicitacao.get('id', 1)
+        req_data = solicitacao.get('data_solicitacao', '-')
+        req_status = solicitacao.get('status', 'Pendente')
+
         header_data = [
-            [Paragraph("<b>REQUISIÇÃO DE MATERIAIS / ITENS DE LABORATÓRIO</b>", title_style), Paragraph(f"<b>DATA:</b> {solicitacao.get('data_solicitacao', '-')}", title_style)],
-            [Paragraph(f"<b>Grupo de Pesquisa:</b> {nome_grupo}", meta_val_bold), Paragraph(f"<b>Nº Pedido:</b> REQ-{solicitacao.get('id', 1):04d}", meta_val_style)],
-            [Paragraph(f"<b>Liderança:</b> {lider_nome} / {colider_nome}", meta_val_style), Paragraph(f"<b>Status:</b> {solicitacao.get('status', 'Pendente')}", meta_val_bold)]
+            [
+                Paragraph("<b>REQUISIÇÃO DE MATERIAIS / ITENS DE LABORATÓRIO</b>", title_style),
+                Paragraph(f"<b>DATA:</b> {req_data}", title_style)
+            ],
+            [
+                Paragraph(f"<b>Grupo de Pesquisa:</b> {nome_grupo}", title_style),
+                Paragraph(f"<b>Nº Pedido:</b> REQ-{req_id:04d}", title_style)
+            ],
+            [
+                Paragraph(f"<b>Liderança:</b> {lider_nome} / {colider_nome}", title_style),
+                Paragraph(f"<b>Status:</b> {req_status}", title_style)
+            ]
         ]
         t_header = Table(header_data, colWidths=[360, 180])
         t_header.setStyle(TableStyle([
-            ('SPAN', (0,0), (0,0)),
-            ('SPAN', (1,0), (1,0)),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0E7490')),
-            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#F8FAFC')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#94A3B8')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
             ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('PADDING', (0,0), (-1,-1), 6),
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
         ]))
         story.append(t_header)
         story.append(Spacer(1, 15))
 
-        urgente_str = "🚨 SIM (URGENTE)" if solicitacao.get("urgente") else "📦 NÃO (PROCESSO PADRÃO)"
+        urgente_str = "SIM (URGENTE)" if solicitacao.get("urgente") else "NÃO (PROCESSO PADRÃO)"
 
         item_data = [
             [Paragraph("<b>CAMPO</b>", meta_val_bold), Paragraph("<b>INFORMAÇÃO DETALHADA</b>", meta_val_bold)],
-            [Paragraph("Item / Material Solicitado", meta_val_bold), Paragraph(solicitacao.get('item', '-'), meta_val_style)],
-            [Paragraph("Categoria do Item", meta_val_bold), Paragraph(solicitacao.get('categoria_item', 'Reagentes'), meta_val_style)],
-            [Paragraph("Quantidade Solicitada", meta_val_bold), Paragraph(solicitacao.get('quantidade', '-'), meta_val_style)],
-            [Paragraph("Solicitante Responsável", meta_val_bold), Paragraph(solicitacao.get('solicitante', '-'), meta_val_style)],
+            [Paragraph("Item / Material Solicitado", meta_val_bold), Paragraph(str(solicitacao.get('item', '-')), meta_val_style)],
+            [Paragraph("Categoria do Item", meta_val_bold), Paragraph(str(solicitacao.get('categoria_item', 'Reagentes')), meta_val_style)],
+            [Paragraph("Quantidade Solicitada", meta_val_bold), Paragraph(str(solicitacao.get('quantidade', '-')), meta_val_style)],
+            [Paragraph("Solicitante Responsável", meta_val_bold), Paragraph(str(solicitacao.get('solicitante', '-')), meta_val_style)],
             [Paragraph("Grau de Urgência", meta_val_bold), Paragraph(urgente_str, meta_val_style)],
-            [Paragraph("Razão / Justificativa", meta_val_bold), Paragraph(solicitacao.get('razao_urgencia', '-'), meta_val_style)],
-            [Paragraph("Especificações Técnicas", meta_val_bold), Paragraph(solicitacao.get('especificacoes', '-'), meta_val_style)],
-            [Paragraph("Aprovado por (Liderança)", meta_val_bold), Paragraph(solicitacao.get('aprovado_por', '-'), meta_val_style)],
+            [Paragraph("Razão / Justificativa", meta_val_bold), Paragraph(str(solicitacao.get('razao_urgencia', '-')), meta_val_style)],
+            [Paragraph("Especificações Técnicas", meta_val_bold), Paragraph(str(solicitacao.get('especificacoes', '-')), meta_val_style)],
+            [Paragraph("Aprovado por (Liderança)", meta_val_bold), Paragraph(str(solicitacao.get('aprovado_por', '-')), meta_val_style)],
         ]
 
         t_item = Table(item_data, colWidths=[170, 370])
         t_item.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E2E8F0')),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F1F5F9')),
             ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#94A3B8')),
             ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F8FAFC')]),
             ('PADDING', (0,0), (-1,-1), 6),
         ]))
         story.append(t_item)
-        story.append(Spacer(1, 35))
+        story.append(Spacer(1, 40))
 
         sig_data = [
             [Paragraph("____________________________________________", meta_val_style)],
@@ -610,19 +586,13 @@ def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome
         doc.build(story)
         return buffer.getvalue()
     else:
-        dpi = 300
-        px_w, px_h = int(8.5 * dpi), int(11 * dpi)
-        page = Image.new("RGB", (px_w, px_h), "white")
+        page = Image.new("RGB", (612, 792), "white")
         draw = ImageDraw.Draw(page)
-        
-        draw.rectangle([100, 100, px_w - 100, 260], fill="#F1F5F9", outline="#0E7490", width=4)
-        draw.text((120, 130), f"REQUISIÇÃO DE MATERIAIS - GRUPO: {nome_grupo}", fill="#0F172A")
-        draw.text((120, 180), f"Item: {solicitacao.get('item')} | Qtd: {solicitacao.get('quantidade')}", fill="#0F172A")
-        draw.text((120, 220), f"Solicitante: {solicitacao.get('solicitante')}", fill="#334155")
-        
-        buf = BytesIO()
-        page.save(buf, format="PDF", dpi=(dpi, dpi))
-        return buf.getvalue()
+        draw.text((40, 40), f"REQUISIÇÃO DE MATERIAIS - GRUPO: {nome_grupo}", fill="black")
+        draw.text((40, 60), f"Item: {solicitacao.get('item', '-')} | Qtd: {solicitacao.get('quantidade', '-')}", fill="black")
+        draw.text((40, 80), f"Solicitante: {solicitacao.get('solicitante', '-')}", fill="black")
+        page.save(buffer, format="PDF", resolution=72.0)
+        return buffer.getvalue()
 
 
 def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra=""):
@@ -687,7 +657,7 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra=""):
 
     return pdf_buffer.getvalue()
 
-# --- DADOS DE USUÁRIO ADMINISTRADOR E CONFIGURAÇÃO DA SESSÃO ---
+# --- USUÁRIOS E DADOS INICIAIS ---
 
 usuario_admin_padrao = [{
     "nome": "Gabriela Mendes Farias Matos",
@@ -1149,7 +1119,7 @@ else:
                                     st.warning("Aviso excluído.")
                                     st.rerun()
                 else:
-                    st.info("Nenhum aviso publicado no mural.")
+                    st.info("Nenum aviso publicado no mural.")
 
         with col_right:
             with st.container(border=True):
@@ -1272,7 +1242,7 @@ else:
                         st.markdown(
                             f"""
                             <div class="event-card" style="border-left: 5px solid {cor_ev};">
-                                <h4 style="margin: 0; color: #0F172A;">{ev['titulo']}</h4>
+                                <h4 style="margin: 0; color: #0F172A;">{ev.get('titulo', '-')}</h4>
                                 <div style="color: #475569; font-size: 0.85rem; margin-top: 4px;">
                                     📅 <b>{dt_f}</b> | 🕒 <b>{ev.get('hora_inicio')} às {ev.get('hora_fim')}</b> | 🏷️ <b>{ev.get('tipo')}</b>
                                 </div>
@@ -1610,7 +1580,7 @@ else:
                                 f"""
                                 <div class="grp-card">
                                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <h3 style="margin:0; color:#0F172A; font-size:1.15rem;">🔬 {g['nome']}</h3>
+                                        <h3 style="margin:0; color:#0F172A; font-size:1.15rem;">🔬 {g.get('nome', 'Grupo')}</h3>
                                         <span class="badge-ativo" style="font-size:0.7rem;">{badge_auth}</span>
                                     </div>
                                     <p style="color:#475569; font-size:0.85rem; margin:8px 0; min-height:40px;">{g.get('descricao','')[:120]}...</p>
@@ -1624,7 +1594,7 @@ else:
                                 unsafe_allow_html=True
                             )
 
-                            if st.button(f"🚀 Abrir Painel do Grupo '{g['nome']}'", key=f"btn_open_grp_{g['id']}", use_container_width=True, type="primary" if is_mb else "secondary"):
+                            if st.button(f"🚀 Abrir Painel do Grupo '{g.get('nome', '')}'", key=f"btn_open_grp_{g.get('id', idx)}", use_container_width=True, type="primary" if is_mb else "secondary"):
                                 st.session_state.grupo_ativo_id = g["id"]
                                 st.rerun()
                 else:
@@ -1638,7 +1608,7 @@ else:
 
                 c_back1, c_back2 = st.columns([3, 1])
                 with c_back1:
-                    st.subheader(f"🔬 Grupo: {grupo_ativo['nome']}")
+                    st.subheader(f"🔬 Grupo: {grupo_ativo.get('nome', 'Sem nome')}")
                 with c_back2:
                     if st.button("⬅️ Voltar para Lista de Grupos", use_container_width=True):
                         st.session_state.grupo_ativo_id = None
@@ -1649,7 +1619,7 @@ else:
 
                 if not autenticado:
                     with st.container(border=True):
-                        st.warning(f"🔒 O Grupo **{grupo_ativo['nome']}** exige senha de acesso.")
+                        st.warning(f"🔒 O Grupo **{grupo_ativo.get('nome', '')}** exige senha de acesso.")
                         with st.form(f"form_auth_grp_{grp_id}"):
                             senha_grp_input = st.text_input("Senha do Grupo", type="password")
                             btn_entrar_grp = st.form_submit_button("🔓 Desbloquear Acesso", type="primary")
@@ -1668,7 +1638,7 @@ else:
                         f"""
                         <div class="css-card" style="border-left: 5px solid {cor_primaria};">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <h3 style="margin:0; color:#0F172A;">{grupo_ativo['nome']}</h3>
+                                <h3 style="margin:0; color:#0F172A;">{grupo_ativo.get('nome', '')}</h3>
                                 <span class="badge-ativo">{'👑 Painel do Líder/Colíder' if is_lider_ou_colider else '👤 Área do Membro'}</span>
                             </div>
                             <p style="color:#475569; margin: 6px 0; font-size:0.88rem;">{grupo_ativo.get('descricao', '')}</p>
@@ -1683,7 +1653,7 @@ else:
                     if is_lider_ou_colider:
                         with st.expander("⚙️ Gestão de Configurações, Líder e Colíder do Grupo"):
                             with st.form(f"form_edit_lideres_{grp_id}"):
-                                ed_nome_g = st.text_input("Nome do Grupo", value=grupo_ativo["nome"])
+                                ed_nome_g = st.text_input("Nome do Grupo", value=grupo_ativo.get("nome", ""))
                                 ed_desc_g = st.text_area("Descrição do Grupo", value=grupo_ativo.get("descricao", ""))
                                 
                                 c_lid1, c_lid2 = st.columns(2)
@@ -1734,17 +1704,17 @@ else:
                                         f"""
                                         <div class="event-card" style="border-left: 5px solid {st_cor};">
                                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                                <h4 style="margin:0; color:#0F172A;">{sol['item']}</h4>
+                                                <h4 style="margin:0; color:#0F172A;">{sol.get('item', 'Item sem nome')}</h4>
                                                 <div>
                                                     <span class="{badge_class}">{urg_txt}</span>
                                                     <span style="font-size:0.78rem; font-weight:bold; color:{st_cor}; margin-left:6px;">[{sol.get('status','Pendente')}]</span>
                                                 </div>
                                             </div>
                                             <div style="font-size:0.85rem; color:#475569; margin-top:6px;">
-                                                🏷️ <b>Categoria:</b> {sol.get('categoria_item','Reagentes')} | 📦 <b>Quantidade:</b> {sol.get('quantidade')}
+                                                🏷️ <b>Categoria:</b> {sol.get('categoria_item','Reagentes')} | 📦 <b>Quantidade:</b> {sol.get('quantidade', '-')}
                                             </div>
                                             <div style="font-size:0.82rem; color:#334155; margin-top:4px;">
-                                                👤 <b>Solicitante:</b> {sol.get('solicitante')} | 📅 <b>Data:</b> {sol.get('data_solicitacao')}
+                                                👤 <b>Solicitante:</b> {sol.get('solicitante', '-')} | 📅 <b>Data:</b> {sol.get('data_solicitacao', '-')}
                                             </div>
                                             <div style="font-size:0.82rem; color:#64748B; margin-top:4px;">
                                                 ℹ️ <b>Razão da Urgência / Justificativa:</b> {sol.get('razao_urgencia','-')}
@@ -1760,7 +1730,7 @@ else:
                                     c_sol_btn1, c_sol_btn2, c_sol_btn3 = st.columns([1.5, 1, 1])
 
                                     with c_sol_btn1:
-                                        pdf_sol_bytes = gerar_pdf_solicitacao_item(sol, grupo_ativo['nome'], grupo_ativo.get('lider'), grupo_ativo.get('colider'))
+                                        pdf_sol_bytes = gerar_pdf_solicitacao_item(sol, grupo_ativo.get('nome', 'Grupo'), grupo_ativo.get('lider', 'Líder'), grupo_ativo.get('colider', '-'))
                                         st.download_button(
                                             "📄 Baixar PDF do Pedido",
                                             data=pdf_sol_bytes,
@@ -1853,9 +1823,9 @@ else:
                                     st.markdown(
                                         f"""
                                         <div class="event-card" style="border-left: 4px solid #059669;">
-                                            <div style="font-weight:bold; color:#0F172A;">{ev['titulo']}</div>
+                                            <div style="font-weight:bold; color:#0F172A;">{ev.get('titulo', '-')}</div>
                                             <div style="font-size:0.82rem; color:#475569;">
-                                                📅 <b>{ev['data']}</b> das 🕒 <b>{ev.get('hora_inicio')} às {ev.get('hora_fim')}</b>
+                                                📅 <b>{ev.get('data', '-')}</b> das 🕒 <b>{ev.get('hora_inicio')} às {ev.get('hora_fim')}</b>
                                             </div>
                                             <div style="font-size:0.8rem; color:#64748B; margin-top:4px;">{ev.get('descricao', '')}</div>
                                             <div style="font-size:0.75rem; color:#94A3B8; margin-top:2px;">Criado por: {ev.get('autor','-')}</div>
@@ -1935,7 +1905,7 @@ else:
                                 st.markdown(
                                     f"""
                                     <div class="css-card">
-                                        <h4 style="margin:0; color:{cor_primaria};">📄 {doc_g['titulo']}</h4>
+                                        <h4 style="margin:0; color:{cor_primaria};">📄 {doc_g.get('titulo', '-')}</h4>
                                         <p style="margin:4px 0; color:#555; font-size:0.85rem;"><b>Enviado por:</b> {doc_g.get('autor','-')} em {doc_g.get('data','-')}</p>
                                         <p style="margin:4px 0; color:#666; font-size:0.85rem;"><i>{doc_g.get('descricao','')}</i></p>
                                     </div>
@@ -1961,7 +1931,7 @@ else:
                                             st.warning("Documento excluído.")
                                             st.rerun()
                         else:
-                            st.info("Nenum documento anexado a este grupo de pesquisa.")
+                            st.info("Nenhum documento anexado a este grupo de pesquisa.")
 
                         with st.expander("📤 Enviar Documento para o Grupo"):
                             with st.form(f"form_up_doc_grp_{grp_id}"):
@@ -2041,7 +2011,7 @@ else:
                     ]
 
                     if grupos_aprovados_outros:
-                        dict_g_outros = {g["nome"]: g for g in grupos_aprovados_outros}
+                        dict_g_outros = {g.get("nome", "Grupo"): g for g in grupos_aprovados_outros}
                         grp_entrar_nome = st.selectbox("Selecione o Grupo para Ingressar", list(dict_g_outros.keys()))
 
                         if st.button("📩 Solicitar Vínculo ao Grupo"):
@@ -2092,7 +2062,7 @@ else:
 
                 cols_pastas = st.columns(3)
                 for idx, pst in enumerate(pastas_aprovadas):
-                    nome_p = pst["nome"]
+                    nome_p = pst.get("nome", "Pasta")
                     desc_p = pst.get("descricao", "Sem descrição")
                     qtd_files = sum(
                         1 for a in st.session_state.arquivos_db
@@ -2121,7 +2091,7 @@ else:
                         with c_b2:
                             if is_admin and nome_p != "Geral":
                                 if st.button("🗑️", key=f"btn_del_folder_{idx}", help="Excluir Pasta"):
-                                    st.session_state.pastas_db = [p for p in st.session_state.pastas_db if p["nome"] != nome_p]
+                                    st.session_state.pastas_db = [p for p in st.session_state.pastas_db if p.get("nome") != nome_p]
                                     salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
                                     st.success(f"Pasta '{nome_p}' removida.")
                                     st.rerun()
@@ -2148,7 +2118,7 @@ else:
                             st.markdown(
                                 f"""
                                 <div class="css-card">
-                                    <h4 style="margin:0; color:{cor_primaria};">📄 {doc['titulo']}</h4>
+                                    <h4 style="margin:0; color:{cor_primaria};">📄 {doc.get('titulo', '-')}</h4>
                                     <p style="margin:4px 0; color:#555; font-size:0.85rem;"><b>Enviado por:</b> {doc.get('autor', 'Desconhecido')} em {doc.get('data', '-')}</p>
                                     <p style="margin:4px 0; color:#666; font-size:0.85rem;"><i>{doc.get('descricao', '')}</i></p>
                                 </div>
@@ -2174,7 +2144,7 @@ else:
                                             data=bytes_f,
                                             file_name=nome_orig,
                                             mime=mime_orig,
-                                            key=f"dl_{doc['id']}",
+                                            key=f"dl_{doc.get('id')}",
                                         )
                                     except Exception as e:
                                         st.error(f"Erro ao processar o arquivo: {e}")
@@ -2182,10 +2152,10 @@ else:
                                     st.warning("⚠️ Conteúdo do arquivo indisponível para download.")
                             with col_d2:
                                 if is_admin or doc.get("autor") == usuario_atual["nome"]:
-                                    if st.button("🗑️ Excluir", key=f"del_doc_{doc['id']}"):
-                                        st.session_state.arquivos_db = [a for a in st.session_state.arquivos_db if a["id"] != doc["id"]]
+                                    if st.button("🗑️ Excluir", key=f"del_doc_{doc.get('id')}"):
+                                        st.session_state.arquivos_db = [a for a in st.session_state.arquivos_db if a.get("id") != doc.get("id")]
                                         salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
-                                        st.warning(f"Arquivo '{doc['titulo']}' excluído.")
+                                        st.warning(f"Arquivo '{doc.get('titulo')}' excluído.")
                                         st.rerun()
                             st.markdown("---")
                 else:
@@ -2193,7 +2163,7 @@ else:
 
         with aba_upload:
             st.subheader("Enviar Documento")
-            lista_nomes_pastas = [p["nome"] for p in pastas_aprovadas]
+            lista_nomes_pastas = [p.get("nome", "Geral") for p in pastas_aprovadas]
             tit_doc = st.text_input("Título do Documento *")
             pasta_doc = st.selectbox("Selecione a Pasta *", lista_nomes_pastas)
             desc_doc = st.text_area("Descrição / Detalhes *", height=80)
@@ -2354,9 +2324,9 @@ else:
                             f"""
                             <div class="pop-preview-card">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <h3 style="margin: 0; color: #0F172A; font-size: 1.1rem;">📝 {pop['titulo']}</h3>
+                                    <h3 style="margin: 0; color: #0F172A; font-size: 1.1rem;">📝 {pop.get('titulo', '-')}</h3>
                                     <span style="background-color: {cor_bg_light}; color: {cor_primaria}; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.82rem;">
-                                        {pop['codigo']} | v{pop['versao']}
+                                        {pop.get('codigo', 'POP')} | v{pop.get('versao', 1)}
                                     </span>
                                 </div>
                                 <hr style="margin: 10px 0; border: none; border-top: 1px solid #E2E8F0;" />
@@ -2378,7 +2348,7 @@ else:
                             st.download_button(
                                 label="📄 Baixar PDF do POP",
                                 data=pdf_bytes,
-                                file_name=f"{pop['codigo']}.pdf",
+                                file_name=f"{pop.get('codigo', 'POP')}.pdf",
                                 mime="application/pdf",
                                 key=f"dl_pop_{idx}",
                             )
@@ -2389,10 +2359,10 @@ else:
                                 novo_id = max([a.get("id", 0) for a in st.session_state.arquivos_db], default=0) + 1
                                 st.session_state.arquivos_db.append({
                                     "id": novo_id,
-                                    "titulo": f"{pop['codigo']} - {pop['titulo']}",
+                                    "titulo": f"{pop.get('codigo', 'POP')} - {pop.get('titulo', 'Documento')}",
                                     "pasta": "POPs e Protocolos",
-                                    "descricao": f"Procedimento Operacional Padrão (Versão {pop['versao']}). Objetivo: {pop.get('objetivo')}",
-                                    "nome_original": f"{pop['codigo']}.pdf",
+                                    "descricao": f"Procedimento Operacional Padrão (Versão {pop.get('versao', 1)}). Objetivo: {pop.get('objetivo', '')}",
+                                    "nome_original": f"{pop.get('codigo', 'POP')}.pdf",
                                     "mime_type": "application/pdf",
                                     "conteudo_b64": b64_pdf,
                                     "autor": pop.get("autor", usuario_atual["nome"]),
@@ -2407,7 +2377,7 @@ else:
                                 if st.button("🗑️ Excluir", key=f"del_pop_{idx}"):
                                     st.session_state.pops_db = [item for item in st.session_state.pops_db if item.get("codigo") != pop.get("codigo")]
                                     salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
-                                    st.warning(f"POP '{pop['codigo']}' excluído.")
+                                    st.warning(f"POP '{pop.get('codigo')}' excluído.")
                                     st.rerun()
 
                         st.markdown("<br>", unsafe_allow_html=True)
@@ -2426,12 +2396,12 @@ else:
                 versao_calculada = 1
 
                 if modo_criacao == "Atualizar POP Existente":
-                    pops_existentes = [p["titulo"] for p in st.session_state.pops_db]
+                    pops_existentes = [p.get("titulo", "") for p in st.session_state.pops_db if p.get("titulo")]
                     if pops_existentes:
                         pop_sel_tit = st.selectbox("Selecione o POP", pops_existentes)
-                        pop_existente = next((p for p in st.session_state.pops_db if p["titulo"] == pop_sel_tit), None)
+                        pop_existente = next((p for p in st.session_state.pops_db if p.get("titulo") == pop_sel_tit), None)
                         if pop_existente:
-                            tit_selecionado = pop_existente["titulo"]
+                            tit_selecionado = pop_existente.get("titulo", "")
                             versao_calculada = pop_existente.get("versao", 1) + 1
                     else:
                         st.warning("Nenhum POP cadastrado para atualizar.")
@@ -2514,18 +2484,18 @@ else:
             st.subheader("🧮 Cálculo de Massa / Volume para Solução Molar ou % (m/v)")
             
             reagentes_lista = st.session_state.reagentes_solucoes
-            nomes_reagentes = [r["nome"] for r in reagentes_lista] + ["✍️ Outro (Digitar Manualmente)"]
+            nomes_reagentes = [r.get("nome", "Reagente") for r in reagentes_lista] + ["✍️ Outro (Digitar Manualmente)"]
             
             sel_r = st.selectbox("Selecione o Reagente / Composto", nomes_reagentes)
-            reagente_obj = next((r for r in reagentes_lista if r["nome"] == sel_r), None)
+            reagente_obj = next((r for r in reagentes_lista if r.get("nome") == sel_r), None)
 
             c_inp1, c_inp2, c_inp3 = st.columns(3)
             with c_inp1:
-                val_mm = reagente_obj["massa_molar"] if reagente_obj else 40.0
+                val_mm = reagente_obj.get("massa_molar", 40.0) if reagente_obj else 40.0
                 massa_molar_in = st.number_input("Massa Molar (g/mol) *", min_value=0.1, value=float(val_mm), step=0.1)
 
             with c_inp2:
-                val_pur = reagente_obj["pureza_padrao"] if reagente_obj else 100.0
+                val_pur = reagente_obj.get("pureza_padrao", 100.0) if reagente_obj else 100.0
                 pureza_in = st.number_input("Pureza do Reagente (%) *", min_value=1.0, max_value=100.0, value=float(val_pur), step=0.5)
 
             with c_inp3:
@@ -2656,19 +2626,19 @@ else:
                 for idx, u in enumerate(pend_acessos):
                     c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
                     with c_inf:
-                        st.write(f"👤 **{u['nome']}** (Usuário: `{u['usuario']}`)")
+                        st.write(f"👤 **{u.get('nome', '-')}** (Usuário: `{u.get('usuario', '-')}`)")
                         st.caption(f"Categoria: {u.get('categoria','-')} | Orientador: {u.get('orientador','-')} | E-mail: {u.get('email','-')}")
                     with c_b1:
                         if st.button("✅ Aprovar", key=f"ap_usr_{idx}", type="primary"):
                             u["status"] = "Aprovado"
                             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
                             for p in st.session_state.integrantes:
-                                if p.get("Nome", "").strip().lower() == u["nome"].strip().lower():
+                                if p.get("Nome", "").strip().lower() == str(u.get("nome", "")).strip().lower():
                                     p["Situação"] = "Ativo"
                                     if p.get("OrientadorStatus") == "Pendente":
                                         p["OrientadorStatus"] = "Aprovado"
                             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
-                            st.success(f"Acesso aprovado para {u['nome']}!")
+                            st.success(f"Acesso aprovado para {u.get('nome')}!")
                             st.rerun()
                     with c_b2:
                         if st.button("❌ Recusar", key=f"rec_usr_{idx}"):
@@ -2687,7 +2657,7 @@ else:
 
             if lista_alunos_cad:
                 with st.form("form_admin_orientacao"):
-                    dict_alunos = {f"{a['Nome']} ({a['Categoria']})": a for a in lista_alunos_cad}
+                    dict_alunos = {f"{a.get('Nome', '-') } ({a.get('Categoria', '-')})": a for a in lista_alunos_cad}
                     aluno_sel_lbl = st.selectbox("Selecione o Aluno / Pesquisador *", list(dict_alunos.keys()))
                     aluno_objeto = dict_alunos[aluno_sel_lbl]
 
@@ -2709,13 +2679,13 @@ else:
                         salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
                         for u in st.session_state.usuarios:
-                            if u.get("nome", "").strip().lower() == aluno_objeto["Nome"].strip().lower():
+                            if u.get("nome", "").strip().lower() == str(aluno_objeto.get("Nome", "")).strip().lower():
                                 u["orientador"] = orient_escolhido
                                 u["coorientador"] = coorient_escolhido
                                 u["orientador_status"] = "Aprovado"
                         salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-                        st.success(f"Vínculos atualizados para {aluno_objeto['Nome']}!")
+                        st.success(f"Vínculos atualizados para {aluno_objeto.get('Nome')}!")
                         st.rerun()
 
             st.markdown("---")
@@ -2726,14 +2696,14 @@ else:
                 for idx, al in enumerate(pend_orient_list):
                     c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
                     with c_inf:
-                        st.write(f"🎓 **Aluno(a):** {al['Nome']} ({al.get('Categoria')})")
-                        st.write(f"👨‍🏫 **Orientador Solicitado:** `{al.get('Orientador')}`")
+                        st.write(f"🎓 **Aluno(a):** {al.get('Nome', '-')} ({al.get('Categoria', '-')})")
+                        st.write(f"👨‍🏫 **Orientador Solicitado:** `{al.get('Orientador', '-')}`")
                     with c_b1:
                         if st.button("✅ Aprovar Vínculo", key=f"ap_or_{idx}", type="primary"):
                             al["OrientadorStatus"] = "Aprovado"
                             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
                             for u in st.session_state.usuarios:
-                                if u.get("nome", "").strip().lower() == al["Nome"].strip().lower():
+                                if u.get("nome", "").strip().lower() == str(al.get("Nome", "")).strip().lower():
                                     u["orientador_status"] = "Aprovado"
                             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
                             st.success("Vínculo de orientação aprovado!")
@@ -2757,17 +2727,17 @@ else:
                 for idx, g in enumerate(grps_pendentes):
                     c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
                     with c_inf:
-                        st.write(f"🔬 **Grupo:** {g['nome']}")
-                        st.caption(f"Líder: {g.get('lider')} | Colíder: {g.get('colider','-')} | Senha: `{g.get('senha')}`")
+                        st.write(f"🔬 **Grupo:** {g.get('nome', '-')}")
+                        st.caption(f"Líder: {g.get('lider', '-')} | Colíder: {g.get('colider','-')} | Senha: `{g.get('senha', '-')}`")
                     with c_b1:
                         if st.button("✅ Aprovar Grupo", key=f"ap_grp_{idx}", type="primary"):
                             g["status"] = "Aprovado"
                             salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
-                            st.success(f"Grupo '{g['nome']}' aprovado!")
+                            st.success(f"Grupo '{g.get('nome')}' aprovado!")
                             st.rerun()
                     with c_b2:
                         if st.button("❌ Recusar Grupo", key=f"rec_grp_{idx}"):
-                            st.session_state.grupos_db = [item for item in st.session_state.grupos_db if item["id"] != g["id"]]
+                            st.session_state.grupos_db = [item for item in st.session_state.grupos_db if item.get("id") != g.get("id")]
                             salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
                             st.warning("Solicitação recusada.")
                             st.rerun()
@@ -2782,7 +2752,7 @@ else:
             if pend_perfis:
                 for idx, u in enumerate(pend_perfis):
                     p_data = u["pendente_atualizacao"]
-                    st.markdown(f"#### 👤 **{u['nome']}** (`{u['usuario']}`)")
+                    st.markdown(f"#### 👤 **{u.get('nome', '-')}** (`{u.get('usuario', '-')}`)")
                     c_antes, c_depois = st.columns(2)
                     with c_antes:
                         st.markdown("**📌 Dados Atuais:**")
@@ -2802,7 +2772,7 @@ else:
                             del u["pendente_atualizacao"]
                             salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
                             for p in st.session_state.integrantes:
-                                if p.get("Nome", "").strip().lower() == u["nome"].strip().lower():
+                                if p.get("Nome", "").strip().lower() == str(u.get("nome", "")).strip().lower():
                                     p["Categoria"] = p_data.get("categoria")
                                     p["Email"] = p_data.get("email")
                             salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
@@ -2825,7 +2795,7 @@ else:
                 for idx, a in enumerate(pend_arqs):
                     c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
                     with c_inf:
-                        st.write(f"📄 **{a['titulo']}** (Pasta: `{a.get('pasta', 'Geral')}`)")
+                        st.write(f"📄 **{a.get('titulo', '-')}** (Pasta: `{a.get('pasta', 'Geral')}`)")
                     with c_b1:
                         if st.button("✅ Aprovar", key=f"ap_arq_{idx}", type="primary"):
                             a["status"] = "Aprovado"
@@ -2834,7 +2804,7 @@ else:
                             st.rerun()
                     with c_b2:
                         if st.button("❌ Recusar", key=f"del_arq_p_{idx}"):
-                            st.session_state.arquivos_db = [item for item in st.session_state.arquivos_db if item["id"] != a["id"]]
+                            st.session_state.arquivos_db = [item for item in st.session_state.arquivos_db if item.get("id") != a.get("id")]
                             salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
                             st.warning("Arquivo removido.")
                             st.rerun()
@@ -2849,7 +2819,7 @@ else:
                 for idx, p in enumerate(pend_pops):
                     c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
                     with c_inf:
-                        st.write(f"📝 **{p['codigo']} - {p['titulo']}**")
+                        st.write(f"📝 **{p.get('codigo', 'POP')} - {p.get('titulo', '-')}**")
                     with c_b1:
                         if st.button("✅ Aprovar", key=f"ap_pop_{idx}", type="primary"):
                             p["status"] = "Aprovado"
@@ -2944,7 +2914,7 @@ else:
                 if usuario_atual["nome"] in g.get("membros", []) or usuario_atual["nome"] == g.get("lider") or usuario_atual["nome"] == g.get("colider"):
                     for ev_g in g.get("agenda", []):
                         ev_copy = dict(ev_g)
-                        ev_copy["origem_grupo"] = g["nome"]
+                        ev_copy["origem_grupo"] = g.get("nome", "Grupo")
                         meus_eventos_grupos.append(ev_copy)
 
             st.markdown("##### 📌 Próximos Compromissos Vinculados")
@@ -2953,7 +2923,7 @@ else:
                     st.markdown(
                         f"""
                         <div class="event-card" style="border-left:4px solid #0284C7;">
-                            <b>[Laboratório Geral]</b> {ev['titulo']} ({ev.get('data')} - {ev.get('hora_inicio')} às {ev.get('hora_fim')})
+                            <b>[Laboratório Geral]</b> {ev.get('titulo', '-')} ({ev.get('data')} - {ev.get('hora_inicio')} às {ev.get('hora_fim')})
                         </div>
                         """,
                         unsafe_allow_html=True
@@ -2962,7 +2932,7 @@ else:
                     st.markdown(
                         f"""
                         <div class="event-card" style="border-left:4px solid #059669;">
-                            <b>[{ev_g['origem_grupo']}]</b> {ev_g['titulo']} ({ev_g.get('data')} - {ev_g.get('hora_inicio')} às {ev_g.get('hora_fim')})
+                            <b>[{ev_g.get('origem_grupo')}]</b> {ev_g.get('titulo', '-')} ({ev_g.get('data')} - {ev_g.get('hora_inicio')} às {ev_g.get('hora_fim')})
                         </div>
                         """,
                         unsafe_allow_html=True
