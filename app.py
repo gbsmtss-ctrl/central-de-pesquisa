@@ -354,72 +354,140 @@ def gerar_codigo_pop(titulo, versao=1):
         sigla = "DOC"
     return f"POP-{sigla}-v{versao}"
 
+# --- FUNÇÕES DE GERAÇÃO DE PDF OTIMIZADAS (300 DPI / ALTA RESOLUÇÃO) ---
+
 def gerar_pdf_pop(pop_dict):
     if REPORTLAB_DISPONIVEL:
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=36,
+            leftMargin=36,
+            topMargin=36,
+            bottomMargin=36
+        )
         styles = getSampleStyleSheet()
         story = []
 
-        header_data = [
-            [Paragraph(f"<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", styles['Normal']), Paragraph(f"<b>CÓDIGO:</b> {pop_dict['codigo']}", styles['Normal'])],
-            [Paragraph(f"<b>Título:</b> {pop_dict['titulo']}", styles['Normal']), Paragraph(f"<b>Versão:</b> {pop_dict['versao']}", styles['Normal'])],
-            [Paragraph(f"<b>Elaborado por:</b> {pop_dict.get('autor', 'N/A')}", styles['Normal']), Paragraph(f"<b>Status:</b> {pop_dict.get('status', 'Aprovado')}", styles['Normal'])]
-        ]
-        t_header = Table(header_data, colWidths=[350, 180])
-        t_header.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING', (0,0), (-1,-1), 6),
-        ]))
-        story.append(t_header)
-        story.append(Spacer(1, 15))
-
-        sections = [
-            ("1. OBJETIVO", pop_dict.get("objetivo", "")),
-            ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
-            ("3. PROCEDIMENTO / PASSO A PASSO", pop_dict.get("passos", "")),
-            ("4. SEGURANÇA E EPIs", pop_dict.get("seguranca", "")),
-            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "-")),
-        ]
+        title_header_style = ParagraphStyle(
+            'HeaderTitle',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=11,
+            leading=14,
+            textColor=colors.HexColor('#FFFFFF'),
+            alignment=1
+        )
+        
+        meta_label_style = ParagraphStyle(
+            'MetaLabel',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor('#0F172A')
+        )
+        
+        meta_val_style = ParagraphStyle(
+            'MetaVal',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor('#334155')
+        )
 
         sec_title_style = ParagraphStyle(
             'SecTitle',
             parent=styles['Heading2'],
-            fontSize=11,
+            fontName='Helvetica-Bold',
+            fontSize=10,
             leading=14,
             textColor=colors.HexColor('#0E7490'),
-            bold=True
+            spaceBefore=8,
+            spaceAfter=4
         )
 
         body_style = ParagraphStyle(
             'BodyTextCustom',
             parent=styles['Normal'],
-            fontSize=9.5,
-            leading=13.5,
-            textColor=colors.HexColor('#334155')
+            fontName='Helvetica',
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor('#1E293B')
         )
 
-        for title, content in sections:
+        safety_style = ParagraphStyle(
+            'SafetyTextCustom',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor('#991B1B')
+        )
+
+        header_data = [
+            [Paragraph("<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", title_header_style), Paragraph(f"<b>CÓDIGO:</b> {pop_dict['codigo']}", title_header_style)],
+            [Paragraph("Título do Documento:", meta_label_style), Paragraph(f"<b>{pop_dict['titulo']}</b>", meta_val_style)],
+            [Paragraph("Elaborado por:", meta_label_style), Paragraph(f"{pop_dict.get('autor', 'N/A')} (Versão {pop_dict.get('versao', 1)})", meta_val_style)],
+            [Paragraph("Status de Aprovação:", meta_label_style), Paragraph(f"{pop_dict.get('status', 'Aprovado')}", meta_val_style)]
+        ]
+        
+        t_header = Table(header_data, colWidths=[130, 410])
+        t_header.setStyle(TableStyle([
+            ('SPAN', (0,0), (0,0)),
+            ('SPAN', (1,0), (1,0)),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0E7490')),
+            ('BACKGROUND', (0,1), (0,-1), colors.HexColor('#F1F5F9')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#94A3B8')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('PADDING', (0,0), (-1,-1), 5),
+        ]))
+        story.append(t_header)
+        story.append(Spacer(1, 10))
+
+        sections = [
+            ("1. OBJETIVO", pop_dict.get("objetivo", ""), False),
+            ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", ""), False),
+            ("3. PROCEDIMENTO / PASSO A PASSO", pop_dict.get("passos", ""), False),
+            ("4. SEGURANÇA E EPIs", pop_dict.get("seguranca", ""), True),
+            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "-"), False),
+        ]
+
+        for title, content, is_safety in sections:
             story.append(Paragraph(title, sec_title_style))
-            story.append(Spacer(1, 4))
             content_p = str(content).replace('\n', '<br/>')
-            story.append(Paragraph(content_p, body_style))
-            story.append(Spacer(1, 10))
+            
+            if is_safety:
+                t_safe = Table([[Paragraph(content_p, safety_style)]], colWidths=[540])
+                t_safe.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FEE2E2')),
+                    ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#FCA5A5')),
+                    ('LINELEFT', (0,0), (0,-1), 4, colors.HexColor('#DC2626')),
+                    ('PADDING', (0,0), (-1,-1), 8),
+                ]))
+                story.append(t_safe)
+            else:
+                story.append(Paragraph(content_p, body_style))
+            
+            story.append(Spacer(1, 6))
 
         doc.build(story)
         return buffer.getvalue()
     else:
-        page = Image.new("RGB", (612, 792), "white")
+        dpi = 300
+        px_w, px_h = int(8.5 * dpi), int(11 * dpi)
+        page = Image.new("RGB", (px_w, px_h), "white")
         draw = ImageDraw.Draw(page)
-        draw.rectangle([30, 30, 582, 100], fill="#F1F5F9", outline="#CBD5E1")
-        draw.text((40, 40), f"PROCEDIMENTO OPERACIONAL PADRÃO - {pop_dict['codigo']}", fill="black")
-        draw.text((40, 60), f"Título: {pop_dict['titulo']} (Versão {pop_dict['versao']})", fill="black")
-        draw.text((40, 80), f"Autor: {pop_dict.get('autor','N/A')}", fill="black")
+        
+        draw.rectangle([100, 100, px_w - 100, 280], fill="#F1F5F9", outline="#0E7490", width=4)
+        draw.text((120, 125), f"PROCEDIMENTO OPERACIONAL PADRÃO - {pop_dict['codigo']}", fill="#0F172A")
+        draw.text((120, 175), f"Título: {pop_dict['titulo']} (v{pop_dict['versao']})", fill="#0F172A")
+        draw.text((120, 225), f"Autor: {pop_dict.get('autor','N/A')}", fill="#334155")
 
-        y = 120
+        y = 330
         secoes = [
             ("1. OBJETIVO", pop_dict.get("objetivo", "")),
             ("2. MATERIAIS", pop_dict.get("materiais", "")),
@@ -429,82 +497,136 @@ def gerar_pdf_pop(pop_dict):
         ]
 
         for tit, txt in secoes:
-            draw.text((40, y), tit, fill="#0E7490")
-            y += 20
+            draw.text((100, y), tit, fill="#0E7490")
+            y += 45
             for line in str(txt).split("\n"):
-                draw.text((50, y), line[:80], fill="#334155")
-                y += 15
-            y += 10
+                draw.text((140, y), line, fill="#334155")
+                y += 35
+            y += 25
 
         buf = BytesIO()
-        page.save(buf, format="PDF")
+        page.save(buf, format="PDF", dpi=(dpi, dpi))
         return buf.getvalue()
+
 
 def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome):
     if REPORTLAB_DISPONIVEL:
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=36,
+            leftMargin=36,
+            topMargin=36,
+            bottomMargin=36
+        )
         styles = getSampleStyleSheet()
         story = []
 
+        title_style = ParagraphStyle(
+            'HeaderTitle',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=11,
+            leading=14,
+            textColor=colors.HexColor('#FFFFFF'),
+            alignment=1
+        )
+        
+        meta_val_style = ParagraphStyle(
+            'MetaVal',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor('#334155')
+        )
+        
+        meta_val_bold = ParagraphStyle(
+            'MetaValBold',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor('#0F172A')
+        )
+
         header_data = [
-            [Paragraph("<b>REQUISIÇÃO DE MATERIAIS / ITENS DE LABORATÓRIO</b>", styles['Heading3']), Paragraph(f"<b>DATA:</b> {solicitacao.get('data_solicitacao', '-')}", styles['Normal'])],
-            [Paragraph(f"<b>Grupo de Pesquisa:</b> {nome_grupo}", styles['Normal']), Paragraph(f"<b>Nº Pedido:</b> REQ-{solicitacao.get('id', 1):04d}", styles['Normal'])],
-            [Paragraph(f"<b>Liderança:</b> {lider_nome} / {colider_nome}", styles['Normal']), Paragraph(f"<b>Status:</b> {solicitacao.get('status', 'Pendente')}", styles['Normal'])]
+            [Paragraph("<b>REQUISIÇÃO DE MATERIAIS / ITENS DE LABORATÓRIO</b>", title_style), Paragraph(f"<b>DATA:</b> {solicitacao.get('data_solicitacao', '-')}", title_style)],
+            [Paragraph(f"<b>Grupo de Pesquisa:</b> {nome_grupo}", meta_val_bold), Paragraph(f"<b>Nº Pedido:</b> REQ-{solicitacao.get('id', 1):04d}", meta_val_style)],
+            [Paragraph(f"<b>Liderança:</b> {lider_nome} / {colider_nome}", meta_val_style), Paragraph(f"<b>Status:</b> {solicitacao.get('status', 'Pendente')}", meta_val_bold)]
         ]
-        t_header = Table(header_data, colWidths=[350, 180])
+        t_header = Table(header_data, colWidths=[360, 180])
         t_header.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
+            ('SPAN', (0,0), (0,0)),
+            ('SPAN', (1,0), (1,0)),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0E7490')),
+            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#F8FAFC')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#94A3B8')),
             ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('PADDING', (0,0), (-1,-1), 6),
         ]))
         story.append(t_header)
         story.append(Spacer(1, 15))
 
-        urgente_str = "SIM (URGENTE)" if solicitacao.get("urgente") else "NÃO (PROCESSO PADRÃO)"
+        urgente_str = "🚨 SIM (URGENTE)" if solicitacao.get("urgente") else "📦 NÃO (PROCESSO PADRÃO)"
 
         item_data = [
-            [Paragraph("<b>CAMPO</b>", styles['Normal']), Paragraph("<b>INFORMAÇÃO</b>", styles['Normal'])],
-            [Paragraph("<b>Item / Material Solicitado</b>", styles['Normal']), Paragraph(solicitacao.get('item', '-'), styles['Normal'])],
-            [Paragraph("<b>Categoria do Item</b>", styles['Normal']), Paragraph(solicitacao.get('categoria_item', 'Reagentes'), styles['Normal'])],
-            [Paragraph("<b>Quantidade Solicitada</b>", styles['Normal']), Paragraph(solicitacao.get('quantidade', '-'), styles['Normal'])],
-            [Paragraph("<b>Solicitante Responsável</b>", styles['Normal']), Paragraph(solicitacao.get('solicitante', '-'), styles['Normal'])],
-            [Paragraph("<b>Grau de Urgência</b>", styles['Normal']), Paragraph(urgente_str, styles['Normal'])],
-            [Paragraph("<b>Razão da Urgência / Justificativa</b>", styles['Normal']), Paragraph(solicitacao.get('razao_urgencia', '-'), styles['Normal'])],
-            [Paragraph("<b>Especificações Técnicas</b>", styles['Normal']), Paragraph(solicitacao.get('especificacoes', '-'), styles['Normal'])],
-            [Paragraph("<b>Aprovado por (Liderança)</b>", styles['Normal']), Paragraph(solicitacao.get('aprovado_por', '-'), styles['Normal'])],
+            [Paragraph("<b>CAMPO</b>", meta_val_bold), Paragraph("<b>INFORMAÇÃO DETALHADA</b>", meta_val_bold)],
+            [Paragraph("Item / Material Solicitado", meta_val_bold), Paragraph(solicitacao.get('item', '-'), meta_val_style)],
+            [Paragraph("Categoria do Item", meta_val_bold), Paragraph(solicitacao.get('categoria_item', 'Reagentes'), meta_val_style)],
+            [Paragraph("Quantidade Solicitada", meta_val_bold), Paragraph(solicitacao.get('quantidade', '-'), meta_val_style)],
+            [Paragraph("Solicitante Responsável", meta_val_bold), Paragraph(solicitacao.get('solicitante', '-'), meta_val_style)],
+            [Paragraph("Grau de Urgência", meta_val_bold), Paragraph(urgente_str, meta_val_style)],
+            [Paragraph("Razão / Justificativa", meta_val_bold), Paragraph(solicitacao.get('razao_urgencia', '-'), meta_val_style)],
+            [Paragraph("Especificações Técnicas", meta_val_bold), Paragraph(solicitacao.get('especificacoes', '-'), meta_val_style)],
+            [Paragraph("Aprovado por (Liderança)", meta_val_bold), Paragraph(solicitacao.get('aprovado_por', '-'), meta_val_style)],
         ]
 
-        t_item = Table(item_data, colWidths=[180, 350])
+        t_item = Table(item_data, colWidths=[170, 370])
         t_item.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0E7490')),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E2E8F0')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#94A3B8')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F8FAFC')]),
             ('PADDING', (0,0), (-1,-1), 6),
         ]))
         story.append(t_item)
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 35))
 
-        story.append(Paragraph("____________________________________________", styles['Normal']))
-        story.append(Paragraph("Assinatura do Líder / Colíder Responsável", styles['Normal']))
+        sig_data = [
+            [Paragraph("____________________________________________", meta_val_style)],
+            [Paragraph("<b>Assinatura do Líder / Colíder Responsável</b>", meta_val_style)]
+        ]
+        t_sig = Table(sig_data, colWidths=[540])
+        t_sig.setStyle(TableStyle([
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ]))
+        story.append(t_sig)
 
         doc.build(story)
         return buffer.getvalue()
     else:
-        page = Image.new("RGB", (612, 792), "white")
+        dpi = 300
+        px_w, px_h = int(8.5 * dpi), int(11 * dpi)
+        page = Image.new("RGB", (px_w, px_h), "white")
         draw = ImageDraw.Draw(page)
-        draw.text((40, 40), f"REQUISIÇÃO DE MATERIAIS - GRUPO: {nome_grupo}", fill="black")
-        draw.text((40, 60), f"Item: {solicitacao.get('item')} | Qtd: {solicitacao.get('quantidade')}", fill="black")
-        draw.text((40, 80), f"Solicitante: {solicitacao.get('solicitante')}", fill="black")
-        draw.text((40, 100), f"Urgência: {solicitacao.get('urgente')} - Razão: {solicitacao.get('razao_urgencia')}", fill="black")
+        
+        draw.rectangle([100, 100, px_w - 100, 260], fill="#F1F5F9", outline="#0E7490", width=4)
+        draw.text((120, 130), f"REQUISIÇÃO DE MATERIAIS - GRUPO: {nome_grupo}", fill="#0F172A")
+        draw.text((120, 180), f"Item: {solicitacao.get('item')} | Qtd: {solicitacao.get('quantidade')}", fill="#0F172A")
+        draw.text((120, 220), f"Solicitante: {solicitacao.get('solicitante')}", fill="#334155")
+        
         buf = BytesIO()
-        page.save(buf, format="PDF")
+        page.save(buf, format="PDF", dpi=(dpi, dpi))
         return buf.getvalue()
 
+
 def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra=""):
-    dpi = 150
+    dpi = 300
     px_per_mm = dpi / 25.4
     page_w = int(210 * px_per_mm)
     page_h = int(297 * px_per_mm)
@@ -521,8 +643,9 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra=""):
     y = margin_px
 
     has_text = bool(id_amostra) and label_px >= int(25 * px_per_mm)
-    qr_size_px = label_px - int(6 * px_per_mm) if has_text else label_px
-    qr_resized = qr_img_pil.resize((qr_size_px, qr_size_px))
+    qr_size_px = label_px - int(8 * px_per_mm) if has_text else label_px
+    
+    qr_resized = qr_img_pil.resize((qr_size_px, qr_size_px), Image.Resampling.LANCZOS)
 
     for idx in range(quantidade):
         if x + label_px > page_w - margin_px:
@@ -536,15 +659,15 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra=""):
             x = margin_px
             y = margin_px
 
-        draw.rectangle([x, y, x + label_px, y + label_px], outline="lightgray", width=1)
+        draw.rectangle([x, y, x + label_px, y + label_px], outline="#CBD5E1", width=2)
 
         qr_x = x + (label_px - qr_size_px) // 2
-        qr_y = y + (2 if has_text else (label_px - qr_size_px) // 2)
+        qr_y = y + (6 if has_text else (label_px - qr_size_px) // 2)
         current_page.paste(qr_resized, (qr_x, qr_y))
 
         if has_text:
-            text_y = y + qr_size_px + 2
-            draw.text((x + 4, text_y), f"ID: {id_amostra[:12]}", fill="black")
+            text_y = y + qr_size_px + 4
+            draw.text((x + 8, text_y), f"ID: {id_amostra[:14]}", fill="black")
 
         x += label_px + spacing_px
 
@@ -563,6 +686,8 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra=""):
         )
 
     return pdf_buffer.getvalue()
+
+# --- DADOS DE USUÁRIO ADMINISTRADOR E CONFIGURAÇÃO DA SESSÃO ---
 
 usuario_admin_padrao = [{
     "nome": "Gabriela Mendes Farias Matos",
@@ -794,7 +919,6 @@ else:
     usuario_atual = st.session_state.usuario_logado
     is_admin = usuario_atual.get("is_admin", False)
 
-    # Notificações
     num_pend_usr = len([u for u in st.session_state.usuarios if u.get("status") == "Pendente"])
     num_pend_perfis = len([u for u in st.session_state.usuarios if u.get("pendente_atualizacao")])
     num_pend_arqs = len([a for a in st.session_state.arquivos_db if a.get("status") == "Pendente"])
@@ -845,7 +969,6 @@ else:
             st.session_state.menu_selecionado = chave
             st.rerun()
 
-    # Seções Agrupadas
     st.sidebar.markdown('<div class="sidebar-section">PAINEL PRINCIPAL</div>', unsafe_allow_html=True)
     render_menu_item("🏠 Página Inicial & Avisos", "🏠 Página Inicial & Avisos", notif_avisos)
     render_menu_item("📅 Agenda & Calendário", "📅 Agenda & Calendário", notif_agenda_hoje)
@@ -867,7 +990,6 @@ else:
         render_menu_item("🛡️ Administração", "🛡️ Administração", total_notif_admin)
     render_menu_item("👤 Meu perfil", "👤 Meu perfil", notif_meu_perfil)
 
-    # SELETOR DE COR DO TEMA NA SIDEBAR
     st.sidebar.markdown('<div class="sidebar-section">🎨 APARÊNCIA DO APP</div>', unsafe_allow_html=True)
     novo_tema = st.sidebar.selectbox(
         "Cor do Tema",
@@ -1452,9 +1574,9 @@ else:
                     unsafe_allow_html=True
                 )
         else:
-            st.info("Todos os alunos cadastrados estão officially vinculados aos seus orientadores!")
+            st.info("Todos os alunos cadastrados estão oficialmente vinculados aos seus orientadores!")
 
-    # --- 2.1 GRUPOS DE PESQUISA (EXIBIÇÃO EM CARDS E VALIDAÇÃO DE LÍDER/COLÍDER) ---
+    # --- 2.1 GRUPOS DE PESQUISA ---
     elif menu_selecionado == "🔬 Grupo de Pesquisa":
         st.title("🔬 Área de Grupos de Pesquisa")
         st.caption("Acesso por cards visuais interativos. Qualquer pesquisador pode ser designado Líder ou Colíder pela equipe. Líderes e Colíderes possuem autonomia de gestão.")
@@ -1558,7 +1680,6 @@ else:
                         unsafe_allow_html=True
                     )
 
-                    # EDIÇÃO DE LÍDER E COLÍDER (EXCLUSIVO LÍDER/COLÍDER OU ADMIN)
                     if is_lider_ou_colider:
                         with st.expander("⚙️ Gestão de Configurações, Líder e Colíder do Grupo"):
                             with st.form(f"form_edit_lideres_{grp_id}"):
@@ -1595,7 +1716,6 @@ else:
                         "📁 Documentos do Grupo"
                     ])
 
-                    # ABA 1: SOLICITAÇÃO DE ITENS DE LABORATÓRIO
                     with sub_tab1:
                         st.subheader("📦 Solicitação de Itens e Materiais de Laboratório")
                         st.caption("Requisição de reagentes, vidrarias, papéis de filtro e insumos para aprovação do Líder/Colíder.")
@@ -1721,7 +1841,6 @@ else:
                                     else:
                                         st.error("Preencha todos os campos obrigatórios (*).")
 
-                    # ABA 2: CALENDÁRIO DO GRUPO
                     with sub_tab2:
                         st.subheader("📅 Calendário Exclusivo do Grupo")
                         c_ag1, c_ag2 = st.columns([1.5, 1])
@@ -1782,7 +1901,6 @@ else:
                                     st.success("Evento adicionado!")
                                     st.rerun()
 
-                    # ABA 3: MURAL
                     with sub_tab3:
                         st.subheader("📝 Mural & Projetos Internos do Grupo")
                         mural_atual = grupo_ativo.get("mural", "Nenhuma anotação postada ainda.")
@@ -1797,7 +1915,6 @@ else:
                                     st.success("Mural atualizado!")
                                     st.rerun()
 
-                    # ABA 4: MEMBROS
                     with sub_tab4:
                         st.subheader("👥 Integrantes do Grupo")
                         for mbr in grupo_ativo.get("membros", []):
@@ -1808,7 +1925,6 @@ else:
                                 papel = "🤝 (Colíder)"
                             st.markdown(f"- 👨‍🔬 **{mbr}** {papel}")
 
-                    # ABA 5: DOCUMENTOS DO PRÓPRIO GRUPO
                     with sub_tab5:
                         st.subheader("📁 Documentos Exclusivos do Grupo")
                         st.caption("Arquivos de pesquisa e relatórios compartilhados somente entre os integrantes deste grupo.")
@@ -1845,7 +1961,7 @@ else:
                                             st.warning("Documento excluído.")
                                             st.rerun()
                         else:
-                            st.info("Nenhum documento anexado a este grupo de pesquisa.")
+                            st.info("Nenum documento anexado a este grupo de pesquisa.")
 
                         with st.expander("📤 Enviar Documento para o Grupo"):
                             with st.form(f"form_up_doc_grp_{grp_id}"):
@@ -2423,7 +2539,6 @@ else:
             with c_calc2:
                 volume_desejado_ml = st.number_input("Volume Final Desejado (mL) *", min_value=1.0, value=500.0, step=50.0)
 
-            # CÁLCULOS
             vol_litros = volume_desejado_ml / 1000.0
             massa_teorica = molaridade_desejada * massa_molar_in * vol_litros
             massa_real_g = massa_teorica / (pureza_in / 100.0)
@@ -2751,7 +2866,7 @@ else:
             else:
                 st.info("Nenhum POP pendente.")
 
-    # --- 8. MEU PERFIL (COM CALENDÁRIO INTEGRADO E GOOGLE AGENDA INDIVIDUAL) ---
+    # --- 8. MEU PERFIL ---
     elif menu_selecionado == "👤 Meu perfil":
         st.title("👤 Meu Perfil e Configurações")
 
@@ -2822,10 +2937,8 @@ else:
             st.subheader("🗓️ Meu Calendário Pessoal Integrado")
             st.caption("Consolidação dos eventos da Agenda do Laboratório + Compromissos dos seus Grupos de Pesquisa.")
 
-            # Coleta eventos do laboratório
             meus_eventos_lab = st.session_state.agenda
 
-            # Coleta eventos dos grupos onde o usuário participa
             meus_eventos_grupos = []
             for g in st.session_state.grupos_db:
                 if usuario_atual["nome"] in g.get("membros", []) or usuario_atual["nome"] == g.get("lider") or usuario_atual["nome"] == g.get("colider"):
