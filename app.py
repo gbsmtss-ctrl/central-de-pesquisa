@@ -448,6 +448,36 @@ def gerar_pdf_pop(pop_dict):
 
         doc.build(story)
         return buffer.getvalue()
+        ]
+
+        t_header = Table(header_data, colWidths=[360, 180])
+        t_header.setStyle(TableStyle([
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('PADDING', (0,0), (-1,-1), 6),
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ]))
+        story.append(t_header)
+        story.append(Spacer(1, 14))
+
+        sections = [
+            ("1. OBJETIVO", pop_dict.get("objetivo", "")),
+            ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
+            ("3. PROCEDIMENTO/PASSO A PASSO", pop_dict.get("passos", "")),
+            ("4. SEGURANÇA E EPIS", pop_dict.get("seguranca", "")),
+            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "-")),
+        ]
+
+        for title, content in sections:
+            if content:
+                story.append(Paragraph(title, sec_title_style))
+                content_p = str(content).replace('\n', '<br/>')
+                story.append(Paragraph(content_p, body_style))
+                story.append(Spacer(1, 4))
+
+        doc.build(story)
+        return buffer.getvalue()
     else:
         page = Image.new("RGB", (612, 792), "white")
         draw = ImageDraw.Draw(page)
