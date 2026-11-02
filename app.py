@@ -358,6 +358,12 @@ def gerar_codigo_pop(titulo, versao=1):
 
 def gerar_pdf_pop(pop_dict):
     buffer = BytesIO()
+    codigo = pop_dict.get('codigo', 'POP-DOC-v1')
+    titulo = pop_dict.get('titulo', 'Documento sem título')
+    versao = pop_dict.get('versao', 1)
+    autor = pop_dict.get('autor', 'N/A')
+    status = pop_dict.get('status', 'Aprovado')
+
     if REPORTLAB_DISPONIVEL:
         doc = SimpleDocTemplate(
             buffer,
@@ -399,12 +405,6 @@ def gerar_pdf_pop(pop_dict):
             textColor=colors.HexColor('#1E293B')
         )
 
-        codigo = pop_dict.get('codigo', 'POP-DOC-v1')
-        titulo = pop_dict.get('titulo', 'Documento sem título')
-        versao = pop_dict.get('versao', 1)
-        autor = pop_dict.get('autor', 'N/A')
-        status = pop_dict.get('status', 'Aprovado')
-
         header_data = [
             [
                 Paragraph("<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", title_style),
@@ -420,7 +420,7 @@ def gerar_pdf_pop(pop_dict):
             ]
         ]
 
-        t_header = Table(header_data, colWidths=[350, 190])
+        t_header = Table(header_data, colWidths=[360, 180])
         t_header.setStyle(TableStyle([
             ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
             ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
@@ -451,12 +451,19 @@ def gerar_pdf_pop(pop_dict):
     else:
         page = Image.new("RGB", (612, 792), "white")
         draw = ImageDraw.Draw(page)
-        draw.rectangle([30, 30, 582, 110], fill="#F8FAFC", outline="#475569", width=1)
-        draw.text((40, 40), f"PROCEDIMENTO OPERACIONAL PADRÃO (POP) | CÓDIGO: {pop_dict.get('codigo', 'POP-v1')}", fill="black")
-        draw.text((40, 60), f"Título: {pop_dict.get('titulo', 'POP')} | Versão: {pop_dict.get('versao', 1)}", fill="black")
-        draw.text((40, 80), f"Elaborado por: {pop_dict.get('autor','N/A')} | Status: {pop_dict.get('status','Aprovado')}", fill="black")
+        draw.rectangle([36, 36, 576, 116], fill="#F8FAFC", outline="#475569", width=1)
+        draw.line([(36, 62.6), (576, 62.6)], fill="#CBD5E1", width=1)
+        draw.line([(36, 89.3), (576, 89.3)], fill="#CBD5E1", width=1)
+        draw.line([(396, 36), (396, 116)], fill="#CBD5E1", width=1)
 
-        y = 130
+        draw.text((44, 44), "PROCEDIMENTO OPERACIONAL PADRÃO (POP)", fill="black")
+        draw.text((404, 44), f"CÓDIGO: {codigo}", fill="black")
+        draw.text((44, 70), f"Título: {titulo}", fill="black")
+        draw.text((404, 70), f"Versão: {versao}", fill="black")
+        draw.text((44, 96), f"Elaborado por: {autor}", fill="black")
+        draw.text((404, 96), f"Status: {status}", fill="black")
+
+        y = 136
         secoes = [
             ("1. OBJETIVO", pop_dict.get("objetivo", "")),
             ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
@@ -466,10 +473,10 @@ def gerar_pdf_pop(pop_dict):
         ]
 
         for tit, txt in secoes:
-            draw.text((40, y), tit, fill="black")
+            draw.text((36, y), tit, fill="#0F172A")
             y += 20
             for line in str(txt).split("\n"):
-                draw.text((50, y), line[:85], fill="#334155")
+                draw.text((46, y), line[:85], fill="#1E293B")
                 y += 15
             y += 10
 
@@ -478,6 +485,284 @@ def gerar_pdf_pop(pop_dict):
 
 
 def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome):
+    buffer = BytesIO()
+    req_id = solicitacao.get('id', 1)
+    req_data = solicitacao.get('data_solicitacao', '-')
+    req_status = solicitacao.get('status', 'Pendente')
+    urgente_str = "SIM (URGENTE)" if solicitacao.get("urgente") else "NÃO (PROCESSO PADRÃO)"
+    codigo_req = f"REQ-{req_id:04d}"
+
+    if REPORTLAB_DISPONIVEL:
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=36,
+            leftMargin=36,
+            topMargin=36,
+            bottomMargin=36
+        )
+        styles = getSampleStyleSheet()
+        story = []
+
+        title_style = ParagraphStyle(
+            'HeaderTitle',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=10,
+            leading=13,
+            textColor=colors.HexColor('#0F172A')
+        )
+        
+        sec_title_style = ParagraphStyle(
+            'ReqSecTitle',
+            parent=styles['Heading2'],
+            fontName='Helvetica-Bold',
+            fontSize=10,
+            leading=14,
+            textColor=colors.HexColor('#0F172A'),
+            spaceBefore=10,
+            spaceAfter=4
+        )
+
+        body_style = ParagraphStyle(
+            'ReqBodyText',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=9.5,
+            leading=14,
+            textColor=colors.HexColor('#1E293B')
+        )
+
+        header_data = [
+            [
+                Paragraph("<b>REQUISIÇÃO DE REAGENTES E PRODUTOS</b>", title_style),
+                Paragraph(f"<b>CÓDIGO:</b> {codigo_req}", title_style)
+            ],
+            [
+                Paragraph(f"<b>Grupo de Pesquisa:</b> {nome_grupo}", title_style),
+                Paragraph(f"<b>Data:</b> {req_data}", title_style)
+            ],
+            [
+                Paragraph(f"<b>Solicitante:</b> {solicitacao.get('solicitante', '-')}", title_style),
+                Paragraph(f"<b>Status:</b> {req_status}", title_style)
+            ]
+        ]
+        t_header = Table(header_data, colWidths=[360, 180])
+        t_header.setStyle(TableStyle([
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('PADDING', (0,0), (-1,-1), 6),
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ]))
+        story.append(t_header)
+        story.append(Spacer(1, 14))
+
+        sections = [
+            ("1. ITEM E CATEGORIA SOLICITADA", f"• Item/Material Solicitado: {solicitacao.get('item', '-')}\n• Categoria: {solicitacao.get('categoria_item', 'Reagentes')}\n• Quantidade: {solicitacao.get('quantidade', '-')}"),
+            ("2. URGÊNCIA E JUSTIFICATIVA", f"• Grau de Urgência: {urgente_str}\n• Razão/Justificativa: {solicitacao.get('razao_urgencia', '-')}"),
+            ("3. ESPECIFICAÇÕES TÉCNICAS DO MATERIAL", str(solicitacao.get('especificacoes', '-'))),
+            ("4. APROVAÇÃO E LIDERANÇA", f"• Liderança Responsável: {lider_nome} / {colider_nome}\n• Aprovado Por: {solicitacao.get('aprovado_por', '-')}"),
+        ]
+
+        for title, content in sections:
+            if content:
+                story.append(Paragraph(title, sec_title_style))
+                content_p = str(content).replace('\n', '<br/>')
+                story.append(Paragraph(content_p, body_style))
+                story.append(Spacer(1, 4))
+
+        story.append(Spacer(1, 30))
+        sig_style = ParagraphStyle('SigText', parent=body_style, alignment=1)
+        sig_data = [
+            [Paragraph("____________________________________________", sig_style)],
+            [Paragraph("<b>Assinatura do Líder / Colíder Responsável</b>", sig_style)]
+        ]
+        t_sig = Table(sig_data, colWidths=[540])
+        t_sig.setStyle(TableStyle([
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ]))
+        story.append(t_sig)
+
+        doc.build(story)
+        return buffer.getvalue()
+    else:
+        page = Image.new("RGB", (612, 792), "white")
+        draw = ImageDraw.Draw(page)
+        draw.rectangle([36, 36, 576, 116], fill="#F8FAFC", outline="#475569", width=1)
+        draw.line([(36, 62.6), (576, 62.6)], fill="#CBD5E1", width=1)
+        draw.line([(36, 89.3), (576, 89.3)], fill="#CBD5E1", width=1)
+        draw.line([(396, 36), (396, 116)], fill="#CBD5E1", width=1)
+
+        draw.text((44, 44), "REQUISIÇÃO DE REAGENTES E PRODUTOS", fill="black")
+        draw.text((404, 44), f"CÓDIGO: {codigo_req}", fill="black")
+        draw.text((44, 70), f"Grupo de Pesquisa: {nome_grupo}", fill="black")
+        draw.text((404, 70), f"Data: {req_data}", fill="black")
+        draw.text((44, 96), f"Solicitante: {solicitacao.get('solicitante', '-')}", fill="black")
+        draw.text((404, 96), f"Status: {req_status}", fill="black")
+
+        y = 136
+        secoes = [
+            ("1. ITEM E CATEGORIA SOLICITADA", f"Item/Material: {solicitacao.get('item', '-')}\nCategoria: {solicitacao.get('categoria_item', 'Reagentes')}\nQuantidade: {solicitacao.get('quantidade', '-')}"),
+            ("2. URGÊNCIA E JUSTIFICATIVA", f"Urgência: {urgente_str}\nJustificativa: {solicitacao.get('razao_urgencia', '-')}"),
+            ("3. ESPECIFICAÇÕES TÉCNICAS DO MATERIAL", str(solicitacao.get('especificacoes', '-'))),
+            ("4. APROVAÇÃO E LIDERANÇA", f"Liderança: {lider_nome} / {colider_nome}\nAprovado por: {solicitacao.get('aprovado_por', '-')}"),
+        ]
+
+        for tit, txt in secoes:
+            draw.text((36, y), tit, fill="#0F172A")
+            y += 20
+            for line in str(txt).split("\n"):
+                draw.text((46, y), line[:85], fill="#1E293B")
+                y += 15
+            y += 10
+
+        page.save(buffer, format="PDF", resolution=72.0)
+        return buffer.getvalue()
+
+
+def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_amostra=None):
+    if dados_amostra is None:
+        dados_amostra = {}
+
+    nome_amostra = dados_amostra.get("nome_amostra", "Amostra / Reagente")
+    data_obtencao = dados_amostra.get("data_obtencao", "-")
+    responsavel = dados_amostra.get("responsavel", "Pesquisador Responsável")
+    telefone = dados_amostra.get("telefone", "-")
+    email = dados_amostra.get("email", "-")
+    localizacao = dados_amostra.get("localizacao", "Bancada / Freezer")
+    descricao = dados_amostra.get("descricao", "Sem descrição adicional.")
+    status_etiqueta = "Cadastrado / Vigente"
+
+    buffer = BytesIO()
+
+    if REPORTLAB_DISPONIVEL:
+        from reportlab.platypus import Image as RLImage
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=36,
+            leftMargin=36,
+            topMargin=36,
+            bottomMargin=36
+        )
+        styles = getSampleStyleSheet()
+        story = []
+
+        title_style = ParagraphStyle(
+            'EtiqTitle',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=10,
+            leading=13,
+            textColor=colors.HexColor('#0F172A')
+        )
+        
+        sec_title_style = ParagraphStyle(
+            'EtiqSecTitle',
+            parent=styles['Heading2'],
+            fontName='Helvetica-Bold',
+            fontSize=10,
+            leading=14,
+            textColor=colors.HexColor('#0F172A'),
+            spaceBefore=10,
+            spaceAfter=4
+        )
+
+        body_style = ParagraphStyle(
+            'EtiqBodyText',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=9.5,
+            leading=14,
+            textColor=colors.HexColor('#1E293B')
+        )
+
+        header_data = [
+            [
+                Paragraph("<b>IDENTIFICAÇÃO DE AMOSTRA E ETIQUETA</b>", title_style),
+                Paragraph(f"<b>CÓDIGO:</b> {id_amostra if id_amostra else 'AMS-000'}", title_style)
+            ],
+            [
+                Paragraph(f"<b>Amostra/Reagente:</b> {nome_amostra}", title_style),
+                Paragraph(f"<b>Data de Obtenção:</b> {data_obtencao}", title_style)
+            ],
+            [
+                Paragraph(f"<b>Responsável:</b> {responsavel}", title_style),
+                Paragraph(f"<b>Status:</b> {status_etiqueta}", title_style)
+            ]
+        ]
+        t_header = Table(header_data, colWidths=[360, 180])
+        t_header.setStyle(TableStyle([
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('PADDING', (0,0), (-1,-1), 6),
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ]))
+        story.append(t_header)
+        story.append(Spacer(1, 14))
+
+        sections = [
+            ("1. IDENTIFICAÇÃO E REGISTRO", f"• Código/ID da Amostra: {id_amostra}\n• Nome da Amostra/Reagente: {nome_amostra}\n• Data de Obtenção: {data_obtencao}"),
+            ("2. RESPONSÁVEL E CONTATO", f"• Pesquisador Responsável: {responsavel}\n• Telefone: {telefone} | E-mail: {email}"),
+            ("3. ARMAZENAMENTO E LOCALIZAÇÃO", f"• Local de Armazenamento: {localizacao}\n• Tamanho da Etiqueta: {mm_size} mm | Quantidade Gerada: {quantidade} unidade(s)"),
+            ("4. DESCRIÇÃO E PROTOCOLO DE USO", str(descricao)),
+            ("5. QR CODE DE IDENTIFICAÇÃO DA AMOSTRA", "Abaixo consta o código QR gerado para escaneamento e rastreabilidade:"),
+        ]
+
+        for title, content in sections:
+            if content:
+                story.append(Paragraph(title, sec_title_style))
+                content_p = str(content).replace('\n', '<br/>')
+                story.append(Paragraph(content_p, body_style))
+                story.append(Spacer(1, 4))
+
+        qr_temp_buffer = BytesIO()
+        qr_img_pil.save(qr_temp_buffer, format="PNG")
+        qr_temp_buffer.seek(0)
+        story.append(Spacer(1, 8))
+        story.append(RLImage(qr_temp_buffer, width=120, height=120))
+
+        doc.build(story)
+        return buffer.getvalue()
+    else:
+        page = Image.new("RGB", (612, 792), "white")
+        draw = ImageDraw.Draw(page)
+        draw.rectangle([36, 36, 576, 116], fill="#F8FAFC", outline="#475569", width=1)
+        draw.line([(36, 62.6), (576, 62.6)], fill="#CBD5E1", width=1)
+        draw.line([(36, 89.3), (576, 89.3)], fill="#CBD5E1", width=1)
+        draw.line([(396, 36), (396, 116)], fill="#CBD5E1", width=1)
+
+        draw.text((44, 44), "IDENTIFICAÇÃO DE AMOSTRA E ETIQUETA", fill="black")
+        draw.text((404, 44), f"CÓDIGO: {id_amostra}", fill="black")
+        draw.text((44, 70), f"Amostra/Reagente: {nome_amostra}", fill="black")
+        draw.text((404, 70), f"Data: {data_obtencao}", fill="black")
+        draw.text((44, 96), f"Responsável: {responsavel}", fill="black")
+        draw.text((404, 96), f"Status: {status_etiqueta}", fill="black")
+
+        y = 136
+        secoes = [
+            ("1. IDENTIFICAÇÃO E REGISTRO", f"ID: {id_amostra}\nAmostra: {nome_amostra}\nData: {data_obtencao}"),
+            ("2. RESPONSÁVEL E CONTATO", f"Responsável: {responsavel}\nTel: {telefone} | Email: {email}"),
+            ("3. ARMAZENAMENTO E LOCALIZAÇÃO", f"Local: {localizacao}\nTamanho: {mm_size} mm | Qtd: {quantidade}"),
+            ("4. DESCRIÇÃO E PROTOCOLO", str(descricao)),
+        ]
+
+        for tit, txt in secoes:
+            draw.text((36, y), tit, fill="#0F172A")
+            y += 20
+            for line in str(txt).split("\n"):
+                draw.text((46, y), line[:85], fill="#1E293B")
+                y += 15
+            y += 10
+
+        qr_resized_f = qr_img_pil.resize((120, 120), Image.Resampling.LANCZOS)
+        page.paste(qr_resized_f, (46, y + 10))
+
+        page.save(buffer, format="PDF", resolution=72.0)
+        return buffer.getvalue()
     buffer = BytesIO()
     if REPORTLAB_DISPONIVEL:
         doc = SimpleDocTemplate(
