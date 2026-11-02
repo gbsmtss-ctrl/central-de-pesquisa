@@ -461,7 +461,26 @@ def gerar_pdf_pop(pop_dict):
             ("1. OBJETIVO", pop_dict.get("objetivo", "")),
             ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
             ("3. PROCEDIMENTO / PASSO A PASSO", pop_dict.get("passos", "")),
-            ("4. SEGURANÇA E EPIs", pop_dict.get("seguranca", "")),
+            ("4. SEGURANÇA E EPIs", pop_dict.get("seguranca", "")),st.sidebar.markdown('<div class="sidebar-section">CONFIGURAÇÕES</div>', unsafe_allow_html=True)
+    if is_admin:
+        render_menu_item("🛡️ Administração", "🛡️ Administração", total_notif_admin)
+    render_menu_item("👤 Meu perfil", "👤 Meu perfil", notif_meu_perfil)
+
+    # --- INÍCIO DA SEGUNDA ALTERAÇÃO ---
+    st.sidebar.markdown('<div class="sidebar-section">🎨 APARÊNCIA DO APP</div>', unsafe_allow_html=True)
+    novo_tema = st.sidebar.selectbox(
+        "Cor do Tema",
+        options=list(TEMAS_CORES.keys()),
+        index=list(TEMAS_CORES.keys()).index(st.session_state.tema_cor),
+        key="select_tema_sidebar"
+    )
+
+    if novo_tema != st.session_state.tema_cor:
+        st.session_state.tema_cor = novo_tema
+        st.rerun()
+    # --- FIM DA SEGUNDA ALTERAÇÃO ---
+
+    menu_selecionado = st.session_state.menu_selecionado
             ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "-")),
         ]
 
