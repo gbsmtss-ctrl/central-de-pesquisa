@@ -19,24 +19,61 @@ try:
 except ImportError:
     REPORTLAB_DISPONIVEL = False
 
-# Configuração da página
-st.set_page_config(
-    page_title="Central de Pesquisa - Gestão do Laboratório",
-    page_icon="🧪",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+# --- TEMAS DE CORES DISPONÍVEIS ---
+TEMAS_CORES = {
+    "🩵 Ciano Oceano (Padrão)": {"primary": "#0E7490", "bg_light": "#ECFEFF", "border": "#06B6D4"},
+    "🔵 Azul Safira": {"primary": "#1D4ED8", "bg_light": "#EFF6FF", "border": "#3B82F6"},
+    "🟢 Verde Esmeralda": {"primary": "#047857", "bg_light": "#ECFDF5", "border": "#10B981"},
+    "🟣 Roxo Orquídea": {"primary": "#6D28D9", "bg_light": "#F5F3FF", "border": "#8B5CF6"},
+    "🟠 Laranja Pôr do Sol": {"primary": "#C2410C", "bg_light": "#FFF7ED", "border": "#F97316"},
+    "🩷 Rosa Magenta": {"primary": "#BE185D", "bg_light": "#FDF2F8", "border": "#EC4899"},
+    "🌑 Grafite Elegante": {"primary": "#334155", "bg_light": "#F1F5F9", "border": "#64748B"},
+}
 
-# --- INJEÇÃO DE CSS: APARÊNCIA APP-LIKE & PALETA CIENTÍFICA COESA ---
+if "tema_cor" not in st.session_state:
+    st.session_state.tema_cor = "🩵 Ciano Oceano (Padrão)"
+
+tema_ativo = TEMAS_CORES.get(st.session_state.tema_cor, TEMAS_CORES["🩵 Ciano Oceano (Padrão)"])
+cor_primaria = tema_ativo["primary"]
+cor_bg_light = tema_ativo["bg_light"]
+cor_border = tema_ativo["border"]
+
+# --- INJEÇÃO DE CSS DINÂMICO ---
 st.markdown(
-    """
+    f"""
     <style>
-    /* Oculta os menus nativos de dev do Streamlit (GitHub, Fork, Top Bar, Footer) */
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    [data-testid="stHeader"] {display: none;}
-    [data-testid="stToolbar"] {display: none;}
+    #MainMenu {{visibility: hidden;}}
+    header {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    [data-testid="stHeader"] {{display: none;}}
+    [data-testid="stToolbar"] {{display: none;}}
+    
+    .stApp {{ background-color: #F8FAFC; }}
+    [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; }}
+    
+    [data-testid="stSidebar"] div.stButton > button {{
+        text-align: left !important; justify-content: flex-start !important; padding: 8px 12px !important;
+        width: 100% !important; margin-bottom: 3px !important; border-radius: 6px !important; font-size: 0.88rem !important;
+    }}
+    
+    [data-testid="stSidebar"] div.stButton > button[kind="secondary"]:hover {{
+        background-color: {cor_bg_light} !important; color: {cor_primaria} !important;
+    }}
+    
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"] {{
+        background-color: {cor_bg_light} !important; color: {cor_primaria} !important; font-weight: 700 !important;
+        border-left: 4px solid {cor_primaria} !important; border-top: none !important; border-right: none !important; border-bottom: none !important;
+    }}
+
+    h1, h2, h3 {{ color: #0F172A !important; font-family: 'Segoe UI', Roboto, sans-serif; }}
+    .sidebar-section {{ font-size: 0.70rem; font-weight: 800; color: #94A3B8; text-transform: uppercase; margin-top: 1.2rem; margin-bottom: 0.4rem; letter-spacing: 0.08em; }}
+    .aviso-card {{ background-color: #FFFFFF; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid {cor_primaria}; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }}
+    .pop-preview-card {{ background-color: #FFFFFF; border: 1px solid #CBD5E1; border-left: 4px solid {cor_primaria}; border-radius: 8px; padding: 16px; margin-bottom: 15px; }}
+    .tree-orientador {{ background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid {cor_primaria}; padding: 12px 16px; border-radius: 8px; margin-top: 15px; font-weight: bold; font-size: 0.95rem; color: #0F172A; }}
+    </style>
+""",
+    unsafe_allow_html=True,
+)
     
     /* Fundo Geral */
     .stApp {
