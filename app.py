@@ -1382,4 +1382,1079 @@ else:
 
             alunos_do_orientador = [
                 a for a in alunos
-                if a.get("Orientador") == nome_orient
+                if a.get("Orientador") == nome_orient and a.get("OrientadorStatus") == "Aprovado"
+            ]
+
+            if alunos_do_orientador:
+                for al in alunos_do_orientador:
+                    coorient_txt = f" | <b>Coorientador:</b> {al.get('Coorientador')}" if al.get('Coorientador') and al.get('Coorientador') != "-" else ""
+                    st.markdown(
+                        f"""
+                        <div class="tree-orientado">
+                            <div>
+                                <span style="color:#0E7490; font-weight:bold;">└─ 🎓 {al['Nome']}</span> 
+                                <span style="font-size:0.82rem; color:#475569;">({al.get('Categoria')})</span>
+                                <div style="font-size:0.78rem; color:#64748B; margin-left: 20px;">
+                                    E-mail: {al.get('Email')} | Vínculo: {al.get('Vínculo')}{coorient_txt}
+                                </div>
+                            </div>
+                            <div>
+                                <span class="badge-ativo">Vínculo Confirmado</span>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+            else:
+                st.markdown("<div style='margin-left:24px; font-size:0.85rem; color:#94A3B8; padding: 6px 0;'><i>Nenhum orientado vinculado a este orientador até o momento.</i></div>", unsafe_allow_html=True)
+
+        st.markdown("<br>### ❓ Alunos Sem Orientador Confirmado", unsafe_allow_html=True)
+        sem_orientador = [
+            a for a in alunos
+            if not a.get("Orientador") or a.get("Orientador") == "-" or a.get("OrientadorStatus") == "Pendente"
+        ]
+
+        if sem_orientador:
+            for al in sem_orientador:
+                st_txt = "Aguardando Atribuição do Admin" if al.get("OrientadorStatus") == "Pendente" else "Sem Orientador"
+                st.markdown(
+                    f"""
+                    <div class="tree-orientado" style="margin-left:0; border-left:4px solid #F59E0B;">
+                        <div>
+                            <b>🎓 {al['Nome']}</b> ({al.get('Categoria')})
+                            <div style="font-size:0.8rem; color:#64748B;">Orientador Solicitado: <b>{al.get('Orientador', 'Nenhum')}</b></div>
+                        </div>
+                        <div>
+                            <span class="badge-pendente">{st_txt}</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        else:
+            st.info("Todos os alunos cadastrados estão oficialmente vinculados aos seus orientadores!")
+
+    # --- 2.1 GRUPOS DE PESQUISA (COM SENHA DE ACESSO INDIVIDUAL) ---
+    elif menu_selecionado == "🔬 Grupo de Pesquisa":
+        st.title("🔬 Área de Grupos de Pesquisa")
+        st.caption("Acesso restrito por senha individual por grupo. Cada pesquisador só acessa e edita as informações do seu grupo.")
+
+        meus_grupos = [
+            g for g in st.session_state.grupos_db
+            if g.get("status") == "Aprovado" and (usuario_atual["nome"] in g.get("membros", []) or is_admin)
+        ]
+
+        aba_grp_view, aba_grp_solicitar = st.tabs([
+            "📊 Meus Grupos de Pesquisa",
+            "➕ Solicitar Criação / Entrada em Grupo"
+        ])
+
+        with aba_grp_view:
+            if meus_grupos:
+                nomes_meus_grupos = [g["nome"] for g in meus_grupos]
+                grp_sel_nome = st.selectbox("Selecione o Grupo de Pesquisa", nomes_meus_grupos)
+                grupo_ativo = next((g for g in meus_grupos if g["nome"] == grp_sel_nome), meus_grupos[0])
+
+                grp_id = grupo_ativo["id"]
+                autenticado = (grp_id in st.session_state.grupos_autenticados) or is_admin
+
+                if not autenticado:
+                    with st.container(border=True):
+                        st.warning(f"🔒 O Grupo **{grupo_ativo['nome']}** é protegido por senha. Insira a senha do grupo para ter acesso.")
+                        with st.form(f"form_auth_grp_{grp_id}"):
+                            senha_grp_input = st.text_input("Senha do Grupo", type="password")
+                            btn_entrar_grp = st.form_submit_button("🔓 Acessar Área do Grupo", type="primary")
+
+                            if btn_entrar_grp:
+                                if senha_grp_input == grupo_ativo.get("senha", ""):
+                                    st.session_state.grupos_autenticados.append(grp_id)
+                                    st.success("Senha correta! Acesso liberado.")
+                                    st.rerun()
+                                else:
+                                    st.error("Senha incorreta.")
+                else:
+                    st.markdown(
+                        f"""
+                        <div class="css-card" style="border-left: 4px solid #0E7490;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <h2 style="margin:0; color:#0F172A; font-size: 1.3rem;">🔬 {grupo_ativo['nome']}</h2>
+                                <span class="badge-ativo">🔓 Área Autenticada</span>
+                            </div>
+                            <p style="color:#475569; margin: 6px 0; font-size:0.88rem;">{grupo_ativo.get('descricao', '')}</p>
+                            <div style="font-size:0.82rem; color:#64748B;">
+                                👨‍🔬 <b>Líder do Grupo:</b> {grupo_ativo.get('lider', 'N/A')} | 👥 <b>Membros:</b> {len(grupo_ativo.get('membros', []))}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                    if is_admin or usuario_atual["nome"] == grupo_ativo.get("lider"):
+                        with st.expander("⚙️ Painel de Edição das Informações do Grupo (Admin / Líder)"):
+                            with st.form(f"form_edit_grp_{grp_id}"):
+                                ed_nome_g = st.text_input("Nome do Grupo", value=grupo_ativo["nome"])
+                                ed_desc_g = st.text_area("Descrição do Grupo", value=grupo_ativo.get("descricao", ""))
+                                ed_lider_g = st.text_input("Líder do Grupo", value=grupo_ativo.get("lider", ""))
+                                ed_senha_g = st.text_input("Senha de Acesso do Grupo", value=grupo_ativo.get("senha", "123"))
+                                btn_salv_grp_edit = st.form_submit_button("💾 Salvar Alterações do Grupo", type="primary")
+
+                                if btn_salv_grp_edit:
+                                    grupo_ativo["nome"] = ed_nome_g.strip()
+                                    grupo_ativo["descricao"] = ed_desc_g.strip()
+                                    grupo_ativo["lider"] = ed_lider_g.strip()
+                                    grupo_ativo["senha"] = ed_senha_g.strip()
+                                    salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                    st.success("Informações do grupo atualizadas com sucesso!")
+                                    st.rerun()
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    sub_tab1, sub_tab2, sub_tab3 = st.tabs([
+                        "📅 Calendário Exclusivo do Grupo",
+                        "📝 Mural & Projetos Internos",
+                        "👥 Membros do Grupo"
+                    ])
+
+                    with sub_tab1:
+                        st.subheader("📅 Calendário Individual de Atividades do Grupo")
+                        st.caption("Agendamentos e compromissos visíveis somente aos participantes deste grupo.")
+
+                        c_ag1, c_ag2 = st.columns([1.5, 1])
+
+                        with c_ag1:
+                            st.markdown("##### 📋 Compromissos Agendados")
+                            agenda_grp = grupo_ativo.get("agenda", [])
+                            if agenda_grp:
+                                for idx_a, ev in enumerate(agenda_grp):
+                                    st.markdown(
+                                        f"""
+                                        <div class="event-card" style="border-left: 4px solid #059669;">
+                                            <div style="font-weight:bold; color:#0F172A;">{ev['titulo']}</div>
+                                            <div style="font-size:0.82rem; color:#475569;">
+                                                📅 <b>{ev['data']}</b> das 🕒 <b>{ev.get('hora_inicio')} às {ev.get('hora_fim')}</b>
+                                            </div>
+                                            <div style="font-size:0.8rem; color:#64748B; margin-top:4px;">{ev.get('descricao', '')}</div>
+                                            <div style="font-size:0.75rem; color:#94A3B8; margin-top:2px;">Criado por: {ev.get('autor','-')}</div>
+                                        </div>
+                                        """,
+                                        unsafe_allow_html=True
+                                    )
+                                    if is_admin or ev.get("autor") == usuario_atual["nome"]:
+                                        if st.button("🗑️ Remover Evento", key=f"del_ev_grp_{idx_a}"):
+                                            grupo_ativo["agenda"].pop(idx_a)
+                                            salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                            st.warning("Evento removido da agenda do grupo.")
+                                            st.rerun()
+                            else:
+                                st.info("Nenhum evento agendado na agenda deste grupo.")
+
+                        with c_ag2:
+                            st.markdown("##### ➕ Novo Evento do Grupo")
+                            with st.form(f"form_evento_grp_{grupo_ativo['id']}"):
+                                tit_ev_g = st.text_input("Título do Evento *")
+                                dt_ev_g = st.date_input("Data *", datetime.now().date())
+                                c_h1, c_h2 = st.columns(2)
+                                with c_h1:
+                                    hi_g = st.time_input("Início", time(14, 0))
+                                with c_h2:
+                                    hf_g = st.time_input("Fim", time(15, 0))
+                                desc_ev_g = st.text_area("Descrição / Pauta")
+                                btn_salv_ev_g = st.form_submit_button("📅 Salvar no Grupo", type="primary")
+
+                                if btn_salv_ev_g and tit_ev_g.strip():
+                                    if "agenda" not in grupo_ativo:
+                                        grupo_ativo["agenda"] = []
+                                    grupo_ativo["agenda"].append({
+                                        "id": len(grupo_ativo["agenda"]) + 1,
+                                        "titulo": tit_ev_g.strip(),
+                                        "data": dt_ev_g.strftime("%Y-%m-%d"),
+                                        "hora_inicio": hi_g.strftime("%H:%M"),
+                                        "hora_fim": hf_g.strftime("%H:%M"),
+                                        "descricao": desc_ev_g.strip(),
+                                        "autor": usuario_atual["nome"]
+                                    })
+                                    salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                    st.success("Evento adicionado ao calendário do grupo!")
+                                    st.rerun()
+
+                    with sub_tab2:
+                        st.subheader("📝 Mural & Projetos Internos do Grupo")
+                        st.caption("Anotações gerais, atas de reuniões e avisos internos.")
+
+                        mural_atual = grupo_ativo.get("mural", "Nenhuma anotação postada ainda.")
+                        st.markdown(f"<div class='css-card'>{mural_atual}</div>", unsafe_allow_html=True)
+
+                        with st.expander("✏️ Editar Mural e Anotações do Grupo"):
+                            novo_mural = st.text_area("Escreva as anotações do grupo (Suporta texto e Markdown)", value=mural_atual, height=150)
+                            if st.button("💾 Atualizar Mural"):
+                                grupo_ativo["mural"] = novo_mural
+                                salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                st.success("Mural do grupo atualizado!")
+                                st.rerun()
+
+                    with sub_tab3:
+                        st.subheader("👥 Integrantes do Grupo")
+                        for mbr in grupo_ativo.get("membros", []):
+                            st.markdown(f"- 👨‍🔬 **{mbr}** {'*(Líder)*' if mbr == grupo_ativo.get('lider') else ''}")
+
+            else:
+                st.warning("⚠️ Você ainda não está vinculado a nenhum Grupo de Pesquisa aprovado.")
+                st.info("Utilize a aba '➕ Solicitar Criação / Entrada em Grupo' para requisitar a criação de um novo grupo ou entrar em um grupo existente.")
+
+        with aba_grp_solicitar:
+            c_sol1, c_sol2 = st.columns(2)
+
+            with c_sol1:
+                with st.container(border=True):
+                    st.subheader("➕ Solicitar Criação de Novo Grupo")
+                    with st.form("form_novo_grupo_pesq"):
+                        nome_novo_grp = st.text_input("Nome do Grupo de Pesquisa *")
+                        desc_novo_grp = st.text_area("Descrição / Objetivos do Grupo *", height=100)
+                        senha_novo_grp = st.text_input("Definir Senha de Acesso ao Grupo *", type="password", value="123")
+                        btn_sol_grp = st.form_submit_button("🚀 Enviar Solicitação para o Admin", type="primary")
+
+                        if btn_sol_grp:
+                            if nome_novo_grp.strip() and desc_novo_grp.strip() and senha_novo_grp.strip():
+                                novo_id_g = max([g.get("id", 0) for g in st.session_state.grupos_db], default=0) + 1
+                                st.session_state.grupos_db.append({
+                                    "id": novo_id_g,
+                                    "nome": nome_novo_grp.strip(),
+                                    "descricao": desc_novo_grp.strip(),
+                                    "lider": usuario_atual["nome"],
+                                    "senha": senha_novo_grp.strip(),
+                                    "membros": [usuario_atual["nome"]],
+                                    "status": "Pendente",
+                                    "solicitante": usuario_atual["nome"],
+                                    "membros_pendentes": [],
+                                    "agenda": [],
+                                    "mural": "Mural inicial do grupo."
+                                })
+                                salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                st.success("✅ Solicitação de novo grupo enviada para aprovação do Administrador!")
+                                st.rerun()
+                            else:
+                                st.error("Preencha o nome, a descrição e a senha do grupo.")
+
+            with c_sol2:
+                with st.container(border=True):
+                    st.subheader("🙋‍♂️ Solicitar Entrada em Grupo Existente")
+                    grupos_aprovados_outros = [
+                        g for g in st.session_state.grupos_db
+                        if g.get("status") == "Aprovado" and usuario_atual["nome"] not in g.get("membros", [])
+                    ]
+
+                    if grupos_aprovados_outros:
+                        dict_g_outros = {g["nome"]: g for g in grupos_aprovados_outros}
+                        grp_entrar_nome = st.selectbox("Selecione o Grupo para Ingressar", list(dict_g_outros.keys()))
+
+                        if st.button("📩 Solicitar Vínculo ao Grupo"):
+                            grp_alvo = dict_g_outros[grp_entrar_nome]
+                            if "membros_pendentes" not in grp_alvo:
+                                grp_alvo["membros_pendentes"] = []
+
+                            if usuario_atual["nome"] not in grp_alvo["membros_pendentes"]:
+                                grp_alvo["membros_pendentes"].append(usuario_atual["nome"])
+                                salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                st.success(f"Solicitação de entrada no grupo '{grp_entrar_nome}' enviada ao Admin!")
+                            else:
+                                st.info("Você já possui uma solicitação de entrada pendente para este grupo.")
+                    else:
+                        st.info("Não há outros grupos de pesquisa disponíveis para solicitação no momento.")
+
+    # --- 3. PRESENÇA NO LABORATÓRIO ---
+    elif menu_selecionado == "🕒 Presença no Laboratório":
+        st.title("🕒 Presença no Laboratório")
+        st.caption("Escala e horários de presença dos pesquisadores na bancada.")
+
+        if st.session_state.integrantes:
+            df_presenca = pd.DataFrame(st.session_state.integrantes)
+            cols_p = ["Nome", "Categoria", "DiasHorarios"]
+            for col in cols_p:
+                if col not in df_presenca.columns:
+                    df_presenca[col] = "-"
+            st.dataframe(df_presenca[cols_p], use_container_width=True)
+        else:
+            st.info("Nenhum registro de presença disponível.")
+
+    # --- 4. REPOSITÓRIO DE ARQUIVOS ---
+    elif menu_selecionado == "📁 Repositório de Arquivos":
+        st.title("📁 Central de Arquivos & Documentos")
+
+        aba_docs, aba_upload, aba_nova_pasta = st.tabs([
+            "📂 Drive de Arquivos",
+            "📥 Enviar Arquivo",
+            "📁 Criar / Solicitar Pasta",
+        ])
+
+        pastas_aprovadas = [p for p in st.session_state.pastas_db if p.get("status") == "Aprovado"]
+
+        with aba_docs:
+            if st.session_state.pasta_aberta_drive is None:
+                st.subheader("📂 Suas Pastas do Laboratório")
+                st.caption("Clique em uma pasta para visualizar os arquivos contidos nela.")
+
+                cols_pastas = st.columns(3)
+                for idx, pst in enumerate(pastas_aprovadas):
+                    nome_p = pst["nome"]
+                    desc_p = pst.get("descricao", "Sem descrição")
+
+                    qtd_files = sum(
+                        1 for a in st.session_state.arquivos_db
+                        if str(a.get("pasta", "")).strip().lower() == str(nome_p).strip().lower()
+                        and a.get("status") == "Aprovado"
+                    )
+
+                    with cols_pastas[idx % 3]:
+                        st.markdown(
+                            f"""
+                            <div class="css-card">
+                                <h3 style="margin:0; font-size: 1.1rem; color:#0F172A;">📁 {nome_p}</h3>
+                                <p style="margin: 5px 0; color: #64748B; font-size: 0.85rem;">{desc_p}</p>
+                                <span style="background-color: #E2E8F0; padding: 2px 8px; border-radius: 12px; font-size: 0.78rem; font-weight: bold; color: #334155;">
+                                    📄 {qtd_files} arquivo(s)
+                                </span>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        c_b1, c_b2 = st.columns([2, 1])
+                        with c_b1:
+                            if st.button(f"📂 Abrir", key=f"btn_open_folder_{idx}"):
+                                st.session_state.pasta_aberta_drive = nome_p
+                                st.rerun()
+                        with c_b2:
+                            if is_admin and nome_p != "Geral":
+                                if st.button("🗑️", key=f"btn_del_folder_{idx}", help="Excluir Pasta"):
+                                    st.session_state.pastas_db = [p for p in st.session_state.pastas_db if p["nome"] != nome_p]
+                                    salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+                                    st.success(f"Pasta '{nome_p}' removida.")
+                                    st.rerun()
+
+            else:
+                nome_pasta_atual = st.session_state.pasta_aberta_drive
+
+                c_top1, c_top2 = st.columns([3, 1])
+                with c_top1:
+                    st.subheader(f"📂 Pasta: {nome_pasta_atual}")
+                with c_top2:
+                    if st.button("⬅️ Voltar para Pastas", type="secondary"):
+                        st.session_state.pasta_aberta_drive = None
+                        st.rerun()
+
+                st.markdown("---")
+
+                arqs_da_pasta = [
+                    a for a in st.session_state.arquivos_db
+                    if str(a.get("pasta", "")).strip().lower() == str(nome_pasta_atual).strip().lower()
+                    and a.get("status") == "Aprovado"
+                ]
+
+                if arqs_da_pasta:
+                    for doc in arqs_da_pasta:
+                        with st.container():
+                            st.markdown(
+                                f"""
+                                <div class="css-card">
+                                    <h4 style="margin:0; color:#0E7490;">📄 {doc['titulo']}</h4>
+                                    <p style="margin:4px 0; color:#555; font-size:0.85rem;"><b>Enviado por:</b> {doc.get('autor', 'Desconhecido')} em {doc.get('data', '-')}</p>
+                                    <p style="margin:4px 0; color:#666; font-size:0.85rem;"><i>{doc.get('descricao', '')}</i></p>
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+
+                            col_d1, col_d2 = st.columns([3, 1])
+                            with col_d1:
+                                b64_str = (
+                                    doc.get("conteudo_b64")
+                                    or doc.get("conteudo")
+                                    or doc.get("arquivo_b64")
+                                    or doc.get("b64")
+                                )
+
+                                if b64_str:
+                                    try:
+                                        bytes_f = base64.b64decode(b64_str)
+                                        nome_orig = doc.get("nome_original") or f"{doc.get('titulo')}.pdf"
+                                        mime_orig = doc.get("mime_type") or "application/octet-stream"
+
+                                        st.download_button(
+                                            label=f"⬇️ Baixar {nome_orig}",
+                                            data=bytes_f,
+                                            file_name=nome_orig,
+                                            mime=mime_orig,
+                                            key=f"dl_{doc['id']}",
+                                        )
+                                    except Exception as e:
+                                        st.error(f"Erro ao processar o arquivo: {e}")
+                                else:
+                                    st.warning("⚠️ Conteúdo do arquivo indisponível para download.")
+
+                            with col_d2:
+                                if is_admin or doc.get("autor") == usuario_atual["nome"]:
+                                    if st.button("🗑️ Excluir", key=f"del_doc_{doc['id']}"):
+                                        st.session_state.arquivos_db = [a for a in st.session_state.arquivos_db if a["id"] != doc["id"]]
+                                        salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                                        st.warning(f"Arquivo '{doc['titulo']}' excluído.")
+                                        st.rerun()
+
+                            st.markdown("---")
+                else:
+                    st.info(f"Nenhum arquivo encontrado na pasta '{nome_pasta_atual}'.")
+
+        with aba_upload:
+            st.subheader("Enviar Documento")
+            lista_nomes_pastas = [p["nome"] for p in pastas_aprovadas]
+
+            tit_doc = st.text_input("Título do Documento *")
+            pasta_doc = st.selectbox("Selecione a Pasta *", lista_nomes_pastas)
+            desc_doc = st.text_area("Descrição / Detalhes *", height=80)
+            arq_up = st.file_uploader("Selecione o Ficheiro *")
+
+            if st.button("📤 Confirmar Envio", type="primary"):
+                if not (tit_doc.strip() and desc_doc.strip() and arq_up):
+                    st.error("Preencha todos os campos obrigatórios (*).")
+                else:
+                    b64_str = base64.b64encode(arq_up.getvalue()).decode("utf-8")
+                    novo_id = max([a.get("id", 0) for a in st.session_state.arquivos_db], default=0) + 1
+                    status_doc = "Aprovado" if is_admin else "Pendente"
+
+                    st.session_state.arquivos_db.append({
+                        "id": novo_id,
+                        "titulo": tit_doc.strip(),
+                        "pasta": pasta_doc,
+                        "descricao": desc_doc.strip(),
+                        "nome_original": arq_up.name,
+                        "mime_type": arq_up.type,
+                        "conteudo_b64": b64_str,
+                        "autor": usuario_atual["nome"],
+                        "data": datetime.now().strftime("%d/%m/%Y"),
+                        "status": status_doc,
+                    })
+                    salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                    st.success("✅ Documento salvo com sucesso!")
+                    st.rerun()
+
+        with aba_nova_pasta:
+            st.subheader("Criar Nova Pasta")
+            nome_pasta = st.text_input("Nome da Nova Pasta *")
+            desc_pasta = st.text_input("Descrição / Finalidade *")
+            if st.button("Criar Pasta", type="primary"):
+                if nome_pasta and desc_pasta:
+                    status_p = "Aprovado" if is_admin else "Pendente"
+                    st.session_state.pastas_db.append({
+                        "nome": nome_pasta.strip(),
+                        "descricao": desc_pasta.strip(),
+                        "criador": usuario_atual["nome"],
+                        "status": status_p,
+                    })
+                    salvar_dados(ARQUIVO_PASTAS, st.session_state.pastas_db)
+                    st.success("Pasta criada com sucesso!")
+                    st.rerun()
+
+    # --- 5. GERAR QR CODE ---
+    elif menu_selecionado == "🏷️ Gerar QR Code de Amostras":
+        st.title("🧪 Gerador de QR Code de Amostras & Etiquetas")
+
+        col_f, col_q = st.columns([1.2, 1])
+
+        with col_f:
+            id_gerado_auto = f"AMS-{datetime.now().strftime('%Y%m%d')}-{st.session_state.seq_amostra:03d}"
+            
+            c_id1, c_id2 = st.columns([3, 1])
+            with c_id1:
+                id_amostra = st.text_input("Código / ID da Amostra (Gerado Automaticamente)", value=id_gerado_auto)
+            with c_id2:
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                if st.button("🔄 Novo ID"):
+                    st.session_state.seq_amostra += 1
+                    st.rerun()
+
+            opcoes_amostras = REAGENTES_CADASTRADOS + ["✍️ Outro (Digitar manualmente)"]
+            sel_amostra = st.selectbox("Nome da Amostra / Reagente", opcoes_amostras)
+
+            if sel_amostra == "✍️ Outro (Digitar manualmente)":
+                nome_amostra = st.text_input("Digite o Nome da Amostra / Reagente *", "")
+            else:
+                nome_amostra = sel_amostra
+
+            data_obtencao = st.date_input("Data de Obtenção", datetime.now().date())
+
+            lista_pesquisadores = []
+            mapa_pesquisadores = {}
+            for p in st.session_state.integrantes:
+                nome_p = p.get("Nome", "").strip()
+                if nome_p:
+                    tel_p = p.get("Telefone", "-")
+                    email_p = p.get("Email", "-")
+                    label = f"{nome_p} ({email_p} | {tel_p})"
+                    lista_pesquisadores.append(label)
+                    mapa_pesquisadores[label] = {
+                        "nome": nome_p,
+                        "telefone": tel_p,
+                        "email": email_p,
+                    }
+
+            opcoes_resp = lista_pesquisadores + ["✍️ Outro (Digitar manualmente)"]
+
+            index_padrao = 0
+            for idx_opt, opt_lbl in enumerate(lista_pesquisadores):
+                if usuario_atual.get("nome", "").lower() in opt_lbl.lower():
+                    index_padrao = idx_opt
+                    break
+
+            sel_resp = st.selectbox("Pesquisador Responsável", opcoes_resp, index=index_padrao if lista_pesquisadores else 0)
+
+            if sel_resp == "✍️ Outro (Digitar manualmente)":
+                responsavel_nome = st.text_input("Nome do Pesquisador Responsável", "")
+                responsavel_tel = st.text_input("Telefone do Responsável", "")
+                responsavel_email = st.text_input("E-mail do Responsável", "")
+            else:
+                info_p = mapa_pesquisadores.get(sel_resp, {})
+                responsavel_nome = info_p.get("nome", sel_resp)
+                responsavel_tel = info_p.get("telefone", "-")
+                responsavel_email = info_p.get("email", "-")
+
+            localizacao = st.text_input("Local de Armazenamento", "Freezer -20°C / Posição B4")
+            dest_selecionado = st.selectbox("Tamanho da Etiqueta", list(DESTINOS_ETIQUETAS.keys()))
+            tamanho_mm = DESTINOS_ETIQUETAS[dest_selecionado]
+            qtd_etiquetas = st.number_input("Quantidade de Etiquetas", min_value=1, max_value=100, value=6)
+            descricao = st.text_area("Descrição / Protocolo", value="Amostra obtida via fermentação estado sólido. Tampão fosfato 0.1M pH 7.0.")
+            gerar = st.button("Gerar Etiqueta QR Code", type="primary")
+
+        with col_q:
+            if gerar or id_amostra:
+                conteudo_qr = (
+                    f"📋 FICHA DA AMOSTRA\n"
+                    f"------------------------\n"
+                    f"• Código / ID: {id_amostra}\n"
+                    f"• Amostra / Reagente: {nome_amostra}\n"
+                    f"• Data de Obtenção: {data_obtencao.strftime('%d/%m/%Y')}\n"
+                    f"• Responsável: {responsavel_nome}\n"
+                    f"• Telefone do Responsável: {responsavel_tel}\n"
+                    f"• E-mail do Responsável: {responsavel_email}\n"
+                    f"• Local de Armazenamento: {localizacao}\n"
+                    f"------------------------\n"
+                    f"• Descrição / Protocolo:\n{descricao}"
+                )
+
+                img = qrcode.make(conteudo_qr)
+                buffer = BytesIO()
+                img.save(buffer, format="PNG")
+                img_bytes = buffer.getvalue()
+
+                st.image(img_bytes, caption=f"Pré-visualização: {id_amostra}", width=220)
+
+                st.download_button("🖼️ Baixar QR Code (PNG)", img_bytes, f"QR_{id_amostra}.png", "image/png")
+                pdf_etiquetas = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm, id_amostra=id_amostra)
+                st.download_button(f"📄 Baixar PDF ({qtd_etiquetas}x Etiquetas)", pdf_etiquetas, f"Etiquetas_{id_amostra}.pdf", "application/pdf")
+
+    # --- 6. CRIADOR DE POP COM PRÉ-VISUALIZAÇÃO EM TEMPO REAL E REFERÊNCIAS ---
+    elif menu_selecionado == "📝 Criador de POP":
+        st.title("📝 Procedimentos Operacionais Padrão (POPs)")
+
+        aba_pops_view, aba_pop_form = st.tabs([
+            "📚 POPs Cadastrados e Prévias",
+            "➕ Criar / Atualizar POP (com Pré-visualização Dinâmica)",
+        ])
+
+        with aba_pops_view:
+            st.subheader("📚 Acervo de POPs do Laboratório")
+            pops_aprovados = [p for p in st.session_state.pops_db if p.get("status") == "Aprovado"]
+
+            if pops_aprovados:
+                for idx, pop in enumerate(pops_aprovados):
+                    with st.container():
+                        st.markdown(
+                            f"""
+                            <div class="pop-preview-card">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h3 style="margin: 0; color: #0F172A; font-size: 1.1rem;">📝 {pop['titulo']}</h3>
+                                    <span style="background-color: #ECFEFF; color: #0E7490; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.82rem;">
+                                        {pop['codigo']} | v{pop['versao']}
+                                    </span>
+                                </div>
+                                <hr style="margin: 10px 0; border: none; border-top: 1px solid #E2E8F0;" />
+                                <p style="margin: 4px 0; font-size: 0.88rem;"><b>1. Objetivo:</b> {pop.get('objetivo', '-')}</p>
+                                <p style="margin: 4px 0; font-size: 0.88rem;"><b>2. Materiais & Equipamentos:</b> {pop.get('materiais', '-')}</p>
+                                <p style="margin: 4px 0; font-size: 0.88rem;"><b>3. Passo a Passo:</b> {str(pop.get('passos', '-')).replace(chr(10), ' | ')}</p>
+                                <p style="margin: 4px 0; font-size: 0.88rem;"><b>4. Segurança / EPIs:</b> {pop.get('seguranca', '-')}</p>
+                                <p style="margin: 4px 0; font-size: 0.88rem;"><b>5. Referências Usadas:</b> {pop.get('referencias', '-')}</p>
+                                <p style="margin: 6px 0 0 0; color: #64748B; font-size: 0.8rem;"><i>Elaborado por: {pop.get('autor', 'Desconhecido')}</i></p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                        c_pop1, c_pop2, c_pop3 = st.columns([1.5, 2, 1])
+
+                        with c_pop1:
+                            pdf_bytes = gerar_pdf_pop(pop)
+                            st.download_button(
+                                label="📄 Baixar PDF do POP",
+                                data=pdf_bytes,
+                                file_name=f"{pop['codigo']}.pdf",
+                                mime="application/pdf",
+                                key=f"dl_pop_{idx}",
+                            )
+
+                        with c_pop2:
+                            if st.button("📂 Publicar no Repositório", key=f"trans_pop_{idx}"):
+                                b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+                                novo_id = max([a.get("id", 0) for a in st.session_state.arquivos_db], default=0) + 1
+                                st.session_state.arquivos_db.append({
+                                    "id": novo_id,
+                                    "titulo": f"{pop['codigo']} - {pop['titulo']}",
+                                    "pasta": "POPs e Protocolos",
+                                    "descricao": f"Procedimento Operacional Padrão (Versão {pop['versao']}). Objetivo: {pop.get('objetivo')}",
+                                    "nome_original": f"{pop['codigo']}.pdf",
+                                    "mime_type": "application/pdf",
+                                    "conteudo_b64": b64_pdf,
+                                    "autor": pop.get("autor", usuario_atual["nome"]),
+                                    "data": datetime.now().strftime("%d/%m/%Y"),
+                                    "status": "Aprovado",
+                                })
+                                salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                                st.success("✅ POP publicado na pasta de POPs!")
+
+                        with c_pop3:
+                            if is_admin or pop.get("autor") == usuario_atual["nome"]:
+                                if st.button("🗑️ Excluir", key=f"del_pop_{idx}"):
+                                    st.session_state.pops_db = [item for item in st.session_state.pops_db if item.get("codigo") != pop.get("codigo")]
+                                    salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+                                    st.warning(f"POP '{pop['codigo']}' excluído.")
+                                    st.rerun()
+
+                        st.markdown("<br>", unsafe_allow_html=True)
+            else:
+                st.info("Nenhum POP aprovado cadastrado até o momento.")
+
+        with aba_pop_form:
+            st.subheader("➕ Formulário de Criação / Atualização de POP")
+            st.caption("Preencha os campos à esquerda e acompanhe a **Pré-visualização em Tempo Real** no painel da direita.")
+
+            col_form, col_prev = st.columns([1.1, 1])
+
+            with col_form:
+                modo_criacao = st.radio("Ação", ["Criar Novo POP", "Atualizar POP Existente"], horizontal=True)
+
+                tit_selecionado = ""
+                versao_calculada = 1
+
+                if modo_criacao == "Atualizar POP Existente":
+                    pops_existentes = [p["titulo"] for p in st.session_state.pops_db]
+                    if pops_existentes:
+                        pop_sel_tit = st.selectbox("Selecione o POP", pops_existentes)
+                        pop_existente = next((p for p in st.session_state.pops_db if p["titulo"] == pop_sel_tit), None)
+                        if pop_existente:
+                            tit_selecionado = pop_existente["titulo"]
+                            versao_calculada = pop_existente.get("versao", 1) + 1
+                    else:
+                        st.warning("Nenhum POP cadastrado para atualizar.")
+                else:
+                    opcoes_titulos_pop = POPS_PADRAO + ["✍️ Outro (Digitar manualmente)"]
+                    sel_pop_pre = st.selectbox("Título Padrão ou Manual", opcoes_titulos_pop)
+                    if sel_pop_pre == "✍️ Outro (Digitar manualmente)":
+                        tit_selecionado = st.text_input("Digite o Título do POP *", "Preparo de Amostras para HPLC")
+                    else:
+                        tit_selecionado = sel_pop_pre
+
+                cod_auto = gerar_codigo_pop(tit_selecionado if tit_selecionado else "POP", versao_calculada)
+
+                p_objetivo = st.text_area("1. Objetivo *", value="Padronizar o procedimento no laboratório.", height=70)
+                p_materiais = st.text_area("2. Materiais & Equipamentos *", value="Equipamentos de proteção individual, reagentes e vidrarias.", height=70)
+                p_passos = st.text_area("3. Procedimento / Passo a Passo *", value="1. Ligar o equipamento.\n2. Calibrar conforme instrução.\n3. Executar o ensaio.", height=110)
+                p_seguranca = st.text_area("4. Segurança & EPIs *", value="Jaleco, luvas de nitrilo e óculos de proteção.", height=70)
+                p_referencias = st.text_area("5. Referências Usadas / Normas *", value="Artigo/Norma de referência utilizada para elaboração do protocolo.", height=70)
+
+                if st.button("💾 Salvar Documento POP", type="primary", use_container_width=True):
+                    if not (tit_selecionado and p_objetivo and p_passos):
+                        st.error("Preencha todos os campos obrigatórios (*).")
+                    else:
+                        status_pop = "Aprovado" if is_admin else "Pendente"
+
+                        novo_pop_data = {
+                            "codigo": cod_auto,
+                            "titulo": tit_selecionado.strip(),
+                            "versao": versao_calculada,
+                            "objetivo": p_objetivo.strip(),
+                            "materiais": p_materiais.strip(),
+                            "passos": p_passos.strip(),
+                            "seguranca": p_seguranca.strip(),
+                            "referencias": p_referencias.strip(),
+                            "autor": usuario_atual["nome"],
+                            "status": status_pop,
+                        }
+
+                        st.session_state.pops_db.append(novo_pop_data)
+                        salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+                        st.success(f"✅ POP '{cod_auto}' salvo com sucesso!")
+                        st.rerun()
+
+            # PAINEL DE PRÉ-VISUALIZAÇÃO EM TEMPO REAL (LIVE PREVIEW)
+            with col_prev:
+                st.markdown("### 👁️ Pré-visualização em Tempo Real")
+                st.markdown(
+                    f"""
+                    <div class="pop-preview-card" style="border-left: 5px solid #0E7490; background: #FFFFFF;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; color: #0F172A; font-size: 1.05rem;">📝 {tit_selecionado if tit_selecionado else 'Título do POP'}</h3>
+                            <span style="background-color: #ECFEFF; color: #0E7490; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem;">
+                                {cod_auto} | v{versao_calculada}
+                            </span>
+                        </div>
+                        <hr style="margin: 10px 0; border: none; border-top: 1px solid #E2E8F0;" />
+                        <p style="margin: 6px 0; font-size:0.85rem;"><b>1. Objetivo:</b><br/>{p_objetivo}</p>
+                        <p style="margin: 6px 0; font-size:0.85rem;"><b>2. Materiais & Equipamentos:</b><br/>{p_materiais}</p>
+                        <p style="margin: 6px 0; font-size:0.85rem;"><b>3. Passo a Passo:</b><br/>{p_passos.replace(chr(10), '<br/>')}</p>
+                        <p style="margin: 6px 0; font-size:0.85rem;"><b>4. Segurança & EPIs:</b><br/>{p_seguranca}</p>
+                        <p style="margin: 6px 0; font-size:0.85rem;"><b>5. Referências Usadas:</b><br/>{p_referencias}</p>
+                        <div style="margin-top: 12px; font-size: 0.75rem; color: #94A3B8; text-align: right;">
+                            Elaborado por: <b>{usuario_atual['nome']}</b>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+    # --- 7. ADMINISTRAÇÃO ---
+    elif menu_selecionado == "🛡️ Administração" and is_admin:
+        st.title("🛡️ Central de Aprovações e Atribuições do Administrador")
+
+        tab_usr, tab_orient, tab_grupos, tab_perfis, tab_arq, tab_pops = st.tabs([
+            "👤 Acessos de Usuários",
+            "🎓 Orientação (Orientador & Coorientador)",
+            "🔬 Grupos de Pesquisa",
+            "✏️ Alterações de Perfil",
+            "📄 Arquivos Inseridos",
+            "📝 POPs",
+        ])
+
+        with tab_usr:
+            st.subheader("Solicitações de Acesso Pendentes")
+            pend_acessos = [u for u in st.session_state.usuarios if u.get("status") == "Pendente"]
+
+            if pend_acessos:
+                for idx, u in enumerate(pend_acessos):
+                    c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                    with c_inf:
+                        st.write(f"👤 **{u['nome']}** (Usuário: `{u['usuario']}`)")
+                        st.caption(f"Categoria: {u.get('categoria','-')} | Orientador: {u.get('orientador','-')} | E-mail: {u.get('email','-')}")
+                    with c_b1:
+                        if st.button("✅ Aprovar", key=f"ap_usr_{idx}", type="primary"):
+                            u["status"] = "Aprovado"
+                            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+                            for p in st.session_state.integrantes:
+                                if p.get("Nome", "").strip().lower() == u["nome"].strip().lower():
+                                    p["Situação"] = "Ativo"
+                                    if p.get("OrientadorStatus") == "Pendente":
+                                        p["OrientadorStatus"] = "Aprovado"
+                            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+
+                            st.success(f"Acesso aprovado para {u['nome']}!")
+                            st.rerun()
+                    with c_b2:
+                        if st.button("❌ Recusar", key=f"rec_usr_{idx}"):
+                            u["status"] = "Recusado"
+                            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+                            st.warning("Solicitação recusada.")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("Nenhuma solicitação de novo acesso pendente.")
+
+        with tab_orient:
+            st.subheader("🎓 Gestão e Atribuição de Orientador & Coorientador")
+            st.caption("Apenas o Administrador pode definir ou alterar quem é o Orientador e o Coorientador de cada aluno registrado.")
+
+            lista_professores = ["-"] + [p["Nome"] for p in st.session_state.integrantes if p.get("Categoria") == "Orientador"]
+            lista_alunos_cad = [p for p in st.session_state.integrantes if p.get("Categoria") in ["Iniciação Científica", "Mestrado", "Doutorado", "Pós-Doutorado"]]
+
+            if lista_alunos_cad:
+                with st.form("form_admin_orientacao"):
+                    dict_alunos = {f"{a['Nome']} ({a['Categoria']})": a for a in lista_alunos_cad}
+                    aluno_sel_lbl = st.selectbox("Selecione o Aluno / Pesquisador *", list(dict_alunos.keys()))
+                    aluno_objeto = dict_alunos[aluno_sel_lbl]
+
+                    idx_or_def = lista_professores.index(aluno_objeto.get("Orientador")) if aluno_objeto.get("Orientador") in lista_professores else 0
+                    idx_co_def = lista_professores.index(aluno_objeto.get("Coorientador")) if aluno_objeto.get("Coorientador") in lista_professores else 0
+
+                    c_o1, c_o2 = st.columns(2)
+                    with c_o1:
+                        orient_escolhido = st.selectbox("Orientador Principal *", lista_professores, index=idx_or_def)
+                    with c_o2:
+                        coorient_escolhido = st.selectbox("Coorientador (Opcional)", lista_professores, index=idx_co_def)
+
+                    btn_salvar_vinculo = st.form_submit_button("💾 Confirmar Atribuição do Admin", type="primary")
+
+                    if btn_salvar_vinculo:
+                        aluno_objeto["Orientador"] = orient_escolhido
+                        aluno_objeto["Coorientador"] = coorient_escolhido
+                        aluno_objeto["OrientadorStatus"] = "Aprovado"
+                        salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+
+                        for u in st.session_state.usuarios:
+                            if u.get("nome", "").strip().lower() == aluno_objeto["Nome"].strip().lower():
+                                u["orientador"] = orient_escolhido
+                                u["coorientador"] = coorient_escolhido
+                                u["orientador_status"] = "Aprovado"
+                        salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+                        st.success(f"Vínculos atualizados para {aluno_objeto['Nome']}!")
+                        st.rerun()
+
+            st.markdown("---")
+            st.subheader("Solicitações Pendentes de Orientação")
+            pend_orient_list = [p for p in st.session_state.integrantes if p.get("OrientadorStatus") == "Pendente"]
+
+            if pend_orient_list:
+                for idx, al in enumerate(pend_orient_list):
+                    c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                    with c_inf:
+                        st.write(f"🎓 **Aluno(a):** {al['Nome']} ({al.get('Categoria')})")
+                        st.write(f"👨‍🏫 **Orientador Solicitado:** `{al.get('Orientador')}`")
+                    with c_b1:
+                        if st.button("✅ Aprovar Vínculo", key=f"ap_or_{idx}", type="primary"):
+                            al["OrientadorStatus"] = "Aprovado"
+                            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+
+                            for u in st.session_state.usuarios:
+                                if u.get("nome", "").strip().lower() == al["Nome"].strip().lower():
+                                    u["orientador_status"] = "Aprovado"
+                            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+                            st.success("Vínculo de orientação aprovado!")
+                            st.rerun()
+                    with c_b2:
+                        if st.button("❌ Recusar Vínculo", key=f"rec_or_{idx}"):
+                            al["Orientador"] = "-"
+                            al["OrientadorStatus"] = "Recusado"
+                            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+                            st.warning("Vínculo recusado.")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("Nenhuma solicitação de orientação pendente.")
+
+        with tab_grupos:
+            st.subheader("Aprovação de Grupos de Pesquisa e Membros")
+
+            st.markdown("##### ➕ Novas Solicitações de Criação de Grupo")
+            grps_pendentes = [g for g in st.session_state.grupos_db if g.get("status") == "Pendente"]
+
+            if grps_pendentes:
+                for idx, g in enumerate(grps_pendentes):
+                    c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                    with c_inf:
+                        st.write(f"🔬 **Grupo:** {g['nome']}")
+                        st.caption(f"Solicitante / Líder: {g.get('lider')} | Senha Definida: `{g.get('senha')}` | Descrição: {g.get('descricao')}")
+                    with c_b1:
+                        if st.button("✅ Aprovar Grupo", key=f"ap_grp_{idx}", type="primary"):
+                            g["status"] = "Aprovado"
+                            salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                            st.success(f"Grupo '{g['nome']}' aprovado com sucesso!")
+                            st.rerun()
+                    with c_b2:
+                        if st.button("❌ Recusar Grupo", key=f"rec_grp_{idx}"):
+                            st.session_state.grupos_db = [item for item in st.session_state.grupos_db if item["id"] != g["id"]]
+                            salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                            st.warning("Solicitação de grupo recusada.")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("Nenhuma solicitação de criação de grupo pendente.")
+
+            st.markdown("##### 🙋‍♂️ Solicitações de Membros para Entrar em Grupos")
+            tem_membro_pend = False
+            for g in st.session_state.grupos_db:
+                if g.get("status") == "Aprovado" and g.get("membros_pendentes"):
+                    tem_membro_pend = True
+                    st.write(f"🔬 **Grupo:** {g['nome']}")
+                    for idx_m, mb_nome in enumerate(g["membros_pendentes"]):
+                        c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                        with c_inf:
+                            st.write(f"👨‍🔬 **Pesquisador:** {mb_nome}")
+                        with c_b1:
+                            if st.button("✅ Aceitar Membro", key=f"ap_mb_{g['id']}_{idx_m}", type="primary"):
+                                g["membros"].append(mb_nome)
+                                g["membros_pendentes"].remove(mb_nome)
+                                salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                st.success(f"Membro {mb_nome} adicionado ao grupo {g['nome']}!")
+                                st.rerun()
+                        with c_b2:
+                            if st.button("❌ Recusar Membro", key=f"rec_mb_{g['id']}_{idx_m}"):
+                                g["membros_pendentes"].remove(mb_nome)
+                                salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
+                                st.warning("Solicitação de entrada recusada.")
+                                st.rerun()
+                        st.markdown("---")
+            if not tem_membro_pend:
+                st.info("Nenhuma solicitação de entrada de membros pendente.")
+
+        with tab_perfis:
+            st.subheader("Solicitações de Atualização de Perfil")
+            pend_perfis = [u for u in st.session_state.usuarios if u.get("pendente_atualizacao")]
+
+            if pend_perfis:
+                for idx, u in enumerate(pend_perfis):
+                    p_data = u["pendente_atualizacao"]
+                    st.markdown(f"#### 👤 **{u['nome']}** (`{u['usuario']}`)")
+
+                    c_antes, c_depois = st.columns(2)
+                    with c_antes:
+                        st.markdown("**📌 Dados Atuais:**")
+                        st.write(f"- **Categoria:** {u.get('categoria', '-')}")
+                        st.write(f"- **Orientador:** {u.get('orientador', '-')}")
+                        st.write(f"- **E-mail:** {u.get('email', '-')}")
+
+                    with c_depois:
+                        st.markdown("**✏️ Dados Solicitados:**")
+                        st.write(f"- **Categoria:** {p_data.get('categoria', '-')}")
+                        st.write(f"- **Orientador:** {p_data.get('orientador', '-')}")
+                        st.write(f"- **E-mail:** {p_data.get('email', '-')}")
+
+                    c_b1, c_b2 = st.columns([1, 1])
+                    with c_b1:
+                        if st.button("✅ Aprovar Mudança", key=f"ap_prf_{idx}", type="primary"):
+                            u["categoria"] = p_data.get("categoria")
+                            u["orientador"] = p_data.get("orientador")
+                            u["orientador_status"] = "Aprovado"
+                            u["email"] = p_data.get("email")
+                            del u["pendente_atualizacao"]
+                            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+
+                            for p in st.session_state.integrantes:
+                                if p.get("Nome", "").strip().lower() == u["nome"].strip().lower():
+                                    p["Categoria"] = p_data.get("categoria")
+                                    p["Orientador"] = p_data.get("orientador")
+                                    p["OrientadorStatus"] = "Aprovado"
+                                    p["Email"] = p_data.get("email")
+
+                            salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+                            st.success("Perfil atualizado!")
+                            st.rerun()
+
+                    with c_b2:
+                        if st.button("❌ Recusar Mudança", key=f"rec_prf_{idx}"):
+                            del u["pendente_atualizacao"]
+                            salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+                            st.warning("Solicitação recusada.")
+                            st.rerun()
+
+                    st.markdown("---")
+            else:
+                st.info("Nenhuma solicitação de alteração de perfil pendente.")
+
+        with tab_arq:
+            st.subheader("Arquivos Pendentes")
+            pend_arqs = [a for a in st.session_state.arquivos_db if a.get("status") == "Pendente"]
+
+            if pend_arqs:
+                for idx, a in enumerate(pend_arqs):
+                    c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                    with c_inf:
+                        st.write(f"📄 **{a['titulo']}** (Pasta: `{a.get('pasta', 'Geral')}`)")
+                    with c_b1:
+                        if st.button("✅ Aprovar", key=f"ap_arq_{idx}", type="primary"):
+                            a["status"] = "Aprovado"
+                            salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                            st.success("Arquivo publicado!")
+                            st.rerun()
+                    with c_b2:
+                        if st.button("❌ Recusar", key=f"del_arq_p_{idx}"):
+                            st.session_state.arquivos_db = [item for item in st.session_state.arquivos_db if item["id"] != a["id"]]
+                            salvar_dados(ARQUIVO_ARQUIVOS, st.session_state.arquivos_db)
+                            st.warning("Arquivo removido.")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("Nenhum arquivo pendente.")
+
+        with tab_pops:
+            st.subheader("POPs Pendentes")
+            pend_pops = [p for p in st.session_state.pops_db if p.get("status") == "Pendente"]
+
+            if pend_pops:
+                for idx, p in enumerate(pend_pops):
+                    c_inf, c_b1, c_b2 = st.columns([3, 1, 1])
+                    with c_inf:
+                        st.write(f"📝 **{p['codigo']} - {p['titulo']}**")
+                    with c_b1:
+                        if st.button("✅ Aprovar", key=f"ap_pop_{idx}", type="primary"):
+                            p["status"] = "Aprovado"
+                            salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+                            st.success("POP aprovado!")
+                            st.rerun()
+                    with c_b2:
+                        if st.button("❌ Recusar", key=f"rec_pop_{idx}"):
+                            st.session_state.pops_db = [item for item in st.session_state.pops_db if item.get("codigo") != p.get("codigo")]
+                            salvar_dados(ARQUIVO_POPS, st.session_state.pops_db)
+                            st.warning("POP recusado.")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("Nenhum POP pendente.")
+
+    # --- 8. MEU PERFIL ---
+    elif menu_selecionado == "👤 Meu perfil":
+        st.title("👤 Meu Perfil e Configurações")
+
+        integrante_reg = next(
+            (p for p in st.session_state.integrantes if str(p.get("Nome", "")).strip().lower() == str(usr_atual_reg.get("nome", "")).strip().lower()),
+            {}
+        )
+
+        st.subheader("Meus Dados Registrados")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.write(f"**Nome:** {usr_atual_reg.get('nome')}")
+            st.write(f"**Usuário:** `{usr_atual_reg.get('usuario')}`")
+            st.write(f"**Categoria:** {usr_atual_reg.get('categoria', '-')}")
+            st.write(f"**Orientador:** {integrante_reg.get('Orientador', '-')}")
+            st.write(f"**Coorientador:** {integrante_reg.get('Coorientador', '-')}")
+        with c2:
+            st.write(f"**Vínculo:** {usr_atual_reg.get('vinculo', '-')}")
+            st.write(f"**Telefone:** {usr_atual_reg.get('telefone', '-')}")
+            st.write(f"**E-mail:** {usr_atual_reg.get('email', '-')}")
+
+        if usr_atual_reg.get("pendente_atualizacao"):
+            st.warning("⚠️ Você possui uma solicitação de alteração de dados **PENDENTE** de aprovação do Administrador.")
+
+        st.markdown("---")
+        st.subheader("✏️ Solicitar Alteração de Dados de Perfil")
+
+        idx_cat = CATEGORIAS_PADRAO.index(usr_atual_reg.get("categoria")) if usr_atual_reg.get("categoria") in CATEGORIAS_PADRAO else 0
+
+        with st.form("form_edit_perfil"):
+            nova_cat = st.selectbox("Categoria", CATEGORIAS_PADRAO, index=idx_cat)
+            novo_vinc = st.text_input("Vínculo / Curso", value=usr_atual_reg.get("vinculo", "UFRRJ - Engenharia Química"))
+            novo_tel = st.text_input("Telefone para Contato", value=usr_atual_reg.get("telefone", ""))
+            novo_email = st.text_input("E-mail para Contato", value=usr_atual_reg.get("email", ""))
+            novos_horarios = st.text_input("Dias e Horários no Laboratório", value=integrante_reg.get("DiasHorarios", "Não informado"))
+            novo_lattes = st.text_input("Link do Currículo Lattes", value=integrante_reg.get("Lattes", "http://lattes.cnpq.br/"))
+
+            btn_env_prof = st.form_submit_button("Enviar Alterações para Aprovação do Administrador", type="primary")
+
+            if btn_env_prof:
+                if not (novo_tel.strip() and novo_email.strip()):
+                    st.error("Telefone e E-mail são obrigatórios.")
+                else:
+                    dados_novos = {
+                        "categoria": nova_cat,
+                        "orientador": integrante_reg.get("Orientador", "-"),
+                        "vinculo": novo_vinc.strip(),
+                        "telefone": novo_tel.strip(),
+                        "email": novo_email.strip(),
+                        "horarios": novos_horarios.strip(),
+                        "lattes": novo_lattes.strip(),
+                    }
+
+                    usr_atual_reg["pendente_atualizacao"] = dados_novos
+                    for u in st.session_state.usuarios:
+                        if str(u.get("usuario")).lower() == str(usr_atual_reg["usuario"]).lower():
+                            u["pendente_atualizacao"] = dados_novos
+                            break
+
+                    salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+                    st.success("✅ Solicitação de alteração enviada com sucesso! Aguarde a aprovação do Administrador.")
+                    st.rerun()
