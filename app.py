@@ -448,37 +448,40 @@ def gerar_pdf_pop(pop_dict):
 
         doc.build(story)
         return buffer.getvalue()
-        ]
+    else:
+        page = Image.new("RGB", (612, 792), "white")
+        draw = ImageDraw.Draw(page)
+        draw.rectangle([36, 36, 576, 116], fill="#F8FAFC", outline="#475569", width=1)
+        draw.line([(36, 62.6), (576, 62.6)], fill="#CBD5E1", width=1)
+        draw.line([(36, 89.3), (576, 89.3)], fill="#CBD5E1", width=1)
+        draw.line([(396, 36), (396, 116)], fill="#CBD5E1", width=1)
 
-        t_header = Table(header_data, colWidths=[360, 180])
-        t_header.setStyle(TableStyle([
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING', (0,0), (-1,-1), 6),
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-        ]))
-        story.append(t_header)
-        story.append(Spacer(1, 14))
+        draw.text((44, 44), "PROCEDIMENTO OPERACIONAL PADRÃO (POP)", fill="black")
+        draw.text((404, 44), f"CÓDIGO: {codigo}", fill="black")
+        draw.text((44, 70), f"Título: {titulo}", fill="black")
+        draw.text((404, 70), f"Versão: {versao}", fill="black")
+        draw.text((44, 96), f"Elaborado por: {autor}", fill="black")
+        draw.text((404, 96), f"Status: {status}", fill="black")
 
-        sections = [
+        y = 136
+        secoes = [
             ("1. OBJETIVO", pop_dict.get("objetivo", "")),
             ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
             ("3. PROCEDIMENTO/PASSO A PASSO", pop_dict.get("passos", "")),
             ("4. SEGURANÇA E EPIS", pop_dict.get("seguranca", "")),
-            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "-")),
+            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "")),
         ]
 
-        for title, content in sections:
-            if content:
-                story.append(Paragraph(title, sec_title_style))
-                content_p = str(content).replace('\n', '<br/>')
-                story.append(Paragraph(content_p, body_style))
-                story.append(Spacer(1, 4))
+        for tit, txt in secoes:
+            draw.text((36, y), tit, fill="#0F172A")
+            y += 20
+            for line in str(txt).split("\n"):
+                draw.text((46, y), line[:85], fill="#1E293B")
+                y += 15
+            y += 10
 
-        doc.build(story)
+        page.save(buffer, format="PDF", resolution=72.0)
         return buffer.getvalue()
-    else:
         page = Image.new("RGB", (612, 792), "white")
         draw = ImageDraw.Draw(page)
         draw.rectangle([36, 36, 576, 116], fill="#F8FAFC", outline="#475569", width=1)
