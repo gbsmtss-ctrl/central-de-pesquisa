@@ -2405,8 +2405,8 @@ else:
                     img.save(buffer, format="PNG")
                     img_bytes = buffer.getvalue()
                     st.image(img_bytes, caption=f"Pré-visualização: {id_amostra}", width=220)
-                    st.download_button("🖼️ Baixar QR Code (PNG)", img_bytes, f"QR_{id_amostra}.png", "image/png")
-                     dados_amostra_dict = {
+                   st.download_button("🖼️ Baixar QR Code (PNG)", img_bytes, f"QR_{id_amostra}.png", "image/png")
+                    dados_amostra_dict = {
                         "nome_amostra": nome_amostra,
                         "data_obtencao": data_obtencao.strftime('%d/%m/%Y'),
                         "responsavel": responsavel_nome,
