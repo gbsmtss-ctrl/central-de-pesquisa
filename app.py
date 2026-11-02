@@ -763,185 +763,7 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_am
 
         page.save(buffer, format="PDF", resolution=72.0)
         return buffer.getvalue()
-    buffer = BytesIO()
-    if REPORTLAB_DISPONIVEL:
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=36,
-            leftMargin=36,
-            topMargin=36,
-            bottomMargin=36
-        )
-        styles = getSampleStyleSheet()
-        story = []
-
-        title_style = ParagraphStyle(
-            'HeaderTitle',
-            parent=styles['Normal'],
-            fontName='Helvetica-Bold',
-            fontSize=10,
-            leading=13,
-            textColor=colors.HexColor('#0F172A')
-        )
-        
-        meta_val_style = ParagraphStyle(
-            'MetaVal',
-            parent=styles['Normal'],
-            fontName='Helvetica',
-            fontSize=9.5,
-            leading=13,
-            textColor=colors.HexColor('#334155')
-        )
-        
-        meta_val_bold = ParagraphStyle(
-            'MetaValBold',
-            parent=styles['Normal'],
-            fontName='Helvetica-Bold',
-            fontSize=9.5,
-            leading=13,
-            textColor=colors.HexColor('#0F172A')
-        )
-
-        req_id = solicitacao.get('id', 1)
-        req_data = solicitacao.get('data_solicitacao', '-')
-        req_status = solicitacao.get('status', 'Pendente')
-
-        header_data = [
-            [
-                Paragraph("<b>REQUISIÇÃO DE MATERIAIS / ITENS DE LABORATÓRIO</b>", title_style),
-                Paragraph(f"<b>DATA:</b> {req_data}", title_style)
-            ],
-            [
-                Paragraph(f"<b>Grupo de Pesquisa:</b> {nome_grupo}", title_style),
-                Paragraph(f"<b>Nº Pedido:</b> REQ-{req_id:04d}", title_style)
-            ],
-            [
-                Paragraph(f"<b>Liderança:</b> {lider_nome} / {colider_nome}", title_style),
-                Paragraph(f"<b>Status:</b> {req_status}", title_style)
-            ]
-        ]
-        t_header = Table(header_data, colWidths=[360, 180])
-        t_header.setStyle(TableStyle([
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING', (0,0), (-1,-1), 6),
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-        ]))
-        story.append(t_header)
-        story.append(Spacer(1, 15))
-
-        urgente_str = "SIM (URGENTE)" if solicitacao.get("urgente") else "NÃO (PROCESSO PADRÃO)"
-
-        item_data = [
-            [Paragraph("<b>CAMPO</b>", meta_val_bold), Paragraph("<b>INFORMAÇÃO DETALHADA</b>", meta_val_bold)],
-            [Paragraph("Item / Material Solicitado", meta_val_bold), Paragraph(str(solicitacao.get('item', '-')), meta_val_style)],
-            [Paragraph("Categoria do Item", meta_val_bold), Paragraph(str(solicitacao.get('categoria_item', 'Reagentes')), meta_val_style)],
-            [Paragraph("Quantidade Solicitada", meta_val_bold), Paragraph(str(solicitacao.get('quantidade', '-')), meta_val_style)],
-            [Paragraph("Solicitante Responsável", meta_val_bold), Paragraph(str(solicitacao.get('solicitante', '-')), meta_val_style)],
-            [Paragraph("Grau de Urgência", meta_val_bold), Paragraph(urgente_str, meta_val_style)],
-            [Paragraph("Razão / Justificativa", meta_val_bold), Paragraph(str(solicitacao.get('razao_urgencia', '-')), meta_val_style)],
-            [Paragraph("Especificações Técnicas", meta_val_bold), Paragraph(str(solicitacao.get('especificacoes', '-')), meta_val_style)],
-            [Paragraph("Aprovado por (Liderança)", meta_val_bold), Paragraph(str(solicitacao.get('aprovado_por', '-')), meta_val_style)],
-        ]
-
-        t_item = Table(item_data, colWidths=[170, 370])
-        t_item.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F1F5F9')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#94A3B8')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING', (0,0), (-1,-1), 6),
-        ]))
-        story.append(t_item)
-        story.append(Spacer(1, 40))
-
-        sig_data = [
-            [Paragraph("____________________________________________", meta_val_style)],
-            [Paragraph("<b>Assinatura do Líder / Colíder Responsável</b>", meta_val_style)]
-        ]
-        t_sig = Table(sig_data, colWidths=[540])
-        t_sig.setStyle(TableStyle([
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ]))
-        story.append(t_sig)
-
-        doc.build(story)
-        return buffer.getvalue()
-    else:
-        page = Image.new("RGB", (612, 792), "white")
-        draw = ImageDraw.Draw(page)
-        draw.text((40, 40), f"REQUISIÇÃO DE MATERIAIS - GRUPO: {nome_grupo}", fill="black")
-        draw.text((40, 60), f"Item: {solicitacao.get('item', '-')} | Qtd: {solicitacao.get('quantidade', '-')}", fill="black")
-        draw.text((40, 80), f"Solicitante: {solicitacao.get('solicitante', '-')}", fill="black")
-        page.save(buffer, format="PDF", resolution=72.0)
-        return buffer.getvalue()
-
-
-def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra=""):
-    dpi = 300
-    px_per_mm = dpi / 25.4
-    page_w = int(210 * px_per_mm)
-    page_h = int(297 * px_per_mm)
-
-    label_px = int(mm_size * px_per_mm)
-    margin_px = int(10 * px_per_mm)
-    spacing_px = int(4 * px_per_mm)
-
-    pages = []
-    current_page = Image.new("RGB", (page_w, page_h), "white")
-    draw = ImageDraw.Draw(current_page)
-
-    x = margin_px
-    y = margin_px
-
-    has_text = bool(id_amostra) and label_px >= int(25 * px_per_mm)
-    qr_size_px = label_px - int(8 * px_per_mm) if has_text else label_px
     
-    qr_resized = qr_img_pil.resize((qr_size_px, qr_size_px), Image.Resampling.LANCZOS)
-
-    for idx in range(quantidade):
-        if x + label_px > page_w - margin_px:
-            x = margin_px
-            y += label_px + spacing_px
-
-        if y + label_px > page_h - margin_px:
-            pages.append(current_page)
-            current_page = Image.new("RGB", (page_w, page_h), "white")
-            draw = ImageDraw.Draw(current_page)
-            x = margin_px
-            y = margin_px
-
-        draw.rectangle([x, y, x + label_px, y + label_px], outline="#CBD5E1", width=2)
-
-        qr_x = x + (label_px - qr_size_px) // 2
-        qr_y = y + (6 if has_text else (label_px - qr_size_px) // 2)
-        current_page.paste(qr_resized, (qr_x, qr_y))
-
-        if has_text:
-            text_y = y + qr_size_px + 4
-            draw.text((x + 8, text_y), f"ID: {id_amostra[:14]}", fill="black")
-
-        x += label_px + spacing_px
-
-    pages.append(current_page)
-
-    pdf_buffer = BytesIO()
-    if len(pages) == 1:
-        pages[0].save(pdf_buffer, format="PDF", resolution=float(dpi))
-    else:
-        pages[0].save(
-            pdf_buffer,
-            format="PDF",
-            resolution=float(dpi),
-            save_all=True,
-            append_images=pages[1:],
-        )
-
-    return pdf_buffer.getvalue()
-
 # --- USUÁRIOS E DADOS INICIAIS ---
 
 usuario_admin_padrao = [{
@@ -2584,7 +2406,16 @@ else:
                     img_bytes = buffer.getvalue()
                     st.image(img_bytes, caption=f"Pré-visualização: {id_amostra}", width=220)
                     st.download_button("🖼️ Baixar QR Code (PNG)", img_bytes, f"QR_{id_amostra}.png", "image/png")
-                    pdf_etiquetas = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm, id_amostra=id_amostra)
+                    dados_amostra_dict = {
+    "nome_amostra": nome_amostra,
+    "data_obtencao": data_obtencao.strftime('%d/%m/%Y'),
+    "responsavel": responsavel_nome,
+    "telefone": responsavel_tel,
+    "email": responsavel_email,
+    "localizacao": localizacao,
+    "descricao": descricao,
+}
+pdf_etiquetas = gerar_pdf_etiquetas(img, qtd_etiquetas, tamanho_mm, id_amostra=id_amostra, dados_amostra=dados_amostra_dict)
                     st.download_button(f"📄 Baixar PDF ({qtd_etiquetas}x Etiquetas)", pdf_etiquetas, f"Etiquetas_{id_amostra}.pdf", "application/pdf")
                 else:
                     st.warning("Biblioteca 'qrcode' não instalada para renderizar o código QR.")
