@@ -2733,7 +2733,6 @@ else:
             )
 
         with aba_calc_diluicao:
-        with aba_calc_diluicao:
             st.subheader("🧪 Calculadora de Diluição de Soluções Concentradas (C₁ · V₁ = C₂ · V₂)")
             
             c_d1, c_d2 = st.columns(2)
