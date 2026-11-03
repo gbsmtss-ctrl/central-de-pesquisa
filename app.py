@@ -2708,6 +2708,29 @@ else:
                 unsafe_allow_html=True
             )
 
+st.markdown("##### 🏷️ Gerar Etiquetas da Solução Preparada")
+            c_sol_et1, c_sol_et2 = st.columns(2)
+            with c_sol_et1:
+                qtd_et_sol = st.number_input("Quantidade de Etiquetas", min_value=1, max_value=50, value=6, key="qtd_et_molar")
+            with c_sol_et2:
+                tam_et_sol = st.selectbox("Tamanho do Frasco", list(DESTINOS_ETIQUETAS.keys()), index=3, key="tam_et_molar")
+            
+            pdf_sol_bytes = gerar_pdf_etiqueta_solucao(
+                nome_solucao=sel_r if sel_r != "✍️ Outro (Digitar Manualmente)" else "Solução Personalizada",
+                concentracao=f"{molaridade_desejada:.3f} M",
+                data_preparo=datetime.now().strftime("%d/%m/%Y"),
+                responsavel=usuario_atual["nome"],
+                quantidade=qtd_et_sol,
+                mm_size=DESTINOS_ETIQUETAS[tam_et_sol]
+            )
+            
+            st.download_button(
+                "📄 Baixar PDF de Etiquetas da Solução",
+                data=pdf_sol_bytes,
+                file_name=f"Etiquetas_Solucao_{sel_r}.pdf",
+                mime="application/pdf",
+                key="btn_dl_etiqueta_molar"
+            )
         with aba_calc_diluicao:
             st.subheader("🧪 Calculadora de Diluição de Soluções Concentradas (C₁ · V₁ = C₂ · V₂)")
             
