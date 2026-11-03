@@ -2708,7 +2708,7 @@ else:
                 unsafe_allow_html=True
             )
 
-st.markdown("##### 🏷️ Gerar Etiquetas da Solução Preparada")
+            st.markdown("##### 🏷️ Gerar Etiquetas da Solução Preparada")
             c_sol_et1, c_sol_et2 = st.columns(2)
             with c_sol_et1:
                 qtd_et_sol = st.number_input("Quantidade de Etiquetas", min_value=1, max_value=50, value=6, key="qtd_et_molar")
