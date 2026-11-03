@@ -2725,7 +2725,7 @@ else:
             )
             
             st.download_button(
-                "📄 Baixar PDF de Etiquetas da Solução",
+                label="📄 Baixar PDF de Etiquetas da Solução",
                 data=pdf_sol_bytes,
                 file_name=f"Etiquetas_Solucao_{sel_r}.pdf",
                 mime="application/pdf",
