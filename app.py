@@ -2731,6 +2731,15 @@ st.markdown("##### 🏷️ Gerar Etiquetas da Solução Preparada")
                 mime="application/pdf",
                 key="btn_dl_etiqueta_molar"
             )
+            
+            
+        
+                "📄 Baixar PDF de Etiquetas da Solução",
+                data=pdf_sol_bytes,
+                file_name=f"Etiquetas_Solucao_{sel_r}.pdf",
+                mime="application/pdf",
+                key="btn_dl_etiqueta_molar"
+            )
                 "📄 Baixar PDF de Etiquetas da Solução",
                 data=pdf_sol_bytes,
                 file_name=f"Etiquetas_Solucao_{sel_r}.pdf",
