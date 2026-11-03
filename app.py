@@ -2731,21 +2731,8 @@ else:
                 mime="application/pdf",
                 key="btn_dl_etiqueta_molar"
             )
-            
-            
-        
-               "📄 Baixar PDF de Etiquetas da Solução",
-                data=pdf_sol_bytes,
-                file_name=f"Etiquetas_Solucao_{sel_r}.pdf",
-                mime="application/pdf",
-                key="btn_dl_etiqueta_molar"
-            )
-                "📄 Baixar PDF de Etiquetas da Solução",
-                data=pdf_sol_bytes,
-                file_name=f"Etiquetas_Solucao_{sel_r}.pdf",
-                mime="application/pdf",
-                key="btn_dl_etiqueta_molar"
-            )
+
+        with aba_calc_diluicao:
         with aba_calc_diluicao:
             st.subheader("🧪 Calculadora de Diluição de Soluções Concentradas (C₁ · V₁ = C₂ · V₂)")
             
