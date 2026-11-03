@@ -655,110 +655,176 @@ def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome
         return buffer.getvalue()
 
 
+# --- FUNÇÃO DE GERAÇÃO DE ETIQUETAS EM GRADE (AMOSTRAS E SOLUÇÕES) ---
+
 def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_amostra=None):
+    """
+    Gera um PDF contendo a quantidade especificada de etiquetas em formato de grade/cartela.
+    """
     if dados_amostra is None:
         dados_amostra = {}
 
     nome_amostra = dados_amostra.get("nome_amostra", "Amostra / Reagente")
     data_obtencao = dados_amostra.get("data_obtencao", "-")
-    responsavel = dados_amostra.get("responsavel", "Pesquisador Responsável")
-    telefone = dados_amostra.get("telefone", "-")
-    email = dados_amostra.get("email", "-")
-    localizacao = dados_amostra.get("localizacao", "Bancada / Freezer")
-    descricao = dados_amostra.get("descricao", "Sem descrição adicional.")
-    status_etiqueta = "Cadastrado / Vigente"
+    responsavel = dados_amostra.get("responsavel", "Pesquisador")
 
     buffer = BytesIO()
+    
+    # Conversão de mm para pontos PDF (1 mm = 2.83465 pt)
+    size_pt = max(mm_size * 2.83465, 40)
+    qr_box_size = size_pt * 0.55  # QR Code ocupa ~55% da etiqueta
 
     if REPORTLAB_DISPONIVEL:
-        from reportlab.platypus import Image as RLImage
+        from reportlab.platypus import Image as RLImage, SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib import colors
+
         doc = SimpleDocTemplate(
             buffer,
             pagesize=letter,
-            rightMargin=36,
-            leftMargin=36,
-            topMargin=36,
-            bottomMargin=36
+            rightMargin=20,
+            leftMargin=20,
+            topMargin=20,
+            bottomMargin=20
         )
         styles = getSampleStyleSheet()
         story = []
 
-        title_style = ParagraphStyle(
-            'EtiqTitle',
-            parent=styles['Normal'],
-            fontName='Helvetica-Bold',
-            fontSize=10,
-            leading=13,
-            textColor=colors.HexColor('#0F172A')
-        )
-        
-        sec_title_style = ParagraphStyle(
-            'EtiqSecTitle',
-            parent=styles['Heading2'],
-            fontName='Helvetica-Bold',
-            fontSize=10,
-            leading=14,
-            textColor=colors.HexColor('#0F172A'),
-            spaceBefore=10,
-            spaceAfter=4
-        )
-
-        body_style = ParagraphStyle(
-            'EtiqBodyText',
-            parent=styles['Normal'],
-            fontName='Helvetica',
-            fontSize=9.5,
-            leading=14,
-            textColor=colors.HexColor('#1E293B')
-        )
-
-        header_data = [
-            [
-                Paragraph("<b>IDENTIFICAÇÃO DE AMOSTRA E ETIQUETA</b>", title_style),
-                Paragraph(f"<b>CÓDIGO:</b> {id_amostra if id_amostra else 'AMS-000'}", title_style)
-            ],
-            [
-                Paragraph(f"<b>Amostra/Reagente:</b> {nome_amostra}", title_style),
-                Paragraph(f"<b>Data de Obtenção:</b> {data_obtencao}", title_style)
-            ],
-            [
-                Paragraph(f"<b>Responsável:</b> {responsavel}", title_style),
-                Paragraph(f"<b>Status:</b> {status_etiqueta}", title_style)
-            ]
-        ]
-        t_header = Table(header_data, colWidths=[360, 180])
-        t_header.setStyle(TableStyle([
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING', (0,0), (-1,-1), 6),
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-        ]))
-        story.append(t_header)
-        story.append(Spacer(1, 14))
-
-        sections = [
-            ("1. IDENTIFICAÇÃO E REGISTRO", f"• Código/ID da Amostra: {id_amostra}\n• Nome da Amostra/Reagente: {nome_amostra}\n• Data de Obtenção: {data_obtencao}"),
-            ("2. RESPONSÁVEL E CONTATO", f"• Pesquisador Responsável: {responsavel}\n• Telefone: {telefone} | E-mail: {email}"),
-            ("3. ARMAZENAMENTO E LOCALIZAÇÃO", f"• Local de Armazenamento: {localizacao}\n• Tamanho da Etiqueta: {mm_size} mm | Quantidade Gerada: {quantidade} unidade(s)"),
-            ("4. DESCRIÇÃO E PROTOCOLO DE USO", str(descricao)),
-            ("5. QR CODE DE IDENTIFICAÇÃO DA AMOSTRA", "Abaixo consta o código QR gerado para escaneamento e rastreabilidade:"),
-        ]
-
-        for title, content in sections:
-            if content:
-                story.append(Paragraph(title, sec_title_style))
-                content_p = str(content).replace('\n', '<br/>')
-                story.append(Paragraph(content_p, body_style))
-                story.append(Spacer(1, 4))
-
+        # Preparar imagem do QR Code
         qr_temp_buffer = BytesIO()
         qr_img_pil.save(qr_temp_buffer, format="PNG")
         qr_temp_buffer.seek(0)
-        story.append(Spacer(1, 8))
-        story.append(RLImage(qr_temp_buffer, width=120, height=120))
+
+        # Estilo do texto compacto da etiqueta
+        lbl_style = ParagraphStyle(
+            'StickerText',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=max(6, min(9, mm_size * 0.25)),
+            leading=max(7, min(10, mm_size * 0.28)),
+            textColor=colors.HexColor('#0F172A'),
+            alignment=1 # Centralizado
+        )
+
+        sub_lbl_style = ParagraphStyle(
+            'StickerSubText',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=max(5, min(7, mm_size * 0.20)),
+            leading=max(6, min(8, mm_size * 0.22)),
+            textColor=colors.HexColor('#334155'),
+            alignment=1
+        )
+
+        # Monta a célula de uma etiqueta individual
+        def criar_celula_etiqueta():
+            qr_img = RLImage(qr_temp_buffer, width=qr_box_size, height=qr_box_size)
+            txt_id = Paragraph(f"<b>{id_amostra}</b>", lbl_style)
+            txt_nome = Paragraph(nome_amostra[:22], sub_lbl_style)
+            txt_dt = Paragraph(data_obtencao, sub_lbl_style)
+            
+            t_cell = Table([[qr_img], [txt_id], [txt_nome], [txt_dt]], colWidths=[size_pt])
+            t_cell.setStyle(TableStyle([
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+                ('PADDING', (0,0), (-1,-1), 2),
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FFFFFF')),
+            ]))
+            return t_cell
+
+        # Calcular colunas por linha na folha A4 (largura útil = ~570pt)
+        largura_util = 572
+        colunas = max(1, int(largura_util // (size_pt + 8)))
+        
+        # Montar a grade com a quantidade solicitada
+        etiquetas_celulas = [criar_celula_etiqueta() for _ in range(quantidade)]
+        
+        grade_matriz = []
+        linha_atual = []
+        for cell in etiquetas_celulas:
+            linha_atual.append(cell)
+            if len(linha_atual) == colunas:
+                grade_matriz.append(linha_atual)
+                linha_atual = []
+        if linha_atual:
+            # Preenche células vazias se a última linha não estiver cheia
+            while len(linha_atual) < colunas:
+                linha_atual.append("")
+            grade_matriz.append(linha_atual)
+
+        t_grid = Table(grade_matriz, colWidths=[size_pt + 8] * colunas)
+        t_grid.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('PADDING', (0,0), (-1,-1), 4),
+        ]))
+        story.append(t_grid)
 
         doc.build(story)
+        return buffer.getvalue()
+
+    else:
+        # Fallback usando PIL caso ReportLab não esteja disponível
+        page = Image.new("RGB", (612, 792), "white")
+        draw = ImageDraw.Draw(page)
+        
+        qr_resized = qr_img_pil.resize((int(qr_box_size), int(qr_box_size)), Image.Resampling.LANCZOS)
+        
+        cols = max(1, int(540 // (size_pt + 10)))
+        x_init, y_init = 36, 36
+        x, y = x_init, y_init
+        
+        for i in range(quantidade):
+            draw.rectangle([x, y, x + size_pt, y + size_pt], outline="#CBD5E1", width=1)
+            page.paste(qr_resized, (int(x + (size_pt - qr_box_size)/2), int(y + 4)))
+            draw.text((x + 4, y + qr_box_size + 6), id_amostra[:12], fill="black")
+            
+            x += size_pt + 10
+            if (i + 1) % cols == 0:
+                x = x_init
+                y += size_pt + 10
+
+        page.save(buffer, format="PDF", resolution=72.0)
+        return buffer.getvalue()
+
+
+def gerar_pdf_etiqueta_solucao(nome_solucao, concentracao, data_preparo, responsavel, validade="-", quantidade=6, mm_size=30, observacoes=""):
+    """
+    Gera PDF de etiquetas padronizadas para frascos de soluções preparadas na calculadora.
+    """
+    buffer = BytesIO()
+    
+    # Criar QR Code com informações técnicas da solução
+    conteudo_qr = (
+        f"🧪 ETIQUETA DE SOLUÇÃO\n"
+        f"Nome: {nome_solucao}\n"
+        f"Concentração: {concentracao}\n"
+        f"Data de Preparo: {data_preparo}\n"
+        f"Validade: {validade}\n"
+        f"Responsável: {responsavel}\n"
+        f"Obs: {observacoes}"
+    )
+    
+    if QRCODE_DISPONIVEL:
+        qr_img = qrcode.make(conteudo_qr)
+    else:
+        qr_img = Image.new("RGB", (100, 100), "white")
+
+    dados_amostra = {
+        "nome_amostra": f"{nome_solucao} ({concentracao})",
+        "data_obtencao": data_preparo,
+        "responsavel": responsavel
+    }
+
+    return gerar_pdf_etiquetas(
+        qr_img_pil=qr_img,
+        quantidade=quantidade,
+        mm_size=mm_size,
+        id_amostra=f"SOL-{data_preparo.replace('/', '')}",
+        dados_amostra=dados_amostra
+    )
         return buffer.getvalue()
     else:
         page = Image.new("RGB", (612, 792), "white")
