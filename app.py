@@ -657,6 +657,8 @@ def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome
 
 # --- FUNÇÃO DE GERAÇÃO DE ETIQUETAS EM GRADE (AMOSTRAS E SOLUÇÕES) ---
 
+# --- FUNÇÃO DE GERAÇÃO DE ETIQUETAS EM GRADE (AMOSTRAS E SOLUÇÕES) ---
+
 def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_amostra=None):
     """
     Gera um PDF contendo a quantidade especificada de etiquetas em formato de grade/cartela.
@@ -675,9 +677,8 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_am
     qr_box_size = size_pt * 0.55  # QR Code ocupa ~55% da etiqueta
 
     if REPORTLAB_DISPONIVEL:
-        from reportlab.platypus import Image as RLImage, SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.platypus import Image as RLImage, SimpleDocTemplate, Table, TableStyle, Paragraph
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.pagesizes import letter
         from reportlab.lib import colors
 
         doc = SimpleDocTemplate(
@@ -704,7 +705,7 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_am
             fontSize=max(6, min(9, mm_size * 0.25)),
             leading=max(7, min(10, mm_size * 0.28)),
             textColor=colors.HexColor('#0F172A'),
-            alignment=1 # Centralizado
+            alignment=1  # Centralizado
         )
 
         sub_lbl_style = ParagraphStyle(
@@ -734,7 +735,7 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_am
             ]))
             return t_cell
 
-        # Calcular colunas por linha na folha A4 (largura útil = ~570pt)
+        # Calcular colunas por linha na folha A4 (largura útil = ~572pt)
         largura_util = 572
         colunas = max(1, int(largura_util // (size_pt + 8)))
         
@@ -749,7 +750,6 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_am
                 grade_matriz.append(linha_atual)
                 linha_atual = []
         if linha_atual:
-            # Preenche células vazias se a última linha não estiver cheia
             while len(linha_atual) < colunas:
                 linha_atual.append("")
             grade_matriz.append(linha_atual)
@@ -794,9 +794,6 @@ def gerar_pdf_etiqueta_solucao(nome_solucao, concentracao, data_preparo, respons
     """
     Gera PDF de etiquetas padronizadas para frascos de soluções preparadas na calculadora.
     """
-    buffer = BytesIO()
-    
-    # Criar QR Code com informações técnicas da solução
     conteudo_qr = (
         f"🧪 ETIQUETA DE SOLUÇÃO\n"
         f"Nome: {nome_solucao}\n"
@@ -825,43 +822,6 @@ def gerar_pdf_etiqueta_solucao(nome_solucao, concentracao, data_preparo, respons
         id_amostra=f"SOL-{data_preparo.replace('/', '')}",
         dados_amostra=dados_amostra
     )
-        return buffer.getvalue()
-    else:
-        page = Image.new("RGB", (612, 792), "white")
-        draw = ImageDraw.Draw(page)
-        draw.rectangle([36, 36, 576, 116], fill="#F8FAFC", outline="#475569", width=1)
-        draw.line([(36, 62.6), (576, 62.6)], fill="#CBD5E1", width=1)
-        draw.line([(36, 89.3), (576, 89.3)], fill="#CBD5E1", width=1)
-        draw.line([(396, 36), (396, 116)], fill="#CBD5E1", width=1)
-
-        draw.text((44, 44), "IDENTIFICAÇÃO DE AMOSTRA E ETIQUETA", fill="black")
-        draw.text((404, 44), f"CÓDIGO: {id_amostra}", fill="black")
-        draw.text((44, 70), f"Amostra/Reagente: {nome_amostra}", fill="black")
-        draw.text((404, 70), f"Data: {data_obtencao}", fill="black")
-        draw.text((44, 96), f"Responsável: {responsavel}", fill="black")
-        draw.text((404, 96), f"Status: {status_etiqueta}", fill="black")
-
-        y = 136
-        secoes = [
-            ("1. IDENTIFICAÇÃO E REGISTRO", f"ID: {id_amostra}\nAmostra: {nome_amostra}\nData: {data_obtencao}"),
-            ("2. RESPONSÁVEL E CONTATO", f"Responsável: {responsavel}\nTel: {telefone} | Email: {email}"),
-            ("3. ARMAZENAMENTO E LOCALIZAÇÃO", f"Local: {localizacao}\nTamanho: {mm_size} mm | Qtd: {quantidade}"),
-            ("4. DESCRIÇÃO E PROTOCOLO", str(descricao)),
-        ]
-
-        for tit, txt in secoes:
-            draw.text((36, y), tit, fill="#0F172A")
-            y += 20
-            for line in str(txt).split("\n"):
-                draw.text((46, y), line[:85], fill="#1E293B")
-                y += 15
-            y += 10
-
-        qr_resized_f = qr_img_pil.resize((120, 120), Image.Resampling.LANCZOS)
-        page.paste(qr_resized_f, (46, y + 10))
-
-        page.save(buffer, format="PDF", resolution=72.0)
-        return buffer.getvalue()
     
 # --- USUÁRIOS E DADOS INICIAIS ---
 
