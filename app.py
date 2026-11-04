@@ -48,22 +48,22 @@ cor_border = tema_ativo["border"]
 st.markdown(
     f"""
     <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    [data-testid="stToolbar"] {display: none;}
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    [data-testid="stToolbar"] {{display: none;}}
     
     /* Deixa o cabeçalho transparente sem esconder o botão da barra lateral */
-    [data-testid="stHeader"] {
+    [data-testid="stHeader"] {{
         background-color: transparent !important;
-    }
+    }}
     
     /* Garante que o botão de abrir/fechar a barra lateral funcione em tablets e celulares */
-    [data-testid="stSidebarCollapseButton"], 
-    button[data-testid="baseButton-header"] {
+    [data-testid="stSidebarCollapseButton"],
+    button[data-testid="baseButton-header"] {{
         display: block !important;
         visibility: visible !important;
         z-index: 999999 !important;
-    }
+    }}
     
     .stApp {{ background-color: #F8FAFC; }}
     [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; }}
