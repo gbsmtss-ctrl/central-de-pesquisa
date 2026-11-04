@@ -52,16 +52,20 @@ st.markdown(
     footer {{visibility: hidden;}}
     [data-testid="stToolbar"] {{display: none;}}
     
-    /* Deixa o cabeçalho transparente sem esconder o botão da barra lateral */
+    /* Deixa o cabeçalho transparente sem bloquear cliques */
     [data-testid="stHeader"] {{
         background-color: transparent !important;
+        z-index: 100 !important;
     }}
     
-    /* Garante que o botão de abrir/fechar a barra lateral funcione em tablets e celulares */
+    /* Garante que o botão de ABRIR (stCollapsedControl) e FECHAR a barra lateral funcione no tablet e celular */
+    [data-testid="stCollapsedControl"],
     [data-testid="stSidebarCollapseButton"],
     button[data-testid="baseButton-header"] {{
-        display: block !important;
+        display: flex !important;
         visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
         z-index: 999999 !important;
     }}
     
