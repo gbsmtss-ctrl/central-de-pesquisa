@@ -53,27 +53,27 @@ st.markdown(
     [data-testid="stToolbar"] {{display: none;}}
     
     /* Deixa o cabeçalho transparente sem bloquear cliques na página */
-[data-testid="stHeader"] {
+[data-testid="stHeader"] {{
     background-color: transparent !important;
     pointer-events: none !important;
     z-index: 100 !important;
-}
+}}
 
 /* Reativa os cliques apenas para os elementos/botões dentro do cabeçalho */
-[data-testid="stHeader"] * {
+[data-testid="stHeader"] * {{
     pointer-events: auto !important;
-}
+}}
 
 /* Garante que os botões de ABRIR e FECHAR a barra lateral funcionam em dispositivos móveis */
 [data-testid="stCollapsedControl"],
 [data-testid="stSidebarCollapseButton"],
-button[data-testid="baseButton-header"] {
+button[data-testid="baseButton-header"] {{
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
     pointer-events: auto !important;
     z-index: 999999 !important;
-}
+}}
     
     .stApp {{ background-color: #F8FAFC; }}
     [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; }}
