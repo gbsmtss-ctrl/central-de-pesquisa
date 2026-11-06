@@ -52,7 +52,7 @@ cor_primaria = tema_ativo["primary"]
 cor_bg_light = tema_ativo["bg_light"]
 cor_border = tema_ativo["border"]
 
-# --- INÍCIO DA ALTERAÇÃO 2 (Substituir Linhas 47 a 76) ---
+# --- INÍCIO DA ALTERAÇÃO (Linha 47) ---
 # --- INJEÇÃO DE CSS DINÂMICO ---
 st.markdown(
     f"""
@@ -73,28 +73,9 @@ st.markdown(
         pointer-events: auto !important;
     }}
 
-    /* Fixa e destaca o botão de ABRIR a barra lateral no topo esquerdo em dispositivos móveis */
-    [data-testid="stCollapsedControl"] {{
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        z-index: 999999 !important;
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
-        background-color: {cor_primaria} !important;
-        border-radius: 8px !important;
-        padding: 4px !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
-    }}
-
-    [data-testid="stCollapsedControl"] button,
-    [data-testid="stCollapsedControl"] svg {{
-        color: #FFFFFF !important;
-        fill: #FFFFFF !important;
-    }}
-
+    /* Garante que os botões de abrir/fechar funcionem no telemóvel */
+    [data-testid="stCollapsedControl"],
+    [data-testid="stSidebarCollapsedControl"],
     [data-testid="stSidebarCollapseButton"],
     button[data-testid="baseButton-header"] {{
         display: flex !important;
@@ -103,7 +84,16 @@ st.markdown(
         pointer-events: auto !important;
         z-index: 999999 !important;
     }}
-# --- FIM DA ALTERAÇÃO 2 ---
+
+    /* FORÇAR A BARRA LATERAL A FICAR VISÍVEL E ABERTA NO TELEMÓVEL */
+    @media (max-width: 768px) {{
+        section[data-testid="stSidebar"] {{
+            transform: none !important;
+            margin-left: 0 !important;
+            visibility: visible !important;
+        }}
+    }}
+# --- FIM DA ALTERAÇÃO (Linha 76) ---
     
     .stApp {{ background-color: #F8FAFC; }}
     [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; }}
