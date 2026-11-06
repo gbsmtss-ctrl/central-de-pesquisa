@@ -52,22 +52,28 @@ st.markdown(
     footer {{visibility: hidden;}}
     [data-testid="stToolbar"] {{display: none;}}
     
-    /* Deixa o cabeçalho transparente sem bloquear cliques */
-    [data-testid="stHeader"] {{
-        background-color: transparent !important;
-        z-index: 100 !important;
-    }}
-    
-    /* Garante que o botão de ABRIR (stCollapsedControl) e FECHAR a barra lateral funcione no tablet e celular */
-    [data-testid="stCollapsedControl"],
-    [data-testid="stSidebarCollapseButton"],
-    button[data-testid="baseButton-header"] {{
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        z-index: 999999 !important;
-    }}
+    /* Deixa o cabeçalho transparente sem bloquear cliques na página */
+[data-testid="stHeader"] {
+    background-color: transparent !important;
+    pointer-events: none !important;
+    z-index: 100 !important;
+}
+
+/* Reativa os cliques apenas para os elementos/botões dentro do cabeçalho */
+[data-testid="stHeader"] * {
+    pointer-events: auto !important;
+}
+
+/* Garante que os botões de ABRIR e FECHAR a barra lateral funcionam em dispositivos móveis */
+[data-testid="stCollapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+button[data-testid="baseButton-header"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 999999 !important;
+}
     
     .stApp {{ background-color: #F8FAFC; }}
     [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; }}
@@ -462,6 +468,40 @@ def gerar_pdf_pop(pop_dict):
                 story.append(Spacer(1, 4))
 
         doc.build(story)
+        return buffer.getvalue()
+    else:
+        page = Image.new("RGB", (612, 792), "white")
+        draw = ImageDraw.Draw(page)
+        draw.rectangle([36, 36, 576, 116], fill="#F8FAFC", outline="#475569", width=1)
+        draw.line([(36, 62.6), (576, 62.6)], fill="#CBD5E1", width=1)
+        draw.line([(36, 89.3), (576, 89.3)], fill="#CBD5E1", width=1)
+        draw.line([(396, 36), (396, 116)], fill="#CBD5E1", width=1)
+
+        draw.text((44, 44), "PROCEDIMENTO OPERACIONAL PADRÃO (POP)", fill="black")
+        draw.text((404, 44), f"CÓDIGO: {codigo}", fill="black")
+        draw.text((44, 70), f"Título: {titulo}", fill="black")
+        draw.text((404, 70), f"Versão: {versao}", fill="black")
+        draw.text((44, 96), f"Elaborado por: {autor}", fill="black")
+        draw.text((404, 96), f"Status: {status}", fill="black")
+
+        y = 136
+        secoes = [
+            ("1. OBJETIVO", pop_dict.get("objetivo", "")),
+            ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
+            ("3. PROCEDIMENTO/PASSO A PASSO", pop_dict.get("passos", "")),
+            ("4. SEGURANÇA E EPIS", pop_dict.get("seguranca", "")),
+            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "")),
+        ]
+
+        for tit, txt in secoes:
+            draw.text((36, y), tit, fill="#0F172A")
+            y += 20
+            for line in str(txt).split("\n"):
+                draw.text((46, y), line[:85], fill="#1E293B")
+                y += 15
+            y += 10
+
+        page.save(buffer, format="PDF", resolution=72.0)
         return buffer.getvalue()
     else:
         page = Image.new("RGB", (612, 792), "white")
