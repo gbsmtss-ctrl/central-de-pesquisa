@@ -8,6 +8,14 @@ import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 import streamlit as st
 
+# Configura a barra lateral para abrir expandida tanto no celular quanto no computador
+st.set_page_config(
+    page_title="Central de Pesquisa",
+    page_icon="🧪",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # Tenta importar o ReportLab; caso não esteja instalado no Streamlit Cloud, usa fallback com PIL
 try:
     from reportlab.lib import colors
@@ -44,6 +52,7 @@ cor_primaria = tema_ativo["primary"]
 cor_bg_light = tema_ativo["bg_light"]
 cor_border = tema_ativo["border"]
 
+# --- INÍCIO DA ALTERAÇÃO 2 (Substituir Linhas 47 a 76) ---
 # --- INJEÇÃO DE CSS DINÂMICO ---
 st.markdown(
     f"""
@@ -53,27 +62,48 @@ st.markdown(
     [data-testid="stToolbar"] {{display: none;}}
     
     /* Deixa o cabeçalho transparente sem bloquear cliques na página */
-[data-testid="stHeader"] {{
-    background-color: transparent !important;
-    pointer-events: none !important;
-    z-index: 100 !important;
-}}
+    [data-testid="stHeader"] {{
+        background-color: transparent !important;
+        pointer-events: none !important;
+        z-index: 100 !important;
+    }}
 
-/* Reativa os cliques apenas para os elementos/botões dentro do cabeçalho */
-[data-testid="stHeader"] * {{
-    pointer-events: auto !important;
-}}
+    /* Reativa os cliques apenas para os elementos/botões dentro do cabeçalho */
+    [data-testid="stHeader"] * {{
+        pointer-events: auto !important;
+    }}
 
-/* Garante que os botões de ABRIR e FECHAR a barra lateral funcionam em dispositivos móveis */
-[data-testid="stCollapsedControl"],
-[data-testid="stSidebarCollapseButton"],
-button[data-testid="baseButton-header"] {{
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    z-index: 999999 !important;
-}}
+    /* Fixa e destaca o botão de ABRIR a barra lateral no topo esquerdo em dispositivos móveis */
+    [data-testid="stCollapsedControl"] {{
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        z-index: 999999 !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 10px !important;
+        background-color: {cor_primaria} !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
+    }}
+
+    [data-testid="stCollapsedControl"] button,
+    [data-testid="stCollapsedControl"] svg {{
+        color: #FFFFFF !important;
+        fill: #FFFFFF !important;
+    }}
+
+    [data-testid="stSidebarCollapseButton"],
+    button[data-testid="baseButton-header"] {{
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        z-index: 999999 !important;
+    }}
+# --- FIM DA ALTERAÇÃO 2 ---
     
     .stApp {{ background-color: #F8FAFC; }}
     [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; }}
