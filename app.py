@@ -503,7 +503,7 @@ def gerar_pdf_pop(pop_dict):
 
         page.save(buffer, format="PDF", resolution=72.0)
         return buffer.getvalue()
-    else:
+        else:
         page = Image.new("RGB", (612, 792), "white")
         draw = ImageDraw.Draw(page)
         draw.rectangle([36, 36, 576, 116], fill="#F8FAFC", outline="#475569", width=1)
