@@ -60,51 +60,28 @@ st.markdown(
     footer {{visibility: hidden;}}
     [data-testid="stToolbar"] {{display: none;}}
     
-    /* Deixa o cabeçalho transparente sem bloquear cliques na página */
+    /* Ajuste do cabeçalho sem bloquear cliques na página */
     [data-testid="stHeader"] {{
         background-color: transparent !important;
-        pointer-events: none !important;
-        z-index: 100 !important;
+        z-index: 99 !important;
     }}
 
-    /* Reativa os cliques apenas para os elementos/botões dentro do cabeçalho */
-    [data-testid="stHeader"] * {{
-        pointer-events: auto !important;
-    }}
-
-    /* Fixa e destaca o botão de ABRIR a barra lateral no topo esquerdo em dispositivos móveis */
-    [data-testid="stCollapsedControl"] {{
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        z-index: 999999 !important;
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
+    /* Estilização nativa e funcional do botão de alternar barra lateral (PC, Tablet e Mobile) */
+    [data-testid="stSidebarCollapseButton"] button,
+    [data-testid="stCollapsedControl"] button {{
         background-color: {cor_primaria} !important;
-        border-radius: 8px !important;
-        padding: 4px !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
-    }}
-
-    [data-testid="stCollapsedControl"] button,
-    [data-testid="stCollapsedControl"] svg {{
         color: #FFFFFF !important;
-        fill: #FFFFFF !important;
+        border-radius: 8px !important;
     }}
 
-    [data-testid="stSidebarCollapseButton"],
-    button[data-testid="baseButton-header"] {{
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        z-index: 999999 !important;
+    [data-testid="stSidebarCollapseButton"] svg,
+    [data-testid="stCollapsedControl"] svg {{
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
     }}
     
     .stApp {{ background-color: #F8FAFC; }}
-    [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; }}
+    [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; z-index: 100; }}
     
     [data-testid="stSidebar"] div.stButton > button {{
         text-align: left !important; justify-content: flex-start !important; padding: 8px 12px !important;
