@@ -60,20 +60,27 @@ st.markdown(
     footer {{visibility: hidden;}}
     [data-testid="stToolbar"] {{display: none;}}
     
-    /* Ajuste do cabeçalho sem bloquear cliques na página */
+    /* Permite interação do mouse/toque no cabeçalho para abrir o menu no tablet/mobile */
     [data-testid="stHeader"] {{
         background-color: transparent !important;
         z-index: 99 !important;
     }}
 
-    /* Estilização nativa e funcional do botão de alternar barra lateral (PC, Tablet e Mobile) */
+    /* Estilização e destaque do botão de ABRIR/FECHAR a barra lateral (Celular, Tablet e PC) */
+    [data-testid="stHeaderIconButton"],
     [data-testid="stSidebarCollapseButton"] button,
     [data-testid="stCollapsedControl"] button {{
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
         background-color: {cor_primaria} !important;
-        color: #FFFFFF !important;
         border-radius: 8px !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2) !important;
     }}
 
+    /* Garante a cor branca no ícone de abrir/fechar menu */
+    [data-testid="stHeaderIconButton"] svg,
     [data-testid="stSidebarCollapseButton"] svg,
     [data-testid="stCollapsedControl"] svg {{
         fill: #FFFFFF !important;
@@ -81,7 +88,13 @@ st.markdown(
     }}
     
     .stApp {{ background-color: #F8FAFC; }}
-    [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; z-index: 100; }}
+    
+    /* Garante que a barra lateral fique acima dos outros elementos ao abrir no tablet */
+    [data-testid="stSidebar"] {{ 
+        background-color: #FFFFFF; 
+        border-right: 1px solid #E2E8F0; 
+        z-index: 999999 !important; 
+    }}
     
     [data-testid="stSidebar"] div.stButton > button {{
         text-align: left !important; justify-content: flex-start !important; padding: 8px 12px !important;
@@ -134,7 +147,6 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
-
 # --- PERSISTÊNCIA DE DADOS EM ARQUIVOS LOCAL/JSON ---
 ARQUIVO_INTEGRANTES = "integrantes.json"
 ARQUIVO_AGENDA = "agenda.json"
