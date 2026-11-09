@@ -1784,57 +1784,72 @@ else:
                                 st.info("Nenhuma solicitação de itens para este grupo de pesquisa.")
 
                         with st_sub2:
-                            with st.form(f"form_nova_solicitacao_{grp_id}"):
-                                item_nome = st.text_input("Item / Material Solicitado (ex: Álcool Etílico, Frasco Erlenmeyer 250mL, Papel Filtro 125mm) *")
-                                cat_item = st.selectbox("Categoria do Item", ["Reagentes", "Vidrarias", "Papel de Filtro", "Consumíveis de Bancada", "Equipamentos", "Outros"])
-                                qtd_item = st.text_input("Quantidade Desejada (ex: 2 Frascos de 1L, 5 caixas) *")
+                            st.markdown("##### 🛒 Carrinho de Requisição Multi-Item")
+                            
+                            if "carrinho_req" not in st.session_state:
+                                st.session_state.carrinho_req = []
 
-                                c_urg1, c_urg2 = st.columns([1, 2])
-                                with c_urg1:
-                                    is_urgente = st.checkbox("🚨 É URGENTE?")
-                                with c_urg2:
-                                    razao_urg = st.text_input("Razão da Urgência / Justificativa do Pedido *")
+                            with st.form(f"form_add_item_carrinho_{grp_id}"):
+                                c_i1, c_i2, c_i3 = st.columns([2, 1, 1])
+                                with c_i1:
+                                    item_nome = st.text_input("Item / Material *")
+                                with c_i2:
+                                    cat_item = st.selectbox("Categoria", ["Reagentes", "Vidrarias", "Papel de Filtro", "Consumíveis", "Equipamentos"])
+                                with c_i3:
+                                    qtd_item = st.text_input("Quantidade *", "1 L")
 
-                                tem_espec = st.radio("Há especificações técnicas?", ["Não há especificação", "Sim, especificar abaixo"], horizontal=True)
-                                txt_espec = st.text_area("Especificações Técnicas (Grau de pureza, marca, porosidade, etc.)", value="Grau P.A." if tem_espec != "Não há especificação" else "Não se aplica")
+                                c_u1, c_u2 = st.columns([1, 3])
+                                with c_u1:
+                                    is_urg = st.checkbox("🚨 Urgente?")
+                                with c_u2:
+                                    spec_item = st.text_input("Especificações / Justificativa", "Grau P.A.")
 
-                                st.markdown("##### 👤 Identificação do Solicitante")
-                                opt_solicitantes = lista_integrantes_nomes + ["✍️ Outro (Digitar manualmente)"]
-                                idx_sol_def = lista_integrantes_nomes.index(usuario_atual["nome"]) if usuario_atual["nome"] in lista_integrantes_nomes else 0
-                                sel_sol_tipo = st.selectbox("Selecione o Solicitante Cadastrado", opt_solicitantes, index=idx_sol_def)
+                                btn_add_carrinho = st.form_submit_button("➕ Adicionar Item à Lista")
 
-                                if sel_sol_tipo == "✍️ Outro (Digitar manualmente)":
-                                    nome_solicitante_final = st.text_input("Digite o Nome do Solicitante Manualmente *")
-                                else:
-                                    nome_solicitante_final = sel_sol_tipo
+                                if btn_add_carrinho:
+                                    if item_nome.strip() and qtd_item.strip():
+                                        st.session_state.carrinho_req.append({
+                                            "item": item_nome.strip(),
+                                            "categoria_item": cat_item,
+                                            "quantidade": qtd_item.strip(),
+                                            "urgente": is_urg,
+                                            "razao_urgencia": spec_item.strip() if is_urg else "-",
+                                            "especificacoes": spec_item.strip()
+                                        })
+                                        st.success(f"Item '{item_nome}' adicionado!")
+                                        st.rerun()
 
-                                btn_enviar_sol = st.form_submit_button("🚀 Enviar Solicitação para Aprovação da Liderança", type="primary")
+                            if st.session_state.carrinho_req:
+                                st.markdown("###### 📋 Itens nesta requisição:")
+                                for idx_c, it_c in enumerate(st.session_state.carrinho_req):
+                                    st.write(f"{idx_c+1}. **{it_c['item']}** ({it_c['quantidade']}) - {it_c['categoria_item']}")
+                                
+                                if st.button("🗑️ Limpar Lista"):
+                                    st.session_state.carrinho_req = []
+                                    st.rerun()
 
-                                if btn_enviar_sol:
-                                    if item_nome.strip() and qtd_item.strip() and razao_urg.strip() and nome_solicitante_final.strip():
+                                st.markdown("---")
+                                with st.form(f"form_fechar_requisicao_{grp_id}"):
+                                    nome_solicitante_final = st.text_input("Nome do Solicitante Responsável *", value=usuario_atual["nome"])
+                                    btn_enviar_multi = st.form_submit_button("🚀 Finalizar e Enviar Requisição Multi-Item", type="primary")
+
+                                    if btn_enviar_multi:
                                         if "solicitacoes_itens" not in grupo_ativo:
                                             grupo_ativo["solicitacoes_itens"] = []
 
                                         novo_id_sol = max([s.get("id", 0) for s in grupo_ativo["solicitacoes_itens"]], default=0) + 1
                                         grupo_ativo["solicitacoes_itens"].append({
                                             "id": novo_id_sol,
-                                            "item": item_nome.strip(),
-                                            "categoria_item": cat_item,
-                                            "quantidade": qtd_item.strip(),
-                                            "urgente": is_urgente,
-                                            "razao_urgencia": razao_urg.strip(),
-                                            "especificacoes": txt_espec.strip() if tem_espec != "Não há especificação" else "Não se aplica",
+                                            "itens": list(st.session_state.carrinho_req),
                                             "solicitante": nome_solicitante_final.strip(),
                                             "data_solicitacao": datetime.now().strftime("%d/%m/%Y"),
                                             "status": "Pendente",
                                             "aprovado_por": "-"
                                         })
                                         salvar_dados(ARQUIVO_GRUPOS, st.session_state.grupos_db)
-                                        st.success("✅ Solicitação cadastrada e enviada para o Líder/Colíder!")
+                                        st.session_state.carrinho_req = []
+                                        st.success("✅ Requisição enviada com sucesso!")
                                         st.rerun()
-                                    else:
-                                        st.error("Preencha todos os campos obrigatórios (*).")
-
                     with sub_tab2:
                         st.subheader("📅 Calendário Exclusivo do Grupo")
                         c_ag1, c_ag2 = st.columns([1.5, 1])
@@ -2502,85 +2517,90 @@ else:
         ])
 
         with aba_calc_molar:
-            st.subheader("🧮 Cálculo de Massa / Volume para Solução Molar ou % (m/v)")
+            st.subheader("🧮 Cálculo de Preparo de Soluções e Etiquetas")
             
-            reagentes_lista = st.session_state.reagentes_solucoes
-            nomes_reagentes = [r.get("nome", "Reagente") for r in reagentes_lista] + ["✍️ Outro (Digitar Manualmente)"]
+            tipo_preparo = st.radio("Tipo de Preparo", ["Cálculo Molar / Pesagem", "✍️ Preparo Manual / Livre"], horizontal=True)
+
+            if tipo_preparo == "Cálculo Molar / Pesagem":
+                reagentes_lista = st.session_state.reagentes_solucoes
+                nomes_reagentes = [r.get("nome", "Reagente") for r in reagentes_lista] + ["✍️ Outro (Digitar Manualmente)"]
+                
+                sel_r = st.selectbox("Selecione o Reagente / Composto", nomes_reagentes)
+                nome_reagente_custom = st.text_input("Nome da Solução *", sel_r if sel_r != "✍️ Outro (Digitar Manualmente)" else "")
+
+                reagente_obj = next((r for r in reagentes_lista if r.get("nome") == sel_r), None)
+
+                c_inp1, c_inp2, c_inp3 = st.columns(3)
+                with c_inp1:
+                    val_mm = reagente_obj.get("massa_molar", 0.0) if reagente_obj else 0.0
+                    massa_molar_in = st.number_input("Massa Molar (g/mol) [Opcional]", min_value=0.0, value=float(val_mm), step=0.1)
+
+                with c_inp2:
+                    val_pur = reagente_obj.get("pureza_padrao", 100.0) if reagente_obj else 100.0
+                    pureza_in = st.number_input("Pureza (%) [Opcional]", min_value=0.0, max_value=100.0, value=float(val_pur), step=0.5)
+
+                with c_inp3:
+                    val_dens = reagente_obj.get("densidade_g_ml") if (reagente_obj and reagente_obj.get("densidade_g_ml")) else 1.0
+                    densidade_in = st.number_input("Densidade (g/mL)", min_value=0.1, value=float(val_dens), step=0.01)
+
+                c_calc1, c_calc2 = st.columns(2)
+                with c_calc1:
+                    molaridade_desejada = st.number_input("Concentração Desejada (M) *", min_value=0.001, value=0.1, step=0.05)
+                with c_calc2:
+                    volume_desejado_ml = st.number_input("Volume Final (mL) *", min_value=1.0, value=500.0, step=50.0)
+
+                if massa_molar_in > 0:
+                    vol_litros = volume_desejado_ml / 1000.0
+                    massa_teorica = molaridade_desejada * massa_molar_in * vol_litros
+                    pureza_calc = pureza_in if pureza_in > 0 else 100.0
+                    massa_real_g = massa_teorica / (pureza_calc / 100.0)
+                    st.success(f"⚖️ **Massa a ser pesada:** {massa_real_g:.4f} g")
+                else:
+                    st.info("ℹ️ Massa Molar não informada. Prossiga com as configurações da etiqueta abaixo.")
             
-            sel_r = st.selectbox("Selecione o Reagente / Composto", nomes_reagentes)
-            if sel_r == "✍️ Outro (Digitar Manualmente)":
-                nome_reagente_custom = st.text_input("Nome do Reagente / Composto Personalizado *", "Solução Especial")
             else:
-                nome_reagente_custom = sel_r
-
-            reagente_obj = next((r for r in reagentes_lista if r.get("nome") == sel_r), None)
-
-            c_inp1, c_inp2, c_inp3 = st.columns(3)
-            with c_inp1:
-                val_mm = reagente_obj.get("massa_molar", 40.0) if reagente_obj else 40.0
-                massa_molar_in = st.number_input("Massa Molar (g/mol) *", min_value=0.1, value=float(val_mm), step=0.1)
-
-            with c_inp2:
-                val_pur = reagente_obj.get("pureza_padrao", 100.0) if reagente_obj else 100.0
-                pureza_in = st.number_input("Pureza do Reagente (%) *", min_value=1.0, max_value=100.0, value=float(val_pur), step=0.5)
-
-            with c_inp3:
-                val_dens = reagente_obj.get("densidade_g_ml") if (reagente_obj and reagente_obj.get("densidade_g_ml")) else 1.0
-                densidade_in = st.number_input("Densidade (g/mL) [Reagentes Líquidos]", min_value=0.1, value=float(val_dens), step=0.01)
+                nome_reagente_custom = st.text_input("Nome da Solução Manual *", "Solução Tampão / Mistura Manual")
+                molaridade_desejada = 0.0
+                st.info("Modo manual ativo: Preencha os dados da FISPQ e observações abaixo para gerar as etiquetas.")
 
             st.markdown("---")
-            c_calc1, c_calc2 = st.columns(2)
-            with c_calc1:
-                molaridade_desejada = st.number_input("Concentração Molar Desejada (M ou mol/L) *", min_value=0.001, value=0.1, step=0.05, format="%.3f")
-            with c_calc2:
-                volume_desejado_ml = st.number_input("Volume Final Desejado (mL) *", min_value=1.0, value=500.0, step=50.0)
-
-            vol_litros = volume_desejado_ml / 1000.0
-            massa_teorica = molaridade_desejada * massa_molar_in * vol_litros
-            massa_real_g = massa_teorica / (pureza_in / 100.0)
-            vol_liquido_ml = massa_real_g / densidade_in if densidade_in else None
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(
-                f"""
-                <div class="pop-preview-card" style="border-left: 5px solid {cor_primaria};">
-                    <h3 style="margin:0; color:#0F172A;">📊 Resultado do Preparo:</h3>
-                    <hr style="margin:8px 0; border:none; border-top:1px solid #CBD5E1;"/>
-                    <p style="font-size:1.1rem; color:#0E7490; margin:4px 0;">
-                        ⚖️ <b>Massa a ser pesada:</b> <span style="font-size:1.4rem; font-weight:800; color:#0F172A;">{massa_real_g:.4f} g</span>
-                    </p>
-                    {f'<p style="font-size:1.0rem; color:#059669; margin:4px 0;">🧪 <b>Se reagente líquido, pipetar:</b> <span style="font-size:1.3rem; font-weight:800; color:#0F172A;">{vol_liquido_ml:.3f} mL</span></p>' if (reagente_obj and reagente_obj.get("estado") == "Líquido") else ''}
-                    <div style="font-size:0.85rem; color:#475569; margin-top:8px;">
-                        • <b>Massa Teórica (100% puro):</b> {massa_teorica:.4f} g<br/>
-                        • <b>Volume de Solvente:</b> Transferir a quantidade para balão volumétrico de <b>{volume_desejado_ml:.0f} mL</b> e avolmar com água destilada/deionizada.
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-            st.markdown("##### 🏷️ Gerar Etiquetas da Solução Preparada")
-            c_sol_et1, c_sol_et2 = st.columns(2)
-            with c_sol_et1:
-                qtd_et_sol = st.number_input("Quantidade de Etiquetas", min_value=1, max_value=50, value=6, key="qtd_et_molar")
-            with c_sol_et2:
-                tam_et_sol = st.selectbox("Tamanho do Frasco", list(DESTINOS_ETIQUETAS.keys()), index=3, key="tam_et_molar")
+            st.markdown("##### 🏷️ Configuração das Etiquetas da Solução (sem QR Code)")
             
+            c_fispq1, c_fispq2 = st.columns(2)
+            with c_fispq1:
+                fispq_desc = st.text_area("Descrição de Segurança / FISPQ / Riscos *", value="Utilizar óculos e luvas. Manter longe de calor.", height=70)
+            with c_fispq2:
+                obs_sol = st.text_area("Observações de Armazenamento / Validade", value="Armazenar a 4°C na prateleira B.", height=70)
+
+            c_sol_et1, c_sol_et2, c_sol_et3 = st.columns(3)
+            with c_sol_et1:
+                qtd_et_sol = st.number_input("Quantidade de Etiquetas em Cartela", min_value=1, max_value=100, value=12, key="qtd_et_molar")
+            with c_sol_et2:
+                tam_et_sol = st.selectbox("Tamanho da Etiqueta", list(DESTINOS_ETIQUETAS.keys()), index=2, key="tam_et_molar")
+            with c_sol_et3:
+                inc_qr_op = st.checkbox("Incluir QR Code?", value=False)
+
+            conc_txt_final = f"{molaridade_desejada:.3f} M" if molaridade_desejada > 0 else "Preparo Manual"
+
             pdf_sol_bytes = gerar_pdf_etiqueta_solucao(
-                nome_solucao=sel_r if sel_r != "✍️ Outro (Digitar Manualmente)" else "Solução Personalizada",
-                concentracao=f"{molaridade_desejada:.3f} M",
+                nome_solucao=nome_reagente_custom,
+                concentracao=conc_txt_final,
                 data_preparo=datetime.now().strftime("%d/%m/%Y"),
                 responsavel=usuario_atual["nome"],
                 quantidade=qtd_et_sol,
-                mm_size=DESTINOS_ETIQUETAS[tam_et_sol]
+                mm_size=DESTINOS_ETIQUETAS[tam_et_sol],
+                observacoes=obs_sol,
+                fispq=fispq_desc,
+                incluir_qr=inc_qr_op
             )
-            
+
             st.download_button(
-                label="📄 Baixar PDF de Etiquetas da Solução",
+                label=f"📄 Baixar PDF Cartela de Etiquetas ({qtd_et_sol}x sem QR Code)",
                 data=pdf_sol_bytes,
-                file_name=f"Etiquetas_Solucao_{sel_r}.pdf",
+                file_name=f"Etiquetas_Solucao_{nome_reagente_custom}.pdf",
                 mime="application/pdf",
-                key="btn_dl_etiqueta_molar"
+                key="btn_dl_etiqueta_molar",
+                type="primary"
             )
 
         with aba_calc_diluicao:
