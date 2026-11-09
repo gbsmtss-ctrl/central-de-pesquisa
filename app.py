@@ -432,60 +432,26 @@ def gerar_pdf_pop(pop_dict):
 
     if REPORTLAB_DISPONIVEL:
         doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=36,
-            leftMargin=36,
-            topMargin=36,
-            bottomMargin=36
+            buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36
         )
         styles = getSampleStyleSheet()
         story = []
 
         title_style = ParagraphStyle(
-            'PopTitle',
-            parent=styles['Normal'],
-            fontName='Helvetica-Bold',
-            fontSize=10,
-            leading=13,
-            textColor=colors.HexColor('#0F172A')
+            'PopTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, leading=13, textColor=colors.HexColor('#0F172A')
         )
-        
         sec_title_style = ParagraphStyle(
-            'PopSecTitle',
-            parent=styles['Heading2'],
-            fontName='Helvetica-Bold',
-            fontSize=10,
-            leading=14,
-            textColor=colors.HexColor('#0F172A'),
-            spaceBefore=10,
-            spaceAfter=4
+            'PopSecTitle', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=10, leading=14, textColor=colors.HexColor('#0F172A'), spaceBefore=10, spaceAfter=4
         )
-
         body_style = ParagraphStyle(
-            'PopBodyText',
-            parent=styles['Normal'],
-            fontName='Helvetica',
-            fontSize=9.5,
-            leading=14,
-            textColor=colors.HexColor('#1E293B')
+            'PopBodyText', parent=styles['Normal'], fontName='Helvetica', fontSize=9.5, leading=14, textColor=colors.HexColor('#1E293B')
         )
 
         header_data = [
-            [
-                Paragraph("<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", title_style),
-                Paragraph(f"<b>CÓDIGO:</b> {codigo}", title_style)
-            ],
-            [
-                Paragraph(f"<b>Título:</b> {titulo}", title_style),
-                Paragraph(f"<b>Versão:</b> {versao}", title_style)
-            ],
-            [
-                Paragraph(f"<b>Elaborado por:</b> {autor}", title_style),
-                Paragraph(f"<b>Status:</b> {status}", title_style)
-            ]
+            [Paragraph("<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", title_style), Paragraph(f"<b>CÓDIGO:</b> {codigo}", title_style)],
+            [Paragraph(f"<b>Título:</b> {titulo}", title_style), Paragraph(f"<b>Versão:</b> {versao}", title_style)],
+            [Paragraph(f"<b>Elaborado por:</b> {autor}", title_style), Paragraph(f"<b>Status:</b> {status}", title_style)]
         ]
-
         t_header = Table(header_data, colWidths=[360, 180])
         t_header.setStyle(TableStyle([
             ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
@@ -497,12 +463,16 @@ def gerar_pdf_pop(pop_dict):
         story.append(t_header)
         story.append(Spacer(1, 14))
 
+        ref_txt = pop_dict.get("referencias", "-")
+        if pop_dict.get("link_referencia"):
+            ref_txt += f"<br/><b>Link de Acesso:</b> <a href='{pop_dict.get('link_referencia')}'>{pop_dict.get('link_referencia')}</a>"
+
         sections = [
             ("1. OBJETIVO", pop_dict.get("objetivo", "")),
             ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
             ("3. PROCEDIMENTO/PASSO A PASSO", pop_dict.get("passos", "")),
             ("4. SEGURANÇA E EPIS", pop_dict.get("seguranca", "")),
-            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "-")),
+            ("5. REFERÊNCIAS BIBLIOGRÁFICAS E LINKS", ref_txt),
         ]
 
         for title, content in sections:
@@ -518,175 +488,12 @@ def gerar_pdf_pop(pop_dict):
         page = Image.new("RGB", (612, 792), "white")
         draw = ImageDraw.Draw(page)
         draw.rectangle([36, 36, 576, 116], fill="#F8FAFC", outline="#475569", width=1)
-        draw.line([(36, 62.6), (576, 62.6)], fill="#CBD5E1", width=1)
-        draw.line([(36, 89.3), (576, 89.3)], fill="#CBD5E1", width=1)
-        draw.line([(396, 36), (396, 116)], fill="#CBD5E1", width=1)
-
         draw.text((44, 44), "PROCEDIMENTO OPERACIONAL PADRÃO (POP)", fill="black")
         draw.text((404, 44), f"CÓDIGO: {codigo}", fill="black")
         draw.text((44, 70), f"Título: {titulo}", fill="black")
         draw.text((404, 70), f"Versão: {versao}", fill="black")
-        draw.text((44, 96), f"Elaborado por: {autor}", fill="black")
-        draw.text((404, 96), f"Status: {status}", fill="black")
-
-        y = 136
-        secoes = [
-            ("1. OBJETIVO", pop_dict.get("objetivo", "")),
-            ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
-            ("3. PROCEDIMENTO/PASSO A PASSO", pop_dict.get("passos", "")),
-            ("4. SEGURANÇA E EPIS", pop_dict.get("seguranca", "")),
-            ("5. REFERÊNCIAS BIBLIOGRÁFICAS", pop_dict.get("referencias", "")),
-        ]
-
-        for tit, txt in secoes:
-            draw.text((36, y), tit, fill="#0F172A")
-            y += 20
-            for line in str(txt).split("\n"):
-                draw.text((46, y), line[:85], fill="#1E293B")
-                y += 15
-            y += 10
-
         page.save(buffer, format="PDF", resolution=72.0)
         return buffer.getvalue()
-        
-
-def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome):
-    buffer = BytesIO()
-    req_id = solicitacao.get('id', 1)
-    req_data = solicitacao.get('data_solicitacao', '-')
-    req_status = solicitacao.get('status', 'Pendente')
-    urgente_str = "SIM (URGENTE)" if solicitacao.get("urgente") else "NÃO (PROCESSO PADRÃO)"
-    codigo_req = f"REQ-{req_id:04d}"
-
-    if REPORTLAB_DISPONIVEL:
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=36,
-            leftMargin=36,
-            topMargin=36,
-            bottomMargin=36
-        )
-        styles = getSampleStyleSheet()
-        story = []
-
-        title_style = ParagraphStyle(
-            'HeaderTitle',
-            parent=styles['Normal'],
-            fontName='Helvetica-Bold',
-            fontSize=10,
-            leading=13,
-            textColor=colors.HexColor('#0F172A')
-        )
-        
-        sec_title_style = ParagraphStyle(
-            'ReqSecTitle',
-            parent=styles['Heading2'],
-            fontName='Helvetica-Bold',
-            fontSize=10,
-            leading=14,
-            textColor=colors.HexColor('#0F172A'),
-            spaceBefore=10,
-            spaceAfter=4
-        )
-
-        body_style = ParagraphStyle(
-            'ReqBodyText',
-            parent=styles['Normal'],
-            fontName='Helvetica',
-            fontSize=9.5,
-            leading=14,
-            textColor=colors.HexColor('#1E293B')
-        )
-
-        header_data = [
-            [
-                Paragraph("<b>REQUISIÇÃO DE REAGENTES E PRODUTOS</b>", title_style),
-                Paragraph(f"<b>CÓDIGO:</b> {codigo_req}", title_style)
-            ],
-            [
-                Paragraph(f"<b>Grupo de Pesquisa:</b> {nome_grupo}", title_style),
-                Paragraph(f"<b>Data:</b> {req_data}", title_style)
-            ],
-            [
-                Paragraph(f"<b>Solicitante:</b> {solicitacao.get('solicitante', '-')}", title_style),
-                Paragraph(f"<b>Status:</b> {req_status}", title_style)
-            ]
-        ]
-        t_header = Table(header_data, colWidths=[360, 180])
-        t_header.setStyle(TableStyle([
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING', (0,0), (-1,-1), 6),
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-        ]))
-        story.append(t_header)
-        story.append(Spacer(1, 14))
-
-        sections = [
-            ("1. ITEM E CATEGORIA SOLICITADA", f"• Item/Material Solicitado: {solicitacao.get('item', '-')}\n• Categoria: {solicitacao.get('categoria_item', 'Reagentes')}\n• Quantidade: {solicitacao.get('quantidade', '-')}"),
-            ("2. URGÊNCIA E JUSTIFICATIVA", f"• Grau de Urgência: {urgente_str}\n• Razão/Justificativa: {solicitacao.get('razao_urgencia', '-')}"),
-            ("3. ESPECIFICAÇÕES TÉCNICAS DO MATERIAL", str(solicitacao.get('especificacoes', '-'))),
-            ("4. APROVAÇÃO E LIDERANÇA", f"• Liderança Responsável: {lider_nome} / {colider_nome}\n• Aprovado Por: {solicitacao.get('aprovado_por', '-')}"),
-        ]
-
-        for title, content in sections:
-            if content:
-                story.append(Paragraph(title, sec_title_style))
-                content_p = str(content).replace('\n', '<br/>')
-                story.append(Paragraph(content_p, body_style))
-                story.append(Spacer(1, 4))
-
-        story.append(Spacer(1, 30))
-        sig_style = ParagraphStyle('SigText', parent=body_style, alignment=1)
-        sig_data = [
-            [Paragraph("____________________________________________", sig_style)],
-            [Paragraph("<b>Assinatura do Líder / Colíder Responsável</b>", sig_style)]
-        ]
-        t_sig = Table(sig_data, colWidths=[540])
-        t_sig.setStyle(TableStyle([
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ]))
-        story.append(t_sig)
-
-        doc.build(story)
-        return buffer.getvalue()
-    else:
-        page = Image.new("RGB", (612, 792), "white")
-        draw = ImageDraw.Draw(page)
-        draw.rectangle([36, 36, 576, 116], fill="#F8FAFC", outline="#475569", width=1)
-        draw.line([(36, 62.6), (576, 62.6)], fill="#CBD5E1", width=1)
-        draw.line([(36, 89.3), (576, 89.3)], fill="#CBD5E1", width=1)
-        draw.line([(396, 36), (396, 116)], fill="#CBD5E1", width=1)
-
-        draw.text((44, 44), "REQUISIÇÃO DE REAGENTES E PRODUTOS", fill="black")
-        draw.text((404, 44), f"CÓDIGO: {codigo_req}", fill="black")
-        draw.text((44, 70), f"Grupo de Pesquisa: {nome_grupo}", fill="black")
-        draw.text((404, 70), f"Data: {req_data}", fill="black")
-        draw.text((44, 96), f"Solicitante: {solicitacao.get('solicitante', '-')}", fill="black")
-        draw.text((404, 96), f"Status: {req_status}", fill="black")
-
-        y = 136
-        secoes = [
-            ("1. ITEM E CATEGORIA SOLICITADA", f"Item/Material: {solicitacao.get('item', '-')}\nCategoria: {solicitacao.get('categoria_item', 'Reagentes')}\nQuantidade: {solicitacao.get('quantidade', '-')}"),
-            ("2. URGÊNCIA E JUSTIFICATIVA", f"Urgência: {urgente_str}\nJustificativa: {solicitacao.get('razao_urgencia', '-')}"),
-            ("3. ESPECIFICAÇÕES TÉCNICAS DO MATERIAL", str(solicitacao.get('especificacoes', '-'))),
-            ("4. APROVAÇÃO E LIDERANÇA", f"Liderança: {lider_nome} / {colider_nome}\nAprovado por: {solicitacao.get('aprovado_por', '-')}"),
-        ]
-
-        for tit, txt in secoes:
-            draw.text((36, y), tit, fill="#0F172A")
-            y += 20
-            for line in str(txt).split("\n"):
-                draw.text((46, y), line[:85], fill="#1E293B")
-                y += 15
-            y += 10
-
-        page.save(buffer, format="PDF", resolution=72.0)
-        return buffer.getvalue()
-
 
 # --- FUNÇÃO DE GERAÇÃO DE ETIQUETAS EM GRADE (AMOSTRAS E SOLUÇÕES) ---
 
@@ -2593,7 +2400,7 @@ else:
 
         with aba_pop_form:
             st.subheader("➕ Formulário de Criação / Atualização de POP")
-            st.caption("Preencha os campos à esquerda e acompanhe a **Pré-visualização em Tempo Real** no painel da direita.")
+            st.caption("Aceita formatação Markdown (**negrito**, tabelas com `|` e links).")
 
             col_form, col_prev = st.columns([1.1, 1])
 
@@ -2624,9 +2431,10 @@ else:
 
                 p_objetivo = st.text_area("1. Objetivo *", value="Padronizar o procedimento no laboratório.", height=70)
                 p_materiais = st.text_area("2. Materiais & Equipamentos *", value="Equipamentos de proteção individual, reagentes e vidrarias.", height=70)
-                p_passos = st.text_area("3. Procedimento / Passo a Passo *", value="1. Ligar o equipamento.\n2. Calibrar conforme instrução.\n3. Executar o ensaio.", height=110)
+                p_passos = st.text_area("3. Procedimento / Passo a Passo (Suporta tabelas e **negrito**) *", value="1. Ligar o equipamento.\n2. Calibrar conforme instrução.\n\n| Parâmetro | Valor |\n| --- | --- |\n| Temp | 25°C |", height=120)
                 p_seguranca = st.text_area("4. Segurança & EPIs *", value="Jaleco, luvas de nitrilo e óculos de proteção.", height=70)
-                p_referencias = st.text_area("5. Referências Usadas / Normas *", value="Artigo/Norma de referência utilizada para elaboração do protocolo.", height=70)
+                p_referencias = st.text_area("5. Referências Bibliográficas *", value="Artigo/Norma de referência utilizada.", height=60)
+                p_link_ref = st.text_input("🔗 Link / URL da Referência (Opcional)", value="https://")
 
                 if st.button("💾 Salvar Documento POP", type="primary", use_container_width=True):
                     if not (tit_selecionado and p_objetivo and p_passos):
@@ -2642,6 +2450,7 @@ else:
                             "passos": p_passos.strip(),
                             "seguranca": p_seguranca.strip(),
                             "referencias": p_referencias.strip(),
+                            "link_referencia": p_link_ref.strip() if p_link_ref != "https://" else "",
                             "autor": usuario_atual["nome"],
                             "status": status_pop,
                         }
@@ -2653,28 +2462,14 @@ else:
 
             with col_prev:
                 st.markdown("### 👁️ Pré-visualização em Tempo Real")
-                st.markdown(
-                    f"""
-                    <div class="pop-preview-card" style="border-left: 5px solid {cor_primaria}; background: #FFFFFF;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h3 style="margin: 0; color: #0F172A; font-size: 1.05rem;">📝 {tit_selecionado if tit_selecionado else 'Título do POP'}</h3>
-                            <span style="background-color: {cor_bg_light}; color: {cor_primaria}; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem;">
-                                {cod_auto} | v{versao_calculada}
-                            </span>
-                        </div>
-                        <hr style="margin: 10px 0; border: none; border-top: 1px solid #E2E8F0;" />
-                        <p style="margin: 6px 0; font-size:0.85rem;"><b>1. Objetivo:</b><br/>{p_objetivo}</p>
-                        <p style="margin: 6px 0; font-size:0.85rem;"><b>2. Materiais & Equipamentos:</b><br/>{p_materiais}</p>
-                        <p style="margin: 6px 0; font-size:0.85rem;"><b>3. Passo a Passo:</b><br/>{p_passos.replace(chr(10), '<br/>')}</p>
-                        <p style="margin: 6px 0; font-size:0.85rem;"><b>4. Segurança & EPIs:</b><br/>{p_seguranca}</p>
-                        <p style="margin: 6px 0; font-size:0.85rem;"><b>5. Referências Usadas:</b><br/>{p_referencias}</p>
-                        <div style="margin-top: 12px; font-size: 0.75rem; color: #94A3B8; text-align: right;">
-                            Elaborado por: <b>{usuario_atual['nome']}</b>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                st.markdown(f"### 📝 {tit_selecionado} (`{cod_auto}` | v{versao_calculada})")
+                st.markdown(f"**1. Objetivo:**\n{p_objetivo}")
+                st.markdown(f"**2. Materiais & Equipamentos:**\n{p_materiais}")
+                st.markdown(f"**3. Passo a Passo:**\n{p_passos}")
+                st.markdown(f"**4. Segurança & EPIs:**\n{p_seguranca}")
+                st.markdown(f"**5. Referências:**\n{p_referencias}")
+                if p_link_ref and p_link_ref != "https://":
+                    st.markdown(f"🔗 [Acessar Referência Externa]({p_link_ref})")
 
     # --- 6.1 CALCULADORA DE PREPARO DE SOLUÇÕES DE USO GERAL ---
     elif menu_selecionado == "🧪 Calculadora de Soluções":
