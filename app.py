@@ -475,13 +475,15 @@ def gerar_pdf_pop(pop_dict):
             ("5. REFERÊNCIAS BIBLIOGRÁFICAS E LINKS", ref_txt),
         ]
 
+        import re
         for title, content in sections:
             if content:
                 story.append(Paragraph(title, sec_title_style))
-                content_p = str(content).replace('\n', '<br/>')
+                # Converte o negrito do Markdown **texto** para <b>texto</b> do PDF
+                content_p = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', str(content))
+                content_p = content_p.replace('\n', '<br/>')
                 story.append(Paragraph(content_p, body_style))
                 story.append(Spacer(1, 4))
-
         doc.build(story)
         return buffer.getvalue()
     else:
@@ -613,12 +615,14 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_am
                 qr_stream = BytesIO(qr_temp_buffer.getvalue())
                 elementos.append([RLImage(qr_stream, width=qr_box_size, height=qr_box_size)])
 
-            elementos.append([Paragraph(f"<b>{nome_amostra[:25]}</b>", lbl_style)])
+            # Exibe o título completo sem truncamento (nome_amostra)
+            elementos.append([Paragraph(f"<b>{nome_amostra}</b>", lbl_style)])
             if conc_txt:
                 elementos.append([Paragraph(f"Conc: {conc_txt}", sub_lbl_style)])
             elementos.append([Paragraph(f"Data: {data_obtencao} | Resp: {responsavel[:15]}", sub_lbl_style)])
             if fispq_txt:
-                elementos.append([Paragraph(f"<b>FISPQ:</b> {fispq_txt[:40]}", sub_lbl_style)])
+                # Exibe a FISPQ / Segurança com limite expandido de até 120 caracteres
+                elementos.append([Paragraph(f"<b>FISPQ:</b> {fispq_txt[:120]}", sub_lbl_style)])
 
             t_cell = Table(elementos, colWidths=[size_pt])
             t_cell.setStyle(TableStyle([
