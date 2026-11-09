@@ -60,41 +60,43 @@ st.markdown(
     footer {{visibility: hidden;}}
     [data-testid="stToolbar"] {{display: none;}}
     
-    /* Permite interação do mouse/toque no cabeçalho para abrir o menu no tablet/mobile */
+    /* Cabeçalho transparente sem bloquear eventos do mouse/toque */
     [data-testid="stHeader"] {{
         background-color: transparent !important;
-        z-index: 99 !important;
+        z-index: 999 !important;
     }}
 
-    /* Estilização e destaque do botão de ABRIR/FECHAR a barra lateral (Celular, Tablet e PC) */
-    [data-testid="stHeaderIconButton"],
-    [data-testid="stSidebarCollapseButton"] button,
-    [data-testid="stCollapsedControl"] button {{
+    /* Mantém o botão de abrir/fechar a barra lateral sempre visível e clicável */
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stCollapsedControl"],
+    button[data-testid="stHeaderIconButton"],
+    button[aria-label*="sidebar"],
+    button[aria-label*="Sidebar"] {{
         display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
         pointer-events: auto !important;
-        background-color: {cor_primaria} !important;
-        border-radius: 8px !important;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.2) !important;
+        z-index: 999999 !important;
     }}
 
-    /* Garante a cor branca no ícone de abrir/fechar menu */
-    [data-testid="stHeaderIconButton"] svg,
-    [data-testid="stSidebarCollapseButton"] svg,
-    [data-testid="stCollapsedControl"] svg {{
+    /* Destaca o botão de ABRIR quando a barra lateral estiver recolhida */
+    [data-testid="stCollapsedControl"] button,
+    [data-testid="stCollapsedControl"] {{
+        background-color: {cor_primaria} !important;
+        color: #FFFFFF !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
+    }}
+
+    [data-testid="stCollapsedControl"] svg,
+    [data-testid="stHeaderIconButton"] svg {{
         fill: #FFFFFF !important;
         color: #FFFFFF !important;
     }}
-    
+
     .stApp {{ background-color: #F8FAFC; }}
-    
-    /* Garante que a barra lateral fique acima dos outros elementos ao abrir no tablet */
-    [data-testid="stSidebar"] {{ 
-        background-color: #FFFFFF; 
-        border-right: 1px solid #E2E8F0; 
-        z-index: 999999 !important; 
-    }}
+    [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; z-index: 10000 !important; }}
     
     [data-testid="stSidebar"] div.stButton > button {{
         text-align: left !important; justify-content: flex-start !important; padding: 8px 12px !important;
