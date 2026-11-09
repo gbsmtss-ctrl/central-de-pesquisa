@@ -2443,8 +2443,22 @@ else:
             col_form, col_prev = st.columns([1.1, 1])
 
             with col_form:
+                with st.expander("💡 Guia Rápido: Como inserir Negrito e Tabelas no POP"):
+                    st.markdown("""
+                    **1. Como colocar textos em Negrito:**
+                    - Envolva o texto com dois asteriscos de cada lado: `**este texto fica em negrito**`
+                    
+                    **2. Como criar uma Tabela:**
+                    - Utilizar a barra vertical `|` para separar as colunas e uma linha de travessões `| --- | --- |` no cabeçalho:
+                    ```text
+                    | Etapa | Equipamento | Temperatura |
+                    | --- | --- | --- |
+                    | 1 | Incubadora | 37°C |
+                    | 2 | Centrífuga | 4°C |
+                    ```
+                    """)
+
                 modo_criacao = st.radio("Ação", ["Criar Novo POP", "Atualizar POP Existente"], horizontal=True)
-                tit_selecionado = ""
                 versao_calculada = 1
 
                 if modo_criacao == "Atualizar POP Existente":
