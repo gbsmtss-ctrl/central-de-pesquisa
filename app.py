@@ -58,20 +58,20 @@ st.markdown(
     <style>
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
-    [data-testid="stToolbar"] {{display: none;}}
     
-    /* Cabeçalho transparente sem bloquear eventos do mouse/toque */
+    /* Garante que o cabeçalho fique transparente sem ocultar os controlos do Streamlit */
     [data-testid="stHeader"] {{
         background-color: transparent !important;
-        z-index: 999 !important;
+        z-index: 99999 !important;
+        pointer-events: auto !important;
     }}
 
-    /* Mantém o botão de abrir/fechar a barra lateral sempre visível e clicável */
-    [data-testid="stSidebarCollapseButton"],
+    /* Força o botão de ABRIR a barra lateral a ficar visível no topo esquerdo quando recolhida */
     [data-testid="stCollapsedControl"],
     button[data-testid="stHeaderIconButton"],
     button[aria-label*="sidebar"],
-    button[aria-label*="Sidebar"] {{
+    button[aria-label*="Sidebar"],
+    button[aria-label*="Expand"] {{
         display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
@@ -79,7 +79,7 @@ st.markdown(
         z-index: 999999 !important;
     }}
 
-    /* Destaca o botão de ABRIR quando a barra lateral estiver recolhida */
+    /* Destaca o botão com a cor do tema ativo */
     [data-testid="stCollapsedControl"] button,
     [data-testid="stCollapsedControl"] {{
         background-color: {cor_primaria} !important;
@@ -96,7 +96,7 @@ st.markdown(
     }}
 
     .stApp {{ background-color: #F8FAFC; }}
-    [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; z-index: 10000 !important; }}
+    [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; z-index: 100000 !important; }}
     
     [data-testid="stSidebar"] div.stButton > button {{
         text-align: left !important; justify-content: flex-start !important; padding: 8px 12px !important;
