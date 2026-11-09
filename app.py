@@ -371,20 +371,46 @@ REAGENTES_SOLUCOES_INICIAIS = [
     }
 ]
 
-def carregar_dados(arquivo, padrao):
-    if os.path.exists(arquivo):
-        try:
-            with open(arquivo, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-                if dados:
-                    return dados
-        except Exception:
-            return padrao
-    return padrao
+from supabase import create_client, Client
 
-def salvar_dados(arquivo, dados):
-    with open(arquivo, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=4)
+# --- CONEXÃO COM O SUPABASE ---
+@st.cache_resource
+def conectar_supabase() -> Client:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+try:
+    supabase = conectar_supabase()
+except Exception as e:
+    supabase = None
+    st.error(f"Erro ao conectar ao Supabase: {e}")
+
+# --- FUNÇÕES DE PERSISTÊNCIA NA NUVEM ---
+def carregar_dados(chave_arquivo, padrao):
+    if not supabase:
+        return padrao
+    try:
+        resposta = supabase.table("dados_sistema").select("conteudo").eq("chave", chave_arquivo).execute()
+        if resposta.data and len(resposta.data) > 0:
+            return resposta.data[0]["conteudo"]
+        else:
+            salvar_dados(chave_arquivo, padrao)
+            return padrao
+    except Exception as e:
+        st.warning(f"Erro ao carregar {chave_arquivo}: {e}")
+        return padrao
+
+def salvar_dados(chave_arquivo, dados):
+    if not supabase:
+        return
+    try:
+        supabase.table("dados_sistema").upsert({
+            "chave": chave_arquivo,
+            "conteudo": dados
+        }).execute()
+    except Exception as e:
+        st.error(f"Erro ao salvar {chave_arquivo}: {e}")
 
 def gerar_codigo_pop(titulo, versao=1):
     palavras = [w for w in titulo.split() if len(w) > 2 and w.lower() not in ["de", "da", "do", "dos", "das", "em", "para", "com", "e"]]
