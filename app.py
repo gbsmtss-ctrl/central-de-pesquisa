@@ -52,7 +52,6 @@ cor_primaria = tema_ativo["primary"]
 cor_bg_light = tema_ativo["bg_light"]
 cor_border = tema_ativo["border"]
 
-# --- INÍCIO DA ALTERAÇÃO (Linha 47) ---
 # --- INJEÇÃO DE CSS DINÂMICO ---
 st.markdown(
     f"""
@@ -73,9 +72,28 @@ st.markdown(
         pointer-events: auto !important;
     }}
 
-    /* Garante que os botões de abrir/fechar funcionem no telemóvel */
-    [data-testid="stCollapsedControl"],
-    [data-testid="stSidebarCollapsedControl"],
+    /* Fixa e destaca o botão de ABRIR a barra lateral no topo esquerdo em dispositivos móveis */
+    [data-testid="stCollapsedControl"] {{
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        z-index: 999999 !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 10px !important;
+        background-color: {cor_primaria} !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
+    }}
+
+    [data-testid="stCollapsedControl"] button,
+    [data-testid="stCollapsedControl"] svg {{
+        color: #FFFFFF !important;
+        fill: #FFFFFF !important;
+    }}
+
     [data-testid="stSidebarCollapseButton"],
     button[data-testid="baseButton-header"] {{
         display: flex !important;
@@ -84,16 +102,6 @@ st.markdown(
         pointer-events: auto !important;
         z-index: 999999 !important;
     }}
-
-    /* FORÇAR A BARRA LATERAL A FICAR VISÍVEL E ABERTA NO TELEMÓVEL */
-    @media (max-width: 768px) {{
-        section[data-testid="stSidebar"] {{
-            transform: none !important;
-            margin-left: 0 !important;
-            visibility: visible !important;
-        }}
-    }}
-# --- FIM DA ALTERAÇÃO (Linha 76) ---
     
     .stApp {{ background-color: #F8FAFC; }}
     [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid #E2E8F0; }}
@@ -665,8 +673,6 @@ def gerar_pdf_solicitacao_item(solicitacao, nome_grupo, lider_nome, colider_nome
 
 # --- FUNÇÃO DE GERAÇÃO DE ETIQUETAS EM GRADE (AMOSTRAS E SOLUÇÕES) ---
 
-# --- FUNÇÃO DE GERAÇÃO DE ETIQUETAS EM GRADE (AMOSTRAS E SOLUÇÕES) ---
-
 def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_amostra=None):
     """
     Gera um PDF contendo a quantidade especificada de etiquetas em formato de grade/cartela.
@@ -728,7 +734,8 @@ def gerar_pdf_etiquetas(qr_img_pil, quantidade, mm_size, id_amostra="", dados_am
 
         # Monta a célula de uma etiqueta individual
         def criar_celula_etiqueta():
-            qr_img = RLImage(qr_temp_buffer, width=qr_box_size, height=qr_box_size)
+            qr_stream = BytesIO(qr_temp_buffer.getvalue())
+            qr_img = RLImage(qr_stream, width=qr_box_size, height=qr_box_size)
             txt_id = Paragraph(f"<b>{id_amostra}</b>", lbl_style)
             txt_nome = Paragraph(nome_amostra[:22], sub_lbl_style)
             txt_dt = Paragraph(data_obtencao, sub_lbl_style)
@@ -2670,6 +2677,11 @@ else:
             nomes_reagentes = [r.get("nome", "Reagente") for r in reagentes_lista] + ["✍️ Outro (Digitar Manualmente)"]
             
             sel_r = st.selectbox("Selecione o Reagente / Composto", nomes_reagentes)
+            if sel_r == "✍️ Outro (Digitar Manualmente)":
+                nome_reagente_custom = st.text_input("Nome do Reagente / Composto Personalizado *", "Solução Especial")
+            else:
+                nome_reagente_custom = sel_r
+
             reagente_obj = next((r for r in reagentes_lista if r.get("nome") == sel_r), None)
 
             c_inp1, c_inp2, c_inp3 = st.columns(3)
@@ -2863,11 +2875,11 @@ else:
             lista_alunos_cad = [p for p in st.session_state.integrantes if p.get("Categoria") in ["Iniciação Científica", "Mestrado", "Doutorado", "Pós-Doutorado"]]
 
             if lista_alunos_cad:
-                with st.form("form_admin_orientacao"):
-                    dict_alunos = {f"{a.get('Nome', '-') } ({a.get('Categoria', '-')})": a for a in lista_alunos_cad}
-                    aluno_sel_lbl = st.selectbox("Selecione o Aluno / Pesquisador *", list(dict_alunos.keys()))
-                    aluno_objeto = dict_alunos[aluno_sel_lbl]
+                dict_alunos = {f"{a.get('Nome', '-') } ({a.get('Categoria', '-')})": a for a in lista_alunos_cad}
+                aluno_sel_lbl = st.selectbox("Selecione o Aluno / Pesquisador *", list(dict_alunos.keys()))
+                aluno_objeto = dict_alunos[aluno_sel_lbl]
 
+                with st.form("form_admin_orientacao"):
                     idx_or_def = lista_professores.index(aluno_objeto.get("Orientador")) if aluno_objeto.get("Orientador") in lista_professores else 0
                     idx_co_def = lista_professores.index(aluno_objeto.get("Coorientador")) if aluno_objeto.get("Coorientador") in lista_professores else 0
 
