@@ -423,6 +423,7 @@ def gerar_codigo_pop(titulo, versao=1):
 # --- FUNÇÕES DE GERAÇÃO DE PDF VETORIAL PADRONIZADAS ---
 
 def gerar_pdf_pop(pop_dict):
+    import re
     buffer = BytesIO()
     codigo = pop_dict.get('codigo', 'POP-DOC-v1')
     titulo = pop_dict.get('titulo', 'Documento sem título')
@@ -430,7 +431,21 @@ def gerar_pdf_pop(pop_dict):
     autor = pop_dict.get('autor', 'N/A')
     status = pop_dict.get('status', 'Aprovado')
 
+    # Mapeamento da família de fontes escolhida pelo usuário
+    fonte_escolha = pop_dict.get('fonte', 'Helvetica')
+    tam_base = int(pop_dict.get('tamanho_fonte', 10))
+
+    mapa_fontes = {
+        "Helvetica": ("Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique"),
+        "Times-Roman": ("Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic"),
+        "Courier": ("Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique"),
+    }
+    f_reg, f_bold, f_ital, f_bi = mapa_fontes.get(fonte_escolha, mapa_fontes["Helvetica"])
+
     if REPORTLAB_DISPONIVEL:
+        from reportlab.pdfbase.pdfmetrics import registerFontFamily
+        registerFontFamily(f_reg, normal=f_reg, bold=f_bold, italic=f_ital, boldItalic=f_bi)
+
         doc = SimpleDocTemplate(
             buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36
         )
@@ -438,15 +453,68 @@ def gerar_pdf_pop(pop_dict):
         story = []
 
         title_style = ParagraphStyle(
-            'PopTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, leading=13, textColor=colors.HexColor('#0F172A')
+            'PopTitle', parent=styles['Normal'], fontName=f_reg, fontSize=9.5, leading=13, textColor=colors.HexColor('#0F172A')
         )
         sec_title_style = ParagraphStyle(
-            'PopSecTitle', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=10, leading=14, textColor=colors.HexColor('#0F172A'), spaceBefore=10, spaceAfter=4
+            'PopSecTitle',
+            parent=styles['Heading2'],
+            fontName=f_bold,
+            fontSize=tam_base + 1,
+            leading=tam_base + 5,
+            textColor=colors.HexColor('#0F172A'),
+            spaceBefore=12,
+            spaceAfter=6,
+            borderWidth=1,
+            borderColor=colors.HexColor('#0E7490'),
+            borderPadding=3,
+        )
+        sub_title_style = ParagraphStyle(
+            'PopSubTitle',
+            parent=styles['Normal'],
+            fontName=f_bold,
+            fontSize=tam_base,
+            leading=tam_base + 4,
+            textColor=colors.HexColor('#0E7490'),
+            spaceBefore=7,
+            spaceAfter=3,
         )
         body_style = ParagraphStyle(
-            'PopBodyText', parent=styles['Normal'], fontName='Helvetica', fontSize=9.5, leading=14, textColor=colors.HexColor('#1E293B')
+            'PopBodyText',
+            parent=styles['Normal'],
+            fontName=f_reg,
+            fontSize=tam_base,
+            leading=tam_base + 4.5,
+            textColor=colors.HexColor('#1E293B'),
+            spaceAfter=3,
+        )
+        bullet_style = ParagraphStyle(
+            'PopBulletText',
+            parent=body_style,
+            leftIndent=14,
+            firstLineIndent=-8,
+            spaceAfter=2.5,
+        )
+        formula_style = ParagraphStyle(
+            'PopFormulaText',
+            parent=body_style,
+            fontName=f_ital,
+            leftIndent=10,
+            rightIndent=10,
+            backColor=colors.HexColor('#F8FAFC'),
+            borderColor=colors.HexColor('#0E7490'),
+            borderWidth=0.6,
+            borderPadding=6,
+            spaceBefore=4,
+            spaceAfter=6,
+        )
+        th_style = ParagraphStyle(
+            'PopTH', parent=styles['Normal'], fontName=f_bold, fontSize=max(8, tam_base - 1), leading=tam_base + 2, textColor=colors.HexColor('#FFFFFF')
+        )
+        td_style = ParagraphStyle(
+            'PopTD', parent=styles['Normal'], fontName=f_reg, fontSize=max(8, tam_base - 1), leading=tam_base + 2, textColor=colors.HexColor('#1E293B')
         )
 
+        # Mantém a tabela inicial com Código, Título, Versão, Elaborado por e Status
         header_data = [
             [Paragraph("<b>PROCEDIMENTO OPERACIONAL PADRÃO (POP)</b>", title_style), Paragraph(f"<b>CÓDIGO:</b> {codigo}", title_style)],
             [Paragraph(f"<b>Título:</b> {titulo}", title_style), Paragraph(f"<b>Versão:</b> {versao}", title_style)],
@@ -454,36 +522,124 @@ def gerar_pdf_pop(pop_dict):
         ]
         t_header = Table(header_data, colWidths=[360, 180])
         t_header.setStyle(TableStyle([
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#475569')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('PADDING', (0,0), (-1,-1), 6),
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#475569')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('PADDING', (0, 0), (-1, -1), 6),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8FAFC')),
         ]))
         story.append(t_header)
-        story.append(Spacer(1, 14))
+        story.append(Spacer(1, 10))
+
+        def formatar_inline(texto):
+            # Protege caracteres especiais (<, >, &) para não quebrar o parser XML do PDF
+            s = str(texto).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            # Restaura tags simples permitidas se digitadas em HTML
+            s = re.sub(r'&lt;u&gt;(.*?)&lt;/u&gt;', r'<u>\1</u>', s)
+            s = re.sub(r'&lt;sub&gt;(.*?)&lt;/sub&gt;', r'<sub>\1</sub>', s)
+            s = re.sub(r'&lt;sup&gt;(.*?)&lt;/sup&gt;', r'<super>\1</super>', s)
+            # Converte Markdown para formatação vetorial
+            s = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', s)
+            s = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', s)
+            s = re.sub(r'_\{(.+?)\}', r'<sub>\1</sub>', s)
+            s = re.sub(r'\^\{(.+?)\}', r'<super>\1</super>', s)
+            return s
+
+        def renderizar_conteudo_rico(conteudo_bruto):
+            linhas = str(conteudo_bruto).split('\n')
+            i = 0
+            while i < len(linhas):
+                linha_strip = linhas[i].strip()
+
+                if not linha_strip:
+                    story.append(Spacer(1, 4))
+                    i += 1
+                    continue
+
+                # 1. Bloco de Tabela Markdown (| col1 | col2 |)
+                if linha_strip.startswith('|') and '|' in linha_strip[1:]:
+                    linhas_tabela = []
+                    while i < len(linhas) and linhas[i].strip().startswith('|'):
+                        l_tab = linhas[i].strip()
+                        # Ignora a linha separadora | --- | --- |
+                        if not re.match(r'^\|[\s\-\:\|]+\|$', l_tab):
+                            celulas = [c.strip() for c in l_tab.strip('|').split('|')]
+                            linhas_tabela.append(celulas)
+                        i += 1
+
+                    if linhas_tabela:
+                        max_cols = max(len(r) for r in linhas_tabela)
+                        dados_rl = []
+                        for r_idx, row in enumerate(linhas_tabela):
+                            row_pad = row + [""] * (max_cols - len(row))
+                            estilo_celula = th_style if r_idx == 0 else td_style
+                            dados_rl.append([Paragraph(formatar_inline(c), estilo_celula) for c in row_pad])
+
+                        largura_col = 540.0 / max_cols
+                        t_bloco = Table(dados_rl, colWidths=[largura_col] * max_cols, repeatRows=1)
+                        t_bloco.setStyle(TableStyle([
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0E7490')),
+                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#FFFFFF'), colors.HexColor('#F8FAFC')]),
+                            ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor('#475569')),
+                            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                            ('PADDING', (0, 0), (-1, -1), 5),
+                        ]))
+                        story.append(Spacer(1, 4))
+                        story.append(t_bloco)
+                        story.append(Spacer(1, 6))
+                    continue
+
+                # 2. Subtítulo de Etapa (### Título ou Etapa A:)
+                if linha_strip.startswith('### ') or re.match(r'^Etapa\s+[A-Z0-9]+:', linha_strip, re.IGNORECASE):
+                    txt_sub = linha_strip[4:] if linha_strip.startswith('### ') else linha_strip
+                    story.append(Paragraph(formatar_inline(txt_sub), sub_title_style))
+                    i += 1
+                    continue
+
+                # 3. Bloco de Fórmula / Cálculo destacado (> texto)
+                if linha_strip.startswith('> '):
+                    grupo_quote = []
+                    while i < len(linhas) and linhas[i].strip().startswith('> '):
+                        grupo_quote.append(formatar_inline(linhas[i].strip()[2:]))
+                        i += 1
+                    story.append(Paragraph("<br/>".join(grupo_quote), formula_style))
+                    continue
+
+                # 4. Lista com marcadores (- item ou • item)
+                if linha_strip.startswith('- ') or linha_strip.startswith('• ') or linha_strip.startswith('* '):
+                    txt_item = linha_strip[2:].strip()
+                    story.append(Paragraph(f"•  {formatar_inline(txt_item)}", bullet_style))
+                    i += 1
+                    continue
+
+                # 5. Parágrafo normal
+                story.append(Paragraph(formatar_inline(linha_strip), body_style))
+                i += 1
 
         ref_txt = pop_dict.get("referencias", "-")
         if pop_dict.get("link_referencia"):
-            ref_txt += f"<br/><b>Link de Acesso:</b> <a href='{pop_dict.get('link_referencia')}'>{pop_dict.get('link_referencia')}</a>"
+            ref_txt += f"\n**Link de Acesso:** {pop_dict.get('link_referencia')}"
 
-        sections = [
-            ("1. OBJETIVO", pop_dict.get("objetivo", "")),
-            ("2. MATERIAIS E EQUIPAMENTOS", pop_dict.get("materiais", "")),
-            ("3. PROCEDIMENTO/PASSO A PASSO", pop_dict.get("passos", "")),
-            ("4. SEGURANÇA E EPIS", pop_dict.get("seguranca", "")),
-            ("5. REFERÊNCIAS BIBLIOGRÁFICAS E LINKS", ref_txt),
-        ]
+        sections = [("1. OBJETIVO", pop_dict.get("objetivo", ""))]
+        if pop_dict.get("fundamentacao", "").strip():
+            sections.append(("2. FUNDAMENTAÇÃO TEÓRICA E CÁLCULOS", pop_dict.get("fundamentacao", "")))
+            sections.append(("3. MATERIAIS, REAGENTES E EQUIPAMENTOS", pop_dict.get("materiais", "")))
+            sections.append(("4. PROCEDIMENTO / PASSO A PASSO", pop_dict.get("passos", "")))
+            sections.append(("5. SEGURANÇA E EPIs", pop_dict.get("seguranca", "")))
+            sections.append(("6. REFERÊNCIAS BIBLIOGRÁFICAS E LINKS", ref_txt))
+        else:
+            sections.append(("2. MATERIAIS, REAGENTES E EQUIPAMENTOS", pop_dict.get("materiais", "")))
+            sections.append(("3. PROCEDIMENTO / PASSO A PASSO", pop_dict.get("passos", "")))
+            sections.append(("4. SEGURANÇA E EPIs", pop_dict.get("seguranca", "")))
+            sections.append(("5. REFERÊNCIAS BIBLIOGRÁFICAS E LINKS", ref_txt))
 
-        import re
         for title, content in sections:
-            if content:
+            if content and str(content).strip():
                 story.append(Paragraph(title, sec_title_style))
-                # Converte o negrito do Markdown **texto** para <b>texto</b> do PDF
-                content_p = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', str(content))
-                content_p = content_p.replace('\n', '<br/>')
-                story.append(Paragraph(content_p, body_style))
+                renderizar_conteudo_rico(content)
                 story.append(Spacer(1, 4))
+
         doc.build(story)
         return buffer.getvalue()
     else:
@@ -2392,26 +2548,52 @@ else:
             tamanho_mm = DESTINOS_ETIQUETAS[dest_selecionado]
             qtd_etiquetas = st.number_input("Quantidade de Etiquetas", min_value=1, max_value=100, value=6)
             descricao = st.text_area("Descrição / Protocolo", value="Amostra obtida via fermentação estado sólido. Tampão fosfato 0.1M pH 7.0.")
+            descricao = st.text_area("Descrição / Protocolo", value="Amostra obtida via fermentação estado sólido. Tampão fosfato 0.1M pH 7.0.")
+            modo_qr = st.radio(
+                "🖨️ Densidade do QR Code (Qualidade de Leitura)",
+                [
+                    "Compacto (Recomendado para Mini-Impressora)",
+                    "Apenas ID e Amostra (Ideal para Tubos Eppendorf)",
+                    "Completo (Todos os dados e descrição)"
+                ],
+                index=0
+            )
             gerar = st.button("Gerar Etiqueta QR Code", type="primary")
 
         with col_q:
             if gerar or id_amostra:
-                conteudo_qr = (
-                    f"📋 FICHA DA AMOSTRA\n"
-                    f"------------------------\n"
-                    f"• Código / ID: {id_amostra}\n"
-                    f"• Amostra / Reagente: {nome_amostra}\n"
-                    f"• Data de Obtenção: {data_obtencao.strftime('%d/%m/%Y')}\n"
-                    f"• Responsável: {responsavel_nome}\n"
-                    f"• Telefone do Responsável: {responsavel_tel}\n"
-                    f"• E-mail do Responsável: {responsavel_email}\n"
-                    f"• Local de Armazenamento: {localizacao}\n"
-                    f"------------------------\n"
-                    f"• Descrição / Protocolo:\n{descricao}"
-                )
+                if modo_qr.startswith("Apenas ID"):
+                    conteudo_qr = f"{id_amostra} | {nome_amostra[:25]}"
+                elif modo_qr.startswith("Compacto"):
+                    conteudo_qr = (
+                        f"ID: {id_amostra}\n"
+                        f"Amostra: {nome_amostra}\n"
+                        f"Data: {data_obtencao.strftime('%d/%m/%Y')}\n"
+                        f"Resp: {responsavel_nome}\n"
+                        f"Local: {localizacao}"
+                    )
+                else:
+                    conteudo_qr = (
+                        f"ID: {id_amostra}\n"
+                        f"Amostra: {nome_amostra}\n"
+                        f"Data: {data_obtencao.strftime('%d/%m/%Y')}\n"
+                        f"Resp: {responsavel_nome}\n"
+                        f"Tel: {responsavel_tel}\n"
+                        f"Email: {responsavel_email}\n"
+                        f"Local: {localizacao}\n"
+                        f"Obs: {descricao}"
+                    )
 
                 if QRCODE_DISPONIVEL:
-                    img = qrcode.make(conteudo_qr)
+                    qr_cfg = qrcode.QRCode(
+                        version=None,
+                        error_correction=qrcode.constants.ERROR_CORRECT_L,
+                        box_size=12,
+                        border=1,
+                    )
+                    qr_cfg.add_data(conteudo_qr)
+                    qr_cfg.make(fit=True)
+                    img = qr_cfg.make_image(fill_color="black", back_color="white").convert("RGB")
                     buffer = BytesIO()
                     img.save(buffer, format="PNG")
                     img_bytes = buffer.getvalue()
