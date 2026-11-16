@@ -769,149 +769,177 @@ if st.session_state.usuario_logado:
 
 # --- TELA DE LOGIN E CADASTRO ---
 if st.session_state.usuario_logado is None:
-    st.title("🧪 Central de Pesquisa - Controle de Acesso ⚗️")
+    st.markdown(
+        """
+        <style>
+        [data-testid="stVerticalBlockBorderWrapper"] {
+            background-color: #FFFFFF;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            padding: 8px 12px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    aba_login, aba_cadastro, aba_recuperar = st.tabs([
-        "Entrar no Sistema", 
-        "Solicitar Acesso", 
-        "🔑 Recuperar Senha"
-    ])
+    _, col_centro, _ = st.columns([1, 1.8, 1])
 
-    lista_orientadores_opts = ["Sem Orientador / Não se aplica"] + [
-        p["Nome"] for p in st.session_state.integrantes if p.get("Categoria") == "Orientador"
-    ]
+    with col_centro:
+        with st.container(border=True):
+            st.markdown(
+                f"""
+                <div style="text-align: center; padding: 10px 0 14px 0;">
+                    <div style="display: inline-block; background-color: {cor_bg_light}; color: {cor_primaria}; border: 1px solid {cor_border}; border-radius: 14px; padding: 8px 16px; font-size: 1.7rem; margin-bottom: 8px;">
+                        🧪 ⚗️
+                    </div>
+                    <h2 style="margin: 0; color: #0F172A; font-size: 1.45rem;">Central de Pesquisa</h2>
+                    <p style="margin: 4px 0 0 0; color: #64748B; font-size: 0.88rem;">Controle de Acesso ao Laboratório</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-    with aba_login:
-        st.subheader("Login")
-        with st.form("form_login"):
-            user_input = st.text_input("Usuário, E-mail ou Nome Completo")
-            senha_input = st.text_input("Senha", type="password")
-            btn_login = st.form_submit_button("Entrar", type="primary")
+            aba_login, aba_cadastro, aba_recuperar = st.tabs([
+                "Entrar no Sistema",
+                "Solicitar Acesso",
+                "🔑 Recuperar Senha"
+            ])
 
-            if btn_login:
-                usr_clean = user_input.strip().lower()
-                usuario_encontrado = None
+            lista_orientadores_opts = ["Sem Orientador / Não se aplica"] + [
+                p["Nome"] for p in st.session_state.integrantes if p.get("Categoria") == "Orientador"
+            ]
 
-                for u in st.session_state.usuarios:
-                    u_usr = str(u.get("usuario", "")).strip().lower()
-                    u_email = str(u.get("email", "")).strip().lower()
-                    u_nome = str(u.get("nome", "")).strip().lower()
+            with aba_login:
+                st.subheader("Login")
+                with st.form("form_login"):
+                    user_input = st.text_input("Usuário, E-mail ou Nome Completo")
+                    senha_input = st.text_input("Senha", type="password")
+                    btn_login = st.form_submit_button("Entrar", type="primary", use_container_width=True)
 
-                    if usr_clean in [u_usr, u_email, u_nome]:
-                        usuario_encontrado = u
-                        break
+                    if btn_login:
+                        usr_clean = user_input.strip().lower()
+                        usuario_encontrado = None
 
-                if usuario_encontrado:
-                    if usuario_encontrado["senha"] == senha_input:
-                        if usuario_encontrado["status"] == "Aprovado":
-                            st.session_state.usuario_logado = usuario_encontrado
-                            st.query_params["usr"] = usuario_encontrado["usuario"]
-                            st.success(f"Bem-vindo(a), {usuario_encontrado['nome']}!")
-                            st.rerun()
-                        elif usuario_encontrado["status"] == "Pendente":
-                            st.warning("⚠️ O seu cadastro está PENDENTE de aprovação.")
+                        for u in st.session_state.usuarios:
+                            u_usr = str(u.get("usuario", "")).strip().lower()
+                            u_email = str(u.get("email", "")).strip().lower()
+                            u_nome = str(u.get("nome", "")).strip().lower()
+
+                            if usr_clean in [u_usr, u_email, u_nome]:
+                                usuario_encontrado = u
+                                break
+
+                        if usuario_encontrado:
+                            if usuario_encontrado["senha"] == senha_input:
+                                if usuario_encontrado["status"] == "Aprovado":
+                                    st.session_state.usuario_logado = usuario_encontrado
+                                    st.query_params["usr"] = usuario_encontrado["usuario"]
+                                    st.toast(f"Bem-vindo(a), {usuario_encontrado['nome']}!", icon="👋")
+                                    st.rerun()
+                                elif usuario_encontrado["status"] == "Pendente":
+                                    st.warning("⚠️ O seu cadastro está PENDENTE de aprovação.")
+                                else:
+                                    st.error("❌ Sua solicitação de acesso foi recusada.")
+                            else:
+                                st.error("Senha incorreta.")
                         else:
-                            st.error("❌ Sua solicitação de acesso foi recusada.")
-                    else:
-                        st.error("Senha incorreta.")
-                else:
-                    st.error("Usuário não encontrado.")
+                            st.error("Usuário não encontrado.")
 
-    with aba_cadastro:
-        st.subheader("Pedir Permissão de Acesso")
-        with st.form("form_solicitar_acesso"):
-            novo_nome = st.text_input("Nome Completo *")
-            nova_categoria = st.selectbox("Categoria *", CATEGORIAS_PADRAO)
-            novo_orientador = st.selectbox("Orientador Responsável (se houver)", lista_orientadores_opts)
-            novo_vinculo = st.text_input("Vínculo / Curso *", "UFRRJ - Engenharia Química")
-            novo_telefone = st.text_input("Telefone para Contato *")
-            novo_email = st.text_input("E-mail para Contato *")
-            novo_usuario = st.text_input("Usuário Desejado *")
-            nova_senha = st.text_input("Criar Senha *", type="password")
-            btn_solicitar = st.form_submit_button("Enviar Solicitação")
+            with aba_cadastro:
+                st.subheader("Pedir Permissão de Acesso")
+                with st.form("form_solicitar_acesso"):
+                    novo_nome = st.text_input("Nome Completo *")
+                    nova_categoria = st.selectbox("Categoria *", CATEGORIAS_PADRAO)
+                    novo_orientador = st.selectbox("Orientador Responsável (se houver)", lista_orientadores_opts)
+                    novo_vinculo = st.text_input("Vínculo / Curso *", "UFRRJ - Engenharia Química")
+                    novo_telefone = st.text_input("Telefone para Contato *")
+                    novo_email = st.text_input("E-mail para Contato *")
+                    novo_usuario = st.text_input("Usuário Desejado *")
+                    nova_senha = st.text_input("Criar Senha *", type="password")
+                    btn_solicitar = st.form_submit_button("Enviar Solicitação", type="primary", use_container_width=True)
 
-            if btn_solicitar:
-                if not (novo_nome and novo_usuario and nova_senha and novo_vinculo and novo_telefone and novo_email):
-                    st.error("Por favor, preencha todos os campos obrigatórios (*).")
-                else:
-                    usr_clean = novo_usuario.strip().lower()
+                    if btn_solicitar:
+                        if not (novo_nome and novo_usuario and nova_senha and novo_vinculo and novo_telefone and novo_email):
+                            st.error("Por favor, preencha todos os campos obrigatórios (*).")
+                        else:
+                            usr_clean = novo_usuario.strip().lower()
 
-                    ja_aprovado = any(
-                        str(u.get("usuario", "")).strip().lower() == usr_clean and u.get("status") == "Aprovado"
-                        for u in st.session_state.usuarios
-                    )
+                            ja_aprovado = any(
+                                str(u.get("usuario", "")).strip().lower() == usr_clean and u.get("status") == "Aprovado"
+                                for u in st.session_state.usuarios
+                            )
 
-                    if ja_aprovado:
-                        st.error("Este nome de usuário pertence a uma conta ativa no sistema.")
-                    else:
-                        orient_val = "-" if novo_orientador.startswith("Sem Orientador") else novo_orientador
+                            if ja_aprovado:
+                                st.error("Este nome de usuário pertence a uma conta ativa no sistema.")
+                            else:
+                                orient_val = "-" if novo_orientador.startswith("Sem Orientador") else novo_orientador
 
-                        st.session_state.usuarios.append({
-                            "nome": novo_nome.strip(),
-                            "usuario": novo_usuario.strip(),
-                            "senha": nova_senha,
-                            "categoria": nova_categoria,
-                            "vinculo": novo_vinculo.strip(),
-                            "telefone": novo_telefone.strip(),
-                            "email": novo_email.strip(),
-                            "status": "Pendente",
-                            "is_admin": False,
-                            "orientador": orient_val,
-                            "coorientador": "-",
-                            "orientador_status": "Pendente" if orient_val != "-" else "Aprovado",
-                            "google_calendar_url": ""
-                        })
-                        salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+                                st.session_state.usuarios.append({
+                                    "nome": novo_nome.strip(),
+                                    "usuario": novo_usuario.strip(),
+                                    "senha": nova_senha,
+                                    "categoria": nova_categoria,
+                                    "vinculo": novo_vinculo.strip(),
+                                    "telefone": novo_telefone.strip(),
+                                    "email": novo_email.strip(),
+                                    "status": "Pendente",
+                                    "is_admin": False,
+                                    "orientador": orient_val,
+                                    "coorientador": "-",
+                                    "orientador_status": "Pendente" if orient_val != "-" else "Aprovado",
+                                    "google_calendar_url": ""
+                                })
+                                salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
 
-                        st.session_state.integrantes.append({
-                            "Nome": novo_nome.strip(),
-                            "Categoria": nova_categoria,
-                            "Vínculo": novo_vinculo.strip(),
-                            "Telefone": novo_telefone.strip(),
-                            "Email": novo_email.strip(),
-                            "DiasHorarios": "Não informado",
-                            "Lattes": "-",
-                            "Situação": "Pendente",
-                            "Orientador": orient_val,
-                            "Coorientador": "-",
-                            "OrientadorStatus": "Pendente" if orient_val != "-" else "Aprovado"
-                        })
-                        salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
+                                st.session_state.integrantes.append({
+                                    "Nome": novo_nome.strip(),
+                                    "Categoria": nova_categoria,
+                                    "Vínculo": novo_vinculo.strip(),
+                                    "Telefone": novo_telefone.strip(),
+                                    "Email": novo_email.strip(),
+                                    "DiasHorarios": "Não informado",
+                                    "Lattes": "-",
+                                    "Situação": "Pendente",
+                                    "Orientador": orient_val,
+                                    "Coorientador": "-",
+                                    "OrientadorStatus": "Pendente" if orient_val != "-" else "Aprovado"
+                                })
+                                salvar_dados(ARQUIVO_INTEGRANTES, st.session_state.integrantes)
 
-                        st.success("Solicitação enviada com sucesso! Aguarde a aprovação do Administrador.")
+                                st.success("Solicitação enviada com sucesso! Aguarde a aprovação do Administrador.")
 
-    with aba_recuperar:
-        st.subheader("🔑 Recuperação e Redefinição de Senha")
-        st.caption("Informe seu usuário ou e-mail cadastrado para redefinir a sua senha.")
-        with st.form("form_recuperar_senha"):
-            rec_identificador = st.text_input("Usuário ou E-mail Cadastrado *")
-            nova_senha_rec = st.text_input("Nova Senha *", type="password")
-            conf_senha_rec = st.text_input("Confirmar Nova Senha *", type="password")
-            btn_recuperar = st.form_submit_button("Redefinir Senha", type="primary")
+            with aba_recuperar:
+                st.subheader("🔑 Recuperação e Redefinição de Senha")
+                st.caption("Informe seu usuário ou e-mail cadastrado para redefinir a sua senha.")
+                with st.form("form_recuperar_senha"):
+                    rec_identificador = st.text_input("Usuário ou E-mail Cadastrado *")
+                    nova_senha_rec = st.text_input("Nova Senha *", type="password")
+                    conf_senha_rec = st.text_input("Confirmar Nova Senha *", type="password")
+                    btn_recuperar = st.form_submit_button("Redefinir Senha", type="primary", use_container_width=True)
 
-            if btn_recuperar:
-                if not rec_identificador.strip() or not nova_senha_rec:
-                    st.error("Preencha todos os campos obrigatórios (*).")
-                elif nova_senha_rec != conf_senha_rec:
-                    st.error("A confirmação da nova senha não coincide.")
-                else:
-                    ident_clean = rec_identificador.strip().lower()
-                    usr_alvo = next(
-                        (
-                            u for u in st.session_state.usuarios
-                            if str(u.get("usuario", "")).strip().lower() == ident_clean
-                            or str(u.get("email", "")).strip().lower() == ident_clean
-                        ),
-                        None,
-                    )
+                    if btn_recuperar:
+                        if not rec_identificador.strip() or not nova_senha_rec:
+                            st.error("Preencha todos os campos obrigatórios (*).")
+                        elif nova_senha_rec != conf_senha_rec:
+                            st.error("A confirmação da nova senha não coincide.")
+                        else:
+                            ident_clean = rec_identificador.strip().lower()
+                            usr_alvo = next(
+                                (
+                                    u for u in st.session_state.usuarios
+                                    if str(u.get("usuario", "")).strip().lower() == ident_clean
+                                    or str(u.get("email", "")).strip().lower() == ident_clean
+                                ),
+                                None,
+                            )
 
-                    if usr_alvo:
-                        usr_alvo["senha"] = nova_senha_rec
-                        salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
-                        st.success("✅ Senha redefinida com sucesso!")
-                    else:
-                        st.error("Nenhum usuário foi encontrado com este Usuário/E-mail.")
-
+                            if usr_alvo:
+                                usr_alvo["senha"] = nova_senha_rec
+                                salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
+                                st.success("✅ Senha redefinida com sucesso!")
+                            else:
+                                st.error("Nenhum usuário foi encontrado com este Usuário/E-mail.")
 # --- ÁREA LOGADA ---
 else:
     usuario_atual = st.session_state.usuario_logado
@@ -1113,7 +1141,7 @@ else:
                                         "data": datetime.now().strftime("%d/%m/%Y"),
                                     })
                                     salvar_dados(ARQUIVO_AVISOS, st.session_state.avisos_db)
-                                    st.success("Aviso publicado com sucesso!")
+                                    st.toast("Aviso publicado com sucesso!", icon="✅")
                                     st.rerun()
                                 else:
                                     st.error("Preencha o título e o conteúdo do aviso.")
@@ -1478,7 +1506,21 @@ else:
                         unsafe_allow_html=True,
                     )
                 with c2:
-                    st.write(cat_str)
+                    estilos_categoria = {
+                        "Orientador": ("#EDE9FE", "#5B21B6", "#DDD6FE"),
+                        "Pós-Doutorado": ("#FCE7F3", "#9D174D", "#FBCFE8"),
+                        "Doutorado": ("#DBEAFE", "#1E40AF", "#BFDBFE"),
+                        "Mestrado": ("#E0F2FE", "#0369A1", "#BAE6FD"),
+                        "Iniciação Científica": ("#CCFBF1", "#0F766E", "#99F6E4"),
+                        "Técnico / Pesquisador": ("#F1F5F9", "#334155", "#E2E8F0"),
+                    }
+                    bg_cat, txt_cat, brd_cat = estilos_categoria.get(cat_str, ("#F1F5F9", "#475569", "#E2E8F0"))
+                    st.markdown(
+                        f"<span style='background-color:{bg_cat}; color:{txt_cat}; border:1px solid {brd_cat}; "
+                        f"padding:3px 10px; border-radius:12px; font-weight:700; font-size:0.76rem; display:inline-block;'>"
+                        f"{cat_str}</span>",
+                        unsafe_allow_html=True,
+                    )
                 with c3:
                     st.write(vinc_str)
                 with c4:
@@ -3078,7 +3120,7 @@ else:
                             u["google_calendar_url"] = nova_url_gcal.strip()
                             break
                     salvar_dados(ARQUIVO_USUARIOS, st.session_state.usuarios)
-                    st.success("Link do Google Agenda salvo no seu perfil individual!")
+                    st.toast("Link do Google Agenda salvo no seu perfil!", icon="✅")
                     st.rerun()
 
             if url_gcal_atual:
