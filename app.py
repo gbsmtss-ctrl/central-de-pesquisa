@@ -1233,16 +1233,49 @@ else:
                 cols_dias = st.columns(7)
                 for i, dia in enumerate(semana):
                     if dia == 0:
-                        cols_dias[i].markdown("<div style='height:60px; background:#F1F5F9; border-radius:6px; margin:2px;'></div>", unsafe_allow_html=True)
+                        cols_dias[i].markdown(
+                            "<div style='height:96px; background:#F1F5F9; border-radius:6px; margin:2px;'></div>",
+                            unsafe_allow_html=True
+                        )
                     else:
-                        evs_dia = eventos_mes.get(dia, [])
-                        bolinhas = "".join([f"<span style='color:{e.get('cor','#0284C7')}; font-size:1.2rem; line-height:1;'>●</span>" for e in evs_dia])
-                        bg_style = f"background:{cor_bg_light}; border:1px solid {cor_border};" if dia == datetime.now().day and mes_sel == mes_atual and ano_sel == ano_atual else "background:white; border:1px solid #E2E8F0;"
+                        evs_dia = sorted(eventos_mes.get(dia, []), key=lambda x: x.get("hora_inicio", ""))
+                        etiquetas_html = ""
+                        for e in evs_dia[:2]:
+                            cor_e = e.get("cor", "#0284C7")
+                            hora_e = e.get("hora_inicio", "")
+                            tit_e = str(e.get("titulo", "")).replace('"', "&quot;").replace("'", "&#39;")
+                            desc_e = str(e.get("descricao", "")).replace('"', "&quot;").replace("'", "&#39;")
+                            tooltip = f"{hora_e} - {tit_e}" + (f" ({desc_e})" if desc_e else "")
+                            etiquetas_html += (
+                                f"<div title='{tooltip}' style='background-color:{cor_e}; color:#FFFFFF; "
+                                f"font-size:0.68rem; font-weight:600; padding:1px 5px; border-radius:4px; "
+                                f"margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>"
+                                f"{hora_e} {tit_e}</div>"
+                            )
+                        if len(evs_dia) > 2:
+                            etiquetas_html += (
+                                f"<div style='font-size:0.66rem; font-weight:700; color:#64748B; "
+                                f"margin-top:2px; padding-left:2px;'>+{len(evs_dia) - 2} mais</div>"
+                            )
+
+                        is_hoje = (dia == datetime.now().day and mes_sel == mes_atual and ano_sel == ano_atual)
+                        bg_style = (
+                            f"background:{cor_bg_light}; border:1.5px solid {cor_border};"
+                            if is_hoje
+                            else "background:#FFFFFF; border:1px solid #E2E8F0;"
+                        )
+                        dia_badge = (
+                            f"<span style='background:{cor_primaria}; color:#FFFFFF; border-radius:50%; "
+                            f"padding:1px 6px; font-size:0.75rem;'>{dia}</span>"
+                            if is_hoje
+                            else f"<span>{dia}</span>"
+                        )
+
                         cols_dias[i].markdown(
                             f"""
-                            <div style='height:60px; {bg_style} border-radius:6px; padding:4px; margin:2px;'>
-                                <div style='font-weight:bold; font-size:0.8rem; color:#334155;'>{dia}</div>
-                                <div style='margin-top:2px;'>{bolinhas}</div>
+                            <div style='height:96px; {bg_style} border-radius:6px; padding:4px; margin:2px; overflow:hidden;'>
+                                <div style='font-weight:bold; font-size:0.8rem; color:#334155; margin-bottom:2px;'>{dia_badge}</div>
+                                {etiquetas_html}
                             </div>
                             """,
                             unsafe_allow_html=True
