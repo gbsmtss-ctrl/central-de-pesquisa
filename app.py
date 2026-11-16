@@ -2548,7 +2548,6 @@ else:
             tamanho_mm = DESTINOS_ETIQUETAS[dest_selecionado]
             qtd_etiquetas = st.number_input("Quantidade de Etiquetas", min_value=1, max_value=100, value=6)
             descricao = st.text_area("Descrição / Protocolo", value="Amostra obtida via fermentação estado sólido. Tampão fosfato 0.1M pH 7.0.")
-            descricao = st.text_area("Descrição / Protocolo", value="Amostra obtida via fermentação estado sólido. Tampão fosfato 0.1M pH 7.0.")
             modo_qr = st.radio(
                 "🖨️ Densidade do QR Code (Qualidade de Leitura)",
                 [
